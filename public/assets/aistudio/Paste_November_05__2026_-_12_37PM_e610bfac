@@ -1,0 +1,1362 @@
+# MASTER PROMPT — TOKVAN ENTERPRISE PLATFORM
+## Google AI Studio · Full-Stack SaaS · EVM Tokenization · AI-Ready Architecture
+
+### 0. ROL Y MISIÓN
+
+Actúa simultáneamente como un equipo de ingeniería de nivel empresarial integrado por:
+
+- Principal Software Architect.
+- Senior Full-Stack Engineer.
+- Enterprise SaaS Architect.
+- Blockchain EVM Architect.
+- Smart Contract Security Engineer.
+- Application Security Architect.
+- Senior UX/UI Product Designer.
+- Database Architect.
+- AI Systems Architect.
+- DevSecOps Engineer.
+- QA Automation Lead.
+
+Tu misión es **DISEÑAR Y COMENZAR A CONSTRUIR TOKVAN**, una plataforma SaaS empresarial para consultoría, creación, simulación, aprobación, emisión, gestión y supervisión de activos digitales sobre redes blockchain compatibles con EVM.
+
+**INSTRUCCIÓN CRÍTICA: No entregues únicamente documentación, pseudocódigo o una landing page. Genera una aplicación web navegable, con componentes reutilizables, arquitectura organizada, pantallas funcionales y una base técnica extensible.**
+
+Distingue explícitamente entre funcionalidades implementadas, demostraciones simuladas, integraciones pendientes y capacidades preparadas arquitectónicamente.
+
+Nunca representes una operación blockchain simulada como una transacción real.
+
+---
+
+# 1. IDENTIDAD Y POSICIONAMIENTO
+
+Nombre comercial: TOKVAN.
+
+Descriptor: Consultoría y Tokenización.
+
+Origen institucional: Paraguay.
+
+Proyección: Internacional.
+
+Concepto de marca: "Tecnología que transforma activos en oportunidades digitales".
+
+TOKVAN no es una token factory ni una plataforma de especulación con criptomonedas.
+
+Es una infraestructura empresarial que permite a organizaciones transformar proyectos de activos digitales en operaciones trazables, controladas, supervisadas y sujetas a aprobación.
+
+El producto debe comunicar:
+
+- Confianza institucional.
+- Seguridad.
+- Innovación responsable.
+- Precisión operativa.
+- Transparencia.
+- Escalabilidad.
+- Claridad para personas no técnicas.
+
+Referencias de experiencia empresarial: Salesforce, SAP, HubSpot, Fireblocks y Tokeny.
+
+No copiar interfaces, marcas, componentes propietarios ni elementos visuales de estas empresas.
+
+Diseñar una identidad original y reconocible.
+
+Idioma principal: Español.
+
+Preparar internacionalización mediante un sistema i18n compatible con español e inglés.
+
+Utilizar español profesional latinoamericano, evitando tecnicismos innecesarios.
+
+---
+
+# 2. BRAND DESIGN SYSTEM
+
+## 2.1 Logo
+
+Utilizar la imagen de TOKVAN adjunta como referencia visual obligatoria.
+
+Respetar:
+
+- Geometría del isotipo azul.
+- Logotipo TOKVAN.
+- Proporciones originales.
+- Identidad minimalista.
+- Personalidad tecnológica corporativa.
+
+No deformar, reinterpretar ni regenerar incorrectamente el logotipo.
+
+Si el archivo no puede utilizarse directamente, crear un componente preparado para incorporar el logo original como asset externo.
+
+## 2.2 Paleta corporativa
+
+Establecer tokens visuales centralizados.
+
+Colores iniciales propuestos:
+
+- Brand Primary: #316BFA
+- Brand Secondary: #7096FF
+- Brand Background Dark: #0B0D12
+- Dark Surface: #141A27
+- Light Background: #F5F7FB
+- White Surface: #FFFFFF
+- Primary Text Dark: #F8FAFC
+- Primary Text Light: #172033
+- Muted Text: #9BA6BD
+- Border Dark: #273246
+- Border Light: #E2E8F0
+
+Colores semánticos reservados:
+
+- Success: verde moderado.
+- Warning: ámbar.
+- Error: rojo sobrio.
+- Info: azul corporativo.
+
+Respetar contraste accesible WCAG AA.
+
+No utilizar colores semánticos como decoración indiscriminada.
+
+## 2.3 Dirección artística
+
+Estilo:
+
+Enterprise Fintech + Institutional Web3 + Premium SaaS.
+
+Características:
+
+- Composición minimalista.
+- Amplio espacio en blanco.
+- Jerarquías tipográficas claras.
+- Tarjetas limpias.
+- Bordes sutiles.
+- Radios moderados.
+- Microinteracciones elegantes.
+- Iconografía lineal.
+- Gráficos profesionales.
+- Animaciones discretas.
+- Excelente legibilidad.
+
+Tipografías recomendadas:
+
+- Inter para interfaz y contenido.
+- Manrope para titulares institucionales.
+
+No utilizar estética cyberpunk, neones excesivos, gráficos financieros falsos, monedas flotantes ni fondos visualmente saturados.
+
+Priorizar la claridad sobre el espectáculo visual.
+
+## 2.4 Experiencia de navegación
+
+Implementar:
+
+- Layout responsive.
+- Menú lateral corporativo.
+- Navegación superior contextual.
+- Breadcrumbs.
+- Estados activos.
+- Estados de carga.
+- Estados vacíos.
+- Mensajes de error.
+- Confirmaciones.
+- Tooltips.
+- Modales.
+- Tablas con búsqueda y filtros.
+- Indicadores de estado.
+- Accesibilidad por teclado.
+- Formularios con validación.
+- Ayuda contextual.
+
+Diseñar primero para escritorio, sin descuidar tablet y móvil.
+
+La interfaz debe sentirse como software empresarial de alta calidad.
+
+---
+
+# 3. OBJETIVO FUNCIONAL DEL PRODUCTO
+
+TOKVAN permitirá a empresas sin conocimientos técnicos:
+
+1. Explorar posibilidades de tokenización.
+2. Describir el activo o proyecto que desean tokenizar.
+3. Crear una propuesta preliminar.
+4. Registrarse como organización.
+5. Configurar un proyecto.
+6. Seleccionar red blockchain.
+7. Comprender los estándares disponibles.
+8. Configurar parámetros contractuales.
+9. Obtener asistencia de IA.
+10. Simular escenarios.
+11. Validar configuraciones.
+12. Presentar documentación.
+13. Solicitar revisiones.
+14. Obtener aprobaciones.
+15. Autorizar despliegues.
+16. Consultar contratos desplegados.
+17. Administrar activos y operaciones.
+18. Consultar auditorías.
+19. Supervisar actividad y riesgos.
+20. Retomar proyectos pausados.
+
+La experiencia debe ocultar complejidad técnica sin ocultar consecuencias importantes.
+
+Nunca presentar una acción irreversible como algo trivial.
+
+---
+
+# 4. ARQUITECTURA TÉCNICA OBJETIVO
+
+Crear un monorepo modular, preparado para crecimiento empresarial.
+
+Stack tecnológico objetivo:
+
+Frontend:
+- Next.js.
+- React.
+- TypeScript estricto.
+- Tailwind CSS.
+- Componentes accesibles y reutilizables.
+- React Hook Form.
+- Zod.
+- TanStack Query.
+
+Backend:
+- NestJS.
+- TypeScript.
+- API REST documentada mediante OpenAPI.
+- Arquitectura modular.
+- Validación server-side.
+- Políticas centralizadas de autorización.
+
+Base de datos:
+- PostgreSQL.
+- Prisma ORM o alternativa justificada.
+- Migraciones versionadas.
+- Restricciones de integridad.
+- Aislamiento multi-tenant.
+
+Almacenamiento:
+- Amazon S3 o Cloudflare R2.
+- URLs firmadas de corta duración.
+- Control de permisos.
+- Versionado de archivos.
+- Escaneo de archivos.
+
+Blockchain:
+- Solidity.
+- OpenZeppelin.
+- Foundry.
+- viem.
+- Adaptadores EVM por cadena.
+- Indexación mediante Subsquid o The Graph, según necesidades reales.
+
+Infraestructura:
+- Docker.
+- Variables de entorno validadas.
+- Gestión de secretos.
+- CI/CD.
+- Observabilidad.
+- Logs estructurados.
+- Sentry.
+- OpenTelemetry donde corresponda.
+
+Servicios adicionales cuando se justifiquen:
+- Redis.
+- Cola de trabajos.
+- Outbox transaccional.
+- Workers de indexación.
+- Servicio de notificaciones.
+- Motor de políticas y aprobaciones.
+
+No introducir microservicios innecesariamente.
+
+Preferir inicialmente un monolito modular bien diseñado, preparado para extraer servicios más adelante.
+
+## 4.1 Restricción de Google AI Studio
+
+Google AI Studio puede utilizar un entorno de ejecución distinto del stack empresarial definitivo.
+
+Si alguna tecnología solicitada no funciona directamente en el entorno de previsualización:
+
+1. No sustituir silenciosamente el stack solicitado.
+2. Explicar la incompatibilidad.
+3. Construir la mejor implementación funcional compatible.
+4. Preservar interfaces y contratos preparados para el backend objetivo.
+5. Documentar los adaptadores temporales.
+6. Evitar dependencias irreversibles del entorno de prototipado.
+7. No declarar implementada una integración que no existe.
+
+La arquitectura objetivo y la implementación ejecutable deben mantenerse claramente diferenciadas.
+
+---
+
+# 5. ARQUITECTURA MULTI-TENANT
+
+Diseñar TOKVAN como plataforma multiempresa con aislamiento estricto.
+
+Cada organización tendrá:
+
+- Usuarios.
+- Membresías.
+- Roles.
+- Proyectos.
+- Documentos.
+- Contratos.
+- Despliegues.
+- Operaciones.
+- Aprobaciones.
+- Configuraciones.
+- Alertas.
+- Auditorías.
+
+Toda entidad empresarial deberá estar vinculada al tenant correspondiente.
+
+Aplicar:
+
+- Aislamiento por tenant.
+- Autorización en backend.
+- Filtros obligatorios por organización.
+- PostgreSQL Row Level Security cuando corresponda.
+- Pruebas automatizadas de aislamiento.
+- Restricciones de integridad.
+- Registros de acceso.
+- Validación de cambios de organización.
+
+El frontend nunca será fuente de autoridad sobre el tenant activo.
+
+Definir un contexto de tenant autenticado y confiable en cada solicitud.
+
+Prohibir acceso cruzado mediante manipulación de identificadores, parámetros o rutas.
+
+---
+
+# 6. IDENTIDAD, AUTENTICACIÓN Y AUTORIZACIÓN
+
+Implementar arquitectura de identidad empresarial.
+
+Considerar:
+
+- Login seguro.
+- Registro empresarial.
+- Verificación de correo.
+- Recuperación de acceso.
+- MFA obligatorio para operaciones sensibles.
+- Gestión de sesiones.
+- Revocación de sesiones.
+- Roles.
+- Permisos granulares.
+- Políticas de autorización.
+- Expiración de credenciales.
+- SSO empresarial como evolución futura.
+
+Roles internos TOKVAN:
+
+- Super Admin.
+- Technical Reviewer.
+- Compliance Reviewer.
+- Customer Success.
+- Support.
+
+Roles de empresa cliente:
+
+- Administrador.
+- Operador.
+- Aprobador.
+- Auditor.
+
+Diseñar una matriz completa de acciones por rol.
+
+Los permisos deben validarse en el backend para cada recurso y operación.
+
+Prohibir que personal de soporte pueda ver secretos o ejecutar operaciones sensibles sin autorización explícita.
+
+Separar roles internos, roles organizacionales y permisos temporales.
+
+Registrar modificaciones de permisos.
+
+Aplicar segregación de funciones para operaciones críticas.
+
+---
+
+# 7. REDES BLOCKCHAIN
+
+Diseñar compatibilidad con:
+
+- Ethereum.
+- Polygon.
+- Arbitrum.
+
+Construir una arquitectura de adaptadores que permita incorporar nuevas redes EVM sin reescribir los módulos de negocio.
+
+Cada red deberá definir:
+
+- Identificador de cadena.
+- Nombre.
+- RPC.
+- Explorer.
+- Moneda de gas.
+- Parámetros operativos.
+- Estado de disponibilidad.
+- Confirmaciones requeridas.
+- Configuraciones de red.
+- Compatibilidad contractual.
+
+Preparar uso de testnets apropiadas.
+
+Nunca utilizar fondos reales en demostraciones.
+
+No incluir claves privadas en código, frontend, logs ni prompts.
+
+---
+
+# 8. ESTÁNDARES CONTRACTUALES
+
+Soportar arquitectónicamente:
+
+- ERC-20.
+- ERC-721.
+- ERC-1155.
+- ERC-3643.
+
+Cada estándar tendrá:
+
+- Descripción educativa.
+- Casos de uso.
+- Formulario especializado.
+- Validaciones específicas.
+- Reglas de configuración.
+- Restricciones.
+- Simulación.
+- Análisis de riesgos.
+- Flujo de revisión.
+- Requisitos contractuales.
+- Plantillas versionadas.
+
+No tratar todos los estándares como un mismo formulario genérico.
+
+Para ERC-3643 contemplar identidad, elegibilidad, reglas de cumplimiento y controles de transferencia, sin presentar el cumplimiento legal como automático.
+
+Proporcionar una arquitectura extensible mediante un registro de estándares y sus respectivos esquemas de configuración.
+
+---
+
+# 9. CONTRACT TEMPLATE REGISTRY
+
+Crear un registro empresarial de plantillas contractuales.
+
+Cada plantilla deberá almacenar:
+
+- Identificador.
+- Estándar.
+- Versión.
+- Descripción.
+- Hash verificable.
+- Compilador.
+- Dependencias.
+- Estado.
+- Fecha.
+- Evidencia de auditoría.
+- Compatibilidad de redes.
+- Riesgos conocidos.
+- Historial de cambios.
+
+Estados sugeridos:
+
+- Draft.
+- Under Review.
+- Approved.
+- Certified.
+- Deprecated.
+- Revoked.
+
+El término "Certified" solo podrá utilizarse cuando exista un proceso real y evidencia verificable de certificación.
+
+No considerar una plantilla segura simplemente por estar en un repositorio interno.
+
+Prohibir modificaciones arbitrarias al bytecode aprobado.
+
+El despliegue deberá verificar que el artefacto corresponde exactamente a la versión autorizada.
+
+---
+
+# 10. MOTOR DE PROYECTOS
+
+Diseñar el núcleo funcional de TOKVAN.
+
+Estados posibles:
+
+- Borrador.
+- Preliminar.
+- En configuración.
+- Pendiente de documentos.
+- Listo para simulación.
+- Simulado.
+- En revisión.
+- Requiere correcciones.
+- Pendiente de aprobación.
+- Aprobado.
+- Listo para despliegue.
+- Despliegue en curso.
+- Desplegado.
+- Requiere atención.
+- Suspendido.
+- Archivado.
+
+Implementar una máquina de estados explícita.
+
+No permitir transiciones arbitrarias.
+
+Registrar actor, fecha, cambio y motivo.
+
+Preservar versiones y snapshots de configuración.
+
+Cada cambio significativo posterior a una aprobación debe invalidar las aprobaciones afectadas.
+
+---
+
+# 11. ASISTENTE DE CREACIÓN DE PROYECTOS
+
+Construir un wizard empresarial guiado.
+
+Pasos:
+
+1. Información general.
+2. Organización responsable.
+3. Activo o proyecto.
+4. Objetivo de tokenización.
+5. Jurisdicción.
+6. Estándar sugerido.
+7. Red blockchain.
+8. Configuración del token.
+9. Derechos y restricciones.
+10. Documentación.
+11. Simulación.
+12. Resumen de riesgos.
+13. Revisión final.
+
+El wizard debe:
+
+- Guardar progreso.
+- Permitir volver a pasos anteriores.
+- Validar cada sección.
+- Mostrar pasos completados.
+- Explicar decisiones.
+- Ofrecer ayuda contextual.
+- Evitar pérdida de información.
+- Mostrar consecuencias de cambios.
+- Recuperar borradores.
+
+Mostrar el porcentaje de avance como indicador de completitud, no como garantía de aprobación.
+
+---
+
+# 12. TOKVAN AI — DOS CAPAS
+
+## Capa A: Bot educativo
+
+Objetivo: ayudar a comprender conceptos.
+
+Capacidades:
+
+- Explicar blockchain.
+- Explicar tokenización.
+- Explicar estándares.
+- Explicar wallets.
+- Explicar redes.
+- Explicar gas.
+- Explicar riesgos.
+- Responder preguntas frecuentes.
+
+Restricciones:
+
+- Solo lectura.
+- Sin modificaciones.
+- Sin aprobaciones.
+- Sin firma.
+- Sin despliegue.
+- Sin autoridad operativa.
+
+Debe distinguir conocimiento general de información específica de cada proyecto.
+
+## Capa B: TOKVAN Advisor
+
+Objetivo: acompañar decisiones de configuración.
+
+Capacidades:
+
+- Interpretar objetivos.
+- Recomendar estándares.
+- Señalar inconsistencias.
+- Identificar configuraciones riesgosas.
+- Explicar alternativas.
+- Producir resúmenes.
+- Generar listas de verificación.
+- Identificar información faltante.
+
+Toda recomendación deberá indicar:
+
+- Motivo.
+- Supuestos.
+- Riesgos.
+- Datos utilizados.
+- Limitaciones.
+- Alternativas.
+
+El Advisor nunca podrá aprobar, firmar, ejecutar despliegues ni modificar parámetros de manera autónoma.
+
+Cualquier cambio sugerido requerirá confirmación humana y validación del backend.
+
+Proteger las herramientas de IA mediante permisos explícitos, controles de acceso por tenant, filtrado de datos y defensas contra prompt injection.
+
+Mantener registro de sesiones y recomendaciones sin exponer información confidencial innecesaria.
+
+---
+
+# 13. SEGURIDAD ZERO TRUST
+
+Diseñar seguridad por capas:
+
+- Navegador.
+- API.
+- Servicios internos.
+- Base de datos.
+- Proveedor de firma.
+- Smart contracts.
+- Infraestructura.
+
+Incluir:
+
+- RBAC y políticas granulares.
+- MFA.
+- Sesiones seguras.
+- Rate limiting.
+- Protección CSRF cuando corresponda.
+- Prevención XSS.
+- Validación de entradas.
+- Protección contra inyección SQL.
+- Secret management.
+- Encriptación en tránsito y reposo.
+- Registro de eventos.
+- Detección de anomalías.
+- Alertas.
+- Gestión de incidentes.
+- Protección contra replay.
+- Idempotencia.
+- Límites operativos.
+
+No almacenar seed phrases.
+
+Preferir proveedores institucionales de custodia, MPC, HSM o mecanismos equivalentes según el modelo operativo.
+
+No construir custodia institucional propia como funcionalidad inicial sin análisis especializado.
+
+---
+
+# 14. CONTRACT SECURITY LAYER
+
+Diseñar un firewall lógico previo al despliegue.
+
+Validaciones mínimas:
+
+- Dirección de contratos.
+- Dirección de administradores.
+- Roles privilegiados.
+- Suministro total.
+- Decimales.
+- Límites de emisión.
+- Permisos de mint y burn.
+- Restricciones de transferencia.
+- Pausabilidad.
+- Upgradeability.
+- Compatibilidad con red.
+- Versión de plantilla.
+- Hash de artefacto.
+- Configuración aprobada.
+- Cadena de aprobaciones.
+- Simulación de despliegue.
+- Riesgos contractuales conocidos.
+
+Producir un Security Assessment.
+
+Clasificación:
+
+- Informativo.
+- Bajo.
+- Medio.
+- Alto.
+- Crítico.
+
+Los resultados críticos bloquean el despliegue.
+
+Los controles deterministas deben ser la autoridad técnica.
+
+La IA puede aportar observaciones, pero no reemplaza validaciones, auditorías ni controles de seguridad.
+
+---
+
+# 15. MOTOR DE APROBACIONES
+
+Diseñar un workflow empresarial.
+
+Debe soportar:
+
+- Aprobación técnica.
+- Aprobación de compliance.
+- Aprobación empresarial.
+- Múltiples aprobadores.
+- Segregación de funciones.
+- Estados y vencimientos.
+- Rechazos.
+- Solicitudes de corrección.
+- Comentarios.
+- Historial.
+- Evidencia verificable.
+
+No permitir autoaprobaciones cuando exista conflicto de funciones.
+
+Una aprobación debe estar vinculada a una versión específica y a un hash de configuración.
+
+Si cambia el contenido relevante, reevaluar las aprobaciones.
+
+---
+
+# 16. DESPLIEGUE BLOCKCHAIN
+
+Implementar un flujo estructurado:
+
+1. Verificar autenticación.
+2. Verificar tenant.
+3. Verificar permisos.
+4. Verificar estado del proyecto.
+5. Validar plantilla.
+6. Verificar hash.
+7. Validar configuración.
+8. Ejecutar controles de seguridad.
+9. Confirmar aprobaciones.
+10. Estimar gas.
+11. Preparar transacción.
+12. Solicitar autorización de firma.
+13. Enviar transacción.
+14. Registrar identificador.
+15. Monitorear confirmaciones.
+16. Verificar resultado.
+17. Indexar contrato.
+18. Actualizar estado.
+19. Emitir notificación.
+20. Registrar auditoría.
+
+En la primera fase implementar exclusivamente una simulación explícitamente identificada.
+
+Separar el simulador de los proveedores de despliegue real.
+
+Prohibir despliegues en mainnet hasta completar controles, auditoría de contratos, gestión de claves y pruebas integrales.
+
+Diseñar manejo de errores, reintentos idempotentes, transacciones pendientes, reemplazos de transacción y reorganizaciones de cadena.
+
+---
+
+# 17. MODELO RELACIONAL
+
+Diseñar PostgreSQL con entidades relacionadas:
+
+Identidad:
+- users.
+- organizations.
+- organization_memberships.
+- roles.
+- permissions.
+- role_permissions.
+- sessions.
+- mfa_factors.
+
+Comercial:
+- leads.
+- lead_interactions.
+- subscriptions.
+- plans.
+- payments.
+- invoices.
+
+Proyectos:
+- projects.
+- project_versions.
+- project_configurations.
+- project_documents.
+- project_state_transitions.
+- project_collaborators.
+
+Contratos:
+- contract_templates.
+- template_versions.
+- template_audits.
+- contract_instances.
+- contract_configurations.
+- deployments.
+- blockchain_transactions.
+- indexed_events.
+
+Aprobaciones:
+- approval_workflows.
+- approval_steps.
+- approval_requests.
+- approval_decisions.
+
+Seguridad:
+- audit_events.
+- security_alerts.
+- risk_assessments.
+- incidents.
+- security_policies.
+- policy_decisions.
+
+Inteligencia artificial:
+- advisor_sessions.
+- advisor_messages.
+- advisor_recommendations.
+- knowledge_sources.
+
+Operaciones:
+- notifications.
+- background_jobs.
+- integration_connections.
+- webhooks.
+- idempotency_keys.
+
+Definir:
+
+- Claves primarias y foráneas.
+- Índices.
+- Restricciones.
+- Campos obligatorios.
+- Timestamps.
+- Soft delete donde sea apropiado.
+- Relaciones.
+- Políticas de retención.
+- Reglas multi-tenant.
+- Migraciones.
+
+Generar esquema SQL o Prisma real cuando el entorno lo permita.
+
+Incluir un diagrama ER mediante Mermaid.
+
+Evitar tablas decorativas que no correspondan a un modelo implementable.
+
+---
+
+# 18. ESTRUCTURA DE INTERFAZ
+
+Construir las siguientes áreas.
+
+## A. Sitio institucional
+
+Páginas:
+
+- Inicio.
+- Plataforma.
+- Soluciones.
+- Cómo funciona.
+- Seguridad.
+- Tokenización.
+- Estándares.
+- Nosotros.
+- Contacto.
+
+Landing premium, con hero de alto impacto y CTA:
+
+"Explorar tokenización"
+
+CTA secundario:
+
+"Hablar con un especialista"
+
+Incluir secciones educativas, proceso simplificado, diferenciadores y preguntas frecuentes.
+
+No inventar certificaciones, cifras de clientes, alianzas ni garantías de rentabilidad.
+
+## B. Captura comercial
+
+Crear flujo:
+
+"¿Qué desea tokenizar?"
+
+Campos:
+
+- Sector.
+- País.
+- Tipo de activo.
+- Objetivo.
+- Volumen estimado.
+- Nivel de experiencia.
+- Datos de contacto, con consentimiento apropiado.
+
+Mostrar una orientación inicial.
+
+Permitir generar proyecto preliminar.
+
+## C. Registro empresarial
+
+Crear:
+
+- Registro.
+- Inicio de sesión.
+- Recuperación de cuenta.
+- Registro de organización.
+- Invitación de miembros.
+- Selección de organización.
+
+## D. Dashboard empresarial
+
+Menú lateral:
+
+- Resumen.
+- Mis proyectos.
+- Nuevo proyecto.
+- Activos digitales.
+- Contratos.
+- Simulaciones.
+- Aprobaciones.
+- Documentos.
+- Operaciones.
+- Seguridad.
+- TOKVAN Advisor.
+- Mi organización.
+- Configuración.
+
+Dashboard con:
+
+- Proyectos activos.
+- Proyectos pendientes.
+- Contratos desplegados.
+- Revisiones requeridas.
+- Alertas operativas.
+- Actividad reciente.
+- Accesos rápidos.
+- Estado por proyecto.
+
+Si los datos son ficticios, mostrar claramente "Datos de demostración".
+
+## E. Panel administrativo TOKVAN
+
+Separado lógicamente del área cliente.
+
+Menú:
+
+- Vista global.
+- Organizaciones.
+- Usuarios.
+- Leads.
+- Proyectos.
+- Revisiones técnicas.
+- Compliance.
+- Aprobaciones.
+- Plantillas contractuales.
+- Despliegues.
+- Redes.
+- Seguridad.
+- Incidentes.
+- Auditorías.
+- Pagos.
+- Configuración.
+
+El Super Admin no debe tener acceso irrestricto a secretos ni poder eludir controles de aprobación.
+
+Las acciones administrativas sensibles también requieren auditoría y autorización.
+
+---
+
+# 19. DISEÑO UX DE LAS PANTALLAS
+
+Para cada pantalla desarrollar:
+
+- Objetivo.
+- Público.
+- Componentes.
+- Estados.
+- Validaciones.
+- Acciones disponibles.
+- Mensajes de error.
+- Estados vacíos.
+- Permisos requeridos.
+- Navegación.
+- Comportamiento responsive.
+
+Estándares:
+
+- Diseño consistente.
+- Componentes reutilizables.
+- Accesibilidad.
+- Contraste.
+- Jerarquía.
+- Feedback inmediato.
+- Prevención de errores.
+- Confirmaciones de acciones críticas.
+
+El usuario debe comprender qué está haciendo y qué consecuencias tienen sus decisiones.
+
+---
+
+# 20. SIMULADOR DE TOKENIZACIÓN
+
+Crear un módulo de simulación interactivo.
+
+Debe permitir:
+
+- Elegir estándar.
+- Elegir red.
+- Ajustar parámetros.
+- Ver un resumen.
+- Analizar restricciones.
+- Mostrar posibles costos estimativos.
+- Simular distribución de tokens cuando corresponda.
+- Visualizar permisos.
+- Revisar advertencias.
+- Comparar escenarios.
+
+Toda simulación debe mostrar los supuestos utilizados.
+
+Las estimaciones de gas deben distinguir valores obtenidos de red y valores ilustrativos.
+
+No prometer rendimiento financiero.
+
+No interpretar la simulación como garantía de viabilidad legal, técnica o económica.
+
+---
+
+# 21. CUMPLIMIENTO Y JURISDICCIONES
+
+Diseñar una arquitectura configurable por jurisdicción.
+
+TOKVAN tiene origen en Paraguay, pero proyección internacional.
+
+No asumir que una tokenización es legal por utilizar blockchain.
+
+Considerar potencialmente:
+
+- KYC.
+- KYB.
+- AML.
+- Listas de sanciones.
+- Restricciones de inversores.
+- Privacidad de datos.
+- Condiciones de custodia.
+- Regulaciones aplicables a valores o activos.
+- Requisitos documentales.
+
+Estas capacidades deben quedar sujetas a configuración y revisión profesional en cada jurisdicción.
+
+No declarar cumplimiento regulatorio automático.
+
+---
+
+# 22. SISTEMA DE REANUDACIÓN
+
+Implementar borradores persistentes.
+
+Generar un ID de proyecto compatible con un formato como:
+
+TOKVAN-PY-2027-000145
+
+Este valor es un ejemplo de estructura, no un proyecto existente.
+
+Soportar recuperación mediante:
+
+- Cuenta autenticada.
+- Email verificado.
+- Enlace seguro con expiración.
+- Referencia de proyecto.
+- Wallet vinculada y verificada mediante firma, en una fase posterior.
+
+El ID público por sí solo nunca otorgará acceso a un proyecto.
+
+Aplicar controles de autenticación, autorización y protección contra enumeración.
+
+---
+
+# 23. API Y CONTRATOS DE SERVICIO
+
+Definir APIs versionadas.
+
+Dominios:
+
+- Auth.
+- Organizations.
+- Users.
+- Permissions.
+- Projects.
+- Project Versions.
+- Documents.
+- Templates.
+- Networks.
+- Simulations.
+- Approvals.
+- Deployments.
+- Transactions.
+- Advisor.
+- Leads.
+- Payments.
+- Alerts.
+- Audits.
+- Admin.
+
+Generar contratos OpenAPI.
+
+Aplicar:
+
+- Validación de requests.
+- Respuestas estandarizadas.
+- Autorización.
+- Paginación.
+- Filtrado.
+- Ordenamiento.
+- Rate limiting.
+- Idempotencia en mutaciones sensibles.
+- Correlation IDs.
+- Manejo consistente de errores.
+
+---
+
+# 24. OBSERVABILIDAD
+
+Diseñar monitoreo empresarial:
+
+- Métricas de API.
+- Latencia.
+- Errores.
+- Salud de servicios.
+- Disponibilidad de RPC.
+- Trabajos fallidos.
+- Transacciones pendientes.
+- Intentos de acceso anómalos.
+- Cambios de permisos.
+- Fallos de autorización.
+- Estado de indexadores.
+- Auditoría de actividad.
+
+Considerar OpenTelemetry y Sentry.
+
+Excluir secretos y datos sensibles de logs.
+
+Separar logging técnico, auditoría de seguridad y eventos de negocio.
+
+Preparar políticas de retención y exportación.
+
+---
+
+# 25. ROADMAP DE IMPLEMENTACIÓN
+
+Dividir el producto en fases verificables.
+
+## Fase 1 — Fundación y MVP visual funcional
+
+Construir:
+
+- Design system TOKVAN.
+- Landing institucional.
+- Navegación.
+- Dashboard empresarial.
+- Vista administrativa.
+- Creación guiada de proyectos.
+- Catálogo educativo de estándares.
+- Simulador demostrativo.
+- Vista de aprobaciones.
+- Vista de seguridad.
+- Bot educativo.
+- Advisor como asistente orientativo.
+- Datos de demostración correctamente identificados.
+
+Priorizar una aplicación navegable y visualmente terminada.
+
+## Fase 2 — Backend empresarial
+
+Implementar:
+
+- API NestJS.
+- PostgreSQL.
+- Autenticación.
+- Organizaciones.
+- Roles.
+- Permisos.
+- Persistencia real.
+- Auditoría.
+- Gestión documental.
+
+## Fase 3 — Gobernanza
+
+Implementar:
+
+- Plantillas versionadas.
+- Motor de aprobaciones.
+- Controles de seguridad.
+- Gestión de incidentes.
+- Evaluaciones de riesgo.
+- Integraciones de compliance.
+
+## Fase 4 — Blockchain controlada
+
+Implementar:
+
+- Contratos auditados.
+- Adaptadores EVM.
+- Simulaciones técnicas.
+- Testnets.
+- Firma controlada.
+- Despliegue autorizado.
+- Indexación.
+- Monitoreo de transacciones.
+
+## Fase 5 — Enterprise
+
+Implementar:
+
+- SSO.
+- Políticas avanzadas.
+- Organizaciones complejas.
+- Custodia institucional integrada.
+- Integraciones empresariales.
+- Reportes avanzados.
+- SLA y observabilidad empresarial.
+
+## Fase 6 — IA avanzada
+
+Incorporar:
+
+- Recuperación de conocimiento contextual.
+- Recomendaciones explicables.
+- Detección asistida de inconsistencias.
+- Automatizaciones supervisadas.
+- Agentes especializados con permisos limitados.
+
+Nunca otorgar autoridad autónoma a agentes IA para aprobar, firmar o desplegar.
+
+---
+
+# 26. ENTREGABLES ARQUITECTÓNICOS
+
+Mantener documentación estructurada con:
+
+1. Arquitectura funcional.
+2. Arquitectura técnica.
+3. Arquitectura de seguridad.
+4. Arquitectura de IA.
+5. Arquitectura blockchain.
+6. Modelo relacional.
+7. Diagrama entidad-relación.
+8. Catálogo de APIs.
+9. Flujo del usuario.
+10. Flujo administrativo.
+11. Flujo de aprobaciones.
+12. Flujo de despliegue.
+13. Recuperación de errores.
+14. Monitoreo.
+15. Roadmap.
+16. Riesgos y mitigaciones.
+17. Alcance MVP.
+18. Alcance Enterprise.
+19. Estrategia de agentes IA.
+20. Plan de escalabilidad.
+
+Guardar preferentemente en archivos Markdown versionados.
+
+Incluir diagramas Mermaid.
+
+Justificar decisiones técnicas relevantes mediante pequeños Architecture Decision Records (ADR).
+
+---
+
+# 27. REGLAS DE IMPLEMENTACIÓN
+
+Prioridad absoluta:
+
+**Construir una aplicación consistente, mantenible y verificable.**
+
+Reglas:
+
+1. No generar todo el sistema como un archivo gigante.
+2. No crear componentes monolíticos.
+3. Usar estructura de carpetas clara.
+4. Separar presentación, dominio, servicios e infraestructura.
+5. Centralizar tokens visuales.
+6. Centralizar permisos.
+7. Utilizar tipos estrictos.
+8. Validar formularios.
+9. Evitar dependencias innecesarias.
+10. No hardcodear secretos.
+11. No utilizar wallets ni fondos reales en modo demo.
+12. No crear endpoints sensibles sin autorización.
+13. No simular una seguridad que no está implementada.
+14. No confundir un prototipo con una plataforma auditada.
+15. No crear certificaciones ficticias.
+16. No omitir estados de error.
+17. No sustituir silenciosamente tecnologías.
+18. No romper funcionalidades existentes al agregar módulos.
+19. Preparar pruebas automatizadas.
+20. Documentar lo pendiente.
+
+Las acciones simuladas deben estar identificadas y no deben afectar recursos externos.
+
+---
+
+# 28. CRITERIOS DE CALIDAD
+
+La primera versión será aceptable cuando:
+
+- La aplicación arranque correctamente.
+- El logo se muestre sin deformaciones.
+- La identidad visual sea consistente.
+- Las rutas principales funcionen.
+- El dashboard sea navegable.
+- Exista un flujo guiado de proyecto.
+- Los formularios validen correctamente.
+- Los cambios de pasos no hagan perder datos.
+- Las tablas tengan contenido demostrativo coherente.
+- Los estados estén representados correctamente.
+- El simulador explique sus supuestos.
+- Las aprobaciones no se puedan saltar mediante la interfaz.
+- Las funcionalidades simuladas estén señalizadas.
+- No aparezcan errores de compilación.
+- El diseño sea responsive.
+- El código sea mantenible.
+- Exista documentación técnica inicial.
+
+Además, incluir una lista explícita de controles todavía no implementados.
+
+---
+
+# 29. INSTRUCCIÓN DE EJECUCIÓN INMEDIATA
+
+Comienza ahora con la FASE 1.
+
+No te limites a explicar el proyecto.
+
+**GENERA EL CÓDIGO Y LA INTERFAZ FUNCIONAL.**
+
+Orden de trabajo:
+
+1. Inspecciona el entorno disponible de Google AI Studio.
+2. Define la estructura inicial del proyecto.
+3. Crea los tokens del design system.
+4. Integra el logo adjunto.
+5. Implementa layout global y navegación.
+6. Construye la landing institucional.
+7. Construye el dashboard empresarial.
+8. Construye el wizard de proyectos.
+9. Implementa las vistas de estándares y simulación.
+10. Construye el panel administrativo.
+11. Implementa datos de demostración tipados.
+12. Agrega estados, validaciones y feedback.
+13. Verifica que la aplicación compile.
+14. Corrige errores.
+15. Documenta las decisiones y limitaciones.
+
+Prioriza que la aplicación visual funcione antes de implementar integraciones complejas.
+
+No ejecutar transacciones blockchain reales.
+
+No crear conexiones a sistemas de producción sin autorización expresa.
+
+Cuando el contexto o las capacidades del entorno sean insuficientes, completa una unidad funcional coherente y registra el siguiente paso en un documento de continuidad.
+
+**RESULTADO DESEADO:**
+
+Una primera versión visualmente premium, modular, navegable y funcional de TOKVAN, con arquitectura empresarial documentada, preparada para evolucionar hacia una plataforma SaaS real y segura de tokenización de activos digitales.
+
+La experiencia debe transmitir que TOKVAN es una infraestructura tecnológica seria, confiable y preparada para atender organizaciones empresariales internacionales.
+
+Comienza la implementación ahora.

@@ -1,0 +1,6 @@
+{
+  "name": "TOKVAN — Consultoría y Tokenización de Activos Digitales EVM",
+  "description": "Plataforma SaaS empresarial para consultoría, estructuración, simulación, aprobación colegiada y supervisión de activos tokenizados sobre redes EVM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
