@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { TopBar } from './components/navigation/TopBar';
 import { LandingPage } from './components/landing/LandingPage';
 import { LeadCaptureModal } from './components/landing/LeadCaptureModal';
@@ -15,6 +15,8 @@ import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
 import { TokenProject, OrganizationTenant, LeadSubmission } from './types';
+
+const ERC20FactoryView = lazy(() => import('./components/factory/ERC20FactoryView'));
 
 export default function App() {
   const [currentView, setCurrentView] = useState<string>('landing');
@@ -148,6 +150,8 @@ export default function App() {
                   ? 'Expedientes de Emisión'
                   : currentView === 'wizard'
                   ? 'Asistente de Tokenización'
+                  : currentView === 'factory'
+                  ? 'Factory ERC-20'
                   : currentView === 'simulator'
                   ? 'Simulador EVM'
                   : currentView === 'standards'
@@ -216,6 +220,10 @@ export default function App() {
               setCurrentView('dashboard');
             }}
           />
+        )}
+
+        {currentView === 'factory' && (
+          <Suspense fallback={<p className="p-8">Cargando factory…</p>}><ERC20FactoryView projects={projects} /></Suspense>
         )}
 
         {currentView === 'simulator' && (

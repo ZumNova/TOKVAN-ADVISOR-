@@ -70,7 +70,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             Gobernanza, Dictámenes y Autorización de Despliegue
           </h1>
           <p className="text-xs text-[#9BA6BD] mt-1">
-            Ningún contrato puede desplegarse en testnet ni mainnet sin el consenso y firma criptográfica de los tres roles independientes.
+            Sandbox: estos dictámenes son simulados. El factory ERC-20 exige tres aprobaciones reales on-chain antes de permitir la emisión.
           </p>
         </div>
 

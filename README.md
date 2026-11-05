@@ -29,3 +29,15 @@ npm run preview
 - Rama de producción: `main`
 
 La versión actual usa datos y respuestas de IA simulados. No requiere claves de API para compilar ni ejecuta transacciones blockchain reales.
+
+## Factory ERC-20 v1
+
+Abrir **Factory ERC-20** desde la barra superior. Incluye contratos Solidity con tres aprobaciones independientes, preparador de transacciones para Sepolia y pruebas de integración en Anvil.
+
+Ver [arquitectura, pruebas y despliegue](docs/ERC20_FACTORY.md). Los contratos aún no están desplegados en una red pública.
+
+```bash
+npm run contracts:build
+npm run contracts:test
+npm run test:factory
+```
