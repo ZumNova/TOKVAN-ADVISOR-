@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import FactoryDeploymentPanel from './FactoryDeploymentPanel';
 import type { TokenProject } from '../../types';
 import { prepareFactoryRequest, projectBlockers, requestJson, type FactoryInput } from '../../lib/erc20Factory';
 
@@ -53,12 +54,13 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
         <h1 className="text-3xl font-bold mt-2">Factory de tokens</h1>
         <p className="mt-3 text-slate-300">Configure la emisión, prepare la revisión y obtenga las transacciones para crear su token.</p>
       </div>
+      <FactoryDeploymentPanel onDeployed={address => update('factory', address)} />
       <ol className="grid sm:grid-cols-3 gap-3 text-sm">
         {['1. Configurar emisión', '2. Aprobar con tres cuentas', '3. Crear desde la cuenta operadora'].map(step => <li className="p-4 rounded-xl bg-[#141A27] border border-[#273246]" key={step}>{step}</li>)}
       </ol>
       <p className="text-sm rounded-xl border border-amber-700/50 bg-amber-950/20 p-4 text-amber-200">
         Preparador de transacciones. El factory debe estar desplegado en Sepolia. Las aprobaciones del sandbox no autorizan emisiones reales.
-        Esta pantalla no envía transacciones ni marca tokens como desplegados. Contratos v1 sin auditoría externa.
+        Puede desplegar el factory con su wallet. La creación de tokens se prepara para revisión y firma posterior. Contratos v1 sin auditoría externa.
       </p>
       <div className="rounded-2xl bg-[#141A27] border border-[#273246] p-5 space-y-5">
         <label className="block text-sm">Origen de los parámetros

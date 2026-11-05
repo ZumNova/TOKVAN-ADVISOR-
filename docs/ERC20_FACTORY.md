@@ -8,7 +8,7 @@
 4. La cuenta operadora simula `createToken(projectId, config)` con `eth_call`, revisa gas y envía la transacción.
 5. Confirmar el receipt y leer `TokenCreated` / `tokenByProject`. Sólo entonces existe el token.
 
-El preparador no solicita firmas ni transmite transacciones. Los dictámenes del sandbox son demostrativos y no modifican aprobaciones on-chain. El JSON es un paquete de revisión, no el formato de importación de Safe Transaction Builder: usar sus campos `to`, `value` y `data` con una wallet compatible o el ABI con una multisig.
+El panel de despliegue conecta la wallet del navegador y permite firmar la creación del factory en Sepolia desde A047. La emisión de tokens sigue usando el preparador de transacciones. Los dictámenes del sandbox son demostrativos y no modifican aprobaciones on-chain. El JSON es un paquete de revisión, no el formato de importación de Safe Transaction Builder: usar sus campos `to`, `value` y `data` con una wallet compatible o el ABI con una multisig.
 
 ## Contratos
 
@@ -65,4 +65,17 @@ Repetir con las cuentas de Compliance y Directorio. Para revocar, usar `false`. 
 
 ## Estado de esta entrega
 
-Implementación y pruebas locales. No se han desplegado contratos en una red pública. La web sigue siendo una demo de gestión con un preparador funcional; no persiste expedientes en un backend ni gestiona firmas reales desde el navegador.
+Implementación y pruebas locales. No se han desplegado contratos en una red pública. La web sigue siendo una demo de gestión con un preparador funcional; no persiste expedientes en un backend. El despliegue del factory se firma desde la wallet del navegador; las aprobaciones y creación de tokens siguen fuera de la UI.
+
+## Despliegue desde la wallet del navegador
+
+1. Abrir **Factory ERC-20** y conectar la cuenta `0x521125be95c5679539aB07582F55F0040975A047`.
+2. Cambiar a Sepolia, pulsar **Estimar despliegue** y revisar participantes y costo.
+3. Pulsar **Firmar y desplegar factory** y revisar/confirmar la transacción en la wallet.
+4. Pulsar **Verificar confirmación** tras su inclusión. La dapp verifica receipt exitoso, remitente, calldata exacto y existencia de código antes de usar la dirección.
+
+La cuenta A047 paga el despliegue y conserva su rol Técnico. El operador sigue siendo 8A25. La configuración pública está en `deployment/sepolia-participants.json`. No contiene claves. El hash se guarda en localStorage con versión y puede comprobarse tras recargar; no es un registro global compartido entre dispositivos. No desplegar otra vez desde otro navegador mientras haya un envío pendiente. Si se acelera o reemplaza una transacción desde la wallet, conservar el nuevo hash y comprobarla en el explorador antes de reintentar.
+
+La pantalla utiliza la wallet inyectada (`window.ethereum`); no incluye WalletConnect ni selección de múltiples extensiones. Un cambio de cuenta o red invalida la estimación. Las comisiones finales se revisan en la wallet.
+
+El artefacto público de compilación está en `src/generated/factoryArtifact.json`. Tras cambiar Solidity, ejecutar `npm run contracts:export` y `npm run test:factory` para comprobar que el bytecode web coincide con Foundry.

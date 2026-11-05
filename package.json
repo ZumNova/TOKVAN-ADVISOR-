@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "contracts:build": "forge build",
     "contracts:test": "forge test",
-    "test:factory": "tsx --test test/erc20Factory.test.ts"
+    "test:factory": "tsx --test test/erc20Factory.test.ts test/factoryWallet.test.ts",
+    "contracts:export": "forge build && node scripts/export-factory.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

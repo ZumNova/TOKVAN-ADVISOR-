@@ -1,0 +1,10 @@
+{
+  "chainId": 11155111,
+  "participants": {
+    "technicalReviewer": "0x521125be95c5679539aB07582F55F0040975A047",
+    "complianceReviewer": "0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24",
+    "boardReviewer": "0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D",
+    "operator": "0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25"
+  },
+  "deployer": "0x521125be95c5679539aB07582F55F0040975A047"
+}
