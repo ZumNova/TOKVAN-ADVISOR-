@@ -13,7 +13,8 @@
     "contracts:test": "forge test",
     "test:factory": "tsx --test test/erc20Factory.test.ts test/factoryWallet.test.ts test/tokenJournal.test.ts test/tokenManagement.test.ts",
     "contracts:export": "forge build && node scripts/export-factory.mjs",
-    "test:erc721": "tsx --test test/erc721Workflow.test.ts"
+    "test:erc721": "tsx --test test/erc721Workflow.test.ts",
+    "test:nft-media": "tsx --test test/nftMedia.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

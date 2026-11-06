@@ -9,7 +9,7 @@ La sección Factories separa ERC-20, ERC-721, ERC-1155 y ERC-3643. Los últimos 
 3. Revise `TOKVAN-SEPOLIA-NFT-001`, nombre `TOKVAN NFT Test`, símbolo `TKNFT`, administradora A047 y máximo histórico 100. Pulse **Preparar para revisión**.
 4. Simule y confirme la aprobación desde **A047**, después **FB24** y **1E8D**. Verifique cada confirmación y actualice el estado al cambiar de cuenta. Las tres deben aprobar exactamente los mismos parámetros.
 5. Cambie a **8A25**, actualice el estado y cree la colección. Verifique su confirmación.
-6. Regrese a **A047**, actualice y emita un NFT a la wallet elegida. La URI de prueba ya está cargada. Revise la operación, firme y verifique para obtener el ID.
+6. Regrese a **A047**, actualice y emita un NFT a la wallet elegida. Cargue imagen, nombre y descripción desde el panel; la integración con Pinata crea el JSON y completa la URI. Para activarla consulte [PINATA_NFT.md](./PINATA_NFT.md). También puede usar una URI existente en la opción avanzada. Revise la operación, firme y verifique para obtener el ID.
 7. Actualice la bitácora después de dos bloques y descargue su JSON. Puede probar pausa/reanudación y quema, con revisión antes de cada firma.
 
 El despliegue del factory no crea una colección ni emite NFTs. Cada paso consume gas Sepolia. Ninguna prueba automatizada usa ETH de la red pública. El factory todavía requiere la firma del usuario para desplegarse.
