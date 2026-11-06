@@ -132,7 +132,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
 
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3"><button onClick={() => onNavigate('factory')} className="px-3 py-2 text-xs font-semibold rounded-lg border border-[#316BFA] text-[#7096FF] whitespace-nowrap" aria-current={currentView === 'factory' ? 'page' : undefined}>Factory ERC-20</button></div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3"><button onClick={() => onNavigate('factory')} className="px-3 py-2 text-xs font-semibold rounded-lg border border-[#316BFA] text-[#7096FF] whitespace-nowrap" aria-current={currentView === 'factory' ? 'page' : undefined}>Factories</button></div>
     </header>
   );
 };

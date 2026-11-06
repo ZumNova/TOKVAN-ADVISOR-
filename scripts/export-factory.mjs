@@ -1,4 +1,6 @@
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
-const artifact = JSON.parse(readFileSync('out/TokvanERC20Factory.sol/TokvanERC20Factory.json', 'utf8'));
 mkdirSync('src/generated', {recursive:true});
-writeFileSync('src/generated/factoryArtifact.json', JSON.stringify({abi:artifact.abi, bytecode:artifact.bytecode.object}, null, 2)+'\n');
+for (const [contract, file] of [['TokvanERC20Factory','factoryArtifact'],['TokvanERC721Factory','erc721FactoryArtifact'],['TokvanERC721','erc721Artifact']]) {
+  const artifact = JSON.parse(readFileSync(`out/${contract}.sol/${contract}.json`, 'utf8'));
+  writeFileSync(`src/generated/${file}.json`, JSON.stringify({abi:artifact.abi, bytecode:artifact.bytecode.object}, null, 2)+'\n');
+}
