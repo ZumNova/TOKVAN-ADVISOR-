@@ -65,7 +65,7 @@ Repetir con las cuentas de Compliance y Directorio. Para revocar, usar `false`. 
 
 ## Estado de esta entrega
 
-Factory desplegado y verificado en Sepolia: `0x56C8f5CcBb52B9A7c3577fc797Cf1BB6c42028fd`. La emisión TKN está preparada y pendiente de las firmas del usuario. La pantalla permite aprobar, revocar y crear tokens mediante la wallet; el resto de la gestión de expedientes sigue siendo una demo sin backend. Ver [bitácora inicial](BITACORA_SEPOLIA.md).
+Factory desplegado y verificado en Sepolia: `0x56C8f5CcBb52B9A7c3577fc797Cf1BB6c42028fd`. TKN fue creado en `0x6B7Bf9902CcE9fD0b4b522Bc85a61446662e161A` (bloque 12077861). La pantalla permite aprobar, revocar y crear tokens mediante la wallet; el resto de la gestión de expedientes sigue siendo una demo sin backend. Ver [bitácora inicial](BITACORA_SEPOLIA.md).
 
 ## Despliegue desde la wallet del navegador
 
@@ -91,3 +91,15 @@ El artefacto público de compilación está en `src/generated/factoryArtifact.js
 El formulario preparado y los hashes pendientes se guardan localmente para retomar después de recargar. La bitácora confirmada se reconstruye desde eventos del factory en Sepolia, con consultas en bloques de 5.000 y un margen de dos bloques respecto de la cabecera del RPC. Las operaciones recientes pueden requerir esperar y sincronizar nuevamente. Requiere que el RPC de la wallet admita consultas históricas. Las aprobaciones consumidas dejan la máscara en cero; su historial permanece en los eventos.
 
 La firma es siempre del usuario. No se guardan claves privadas. Si se reemplaza/acelera una transacción, su hash original puede permanecer pendiente; revisar el historial de la wallet antes de volver a enviar. La bitácora on-chain mostrará los eventos de la transacción que efectivamente se incluya.
+
+## Quemar, pausar y reanudar desde el formulario
+
+Los botones **Quemar tokens** y **Pausar / Reanudar** están junto a **Preparar para revisión**. Abren una ventana explicativa; no envían transacciones al abrirla.
+
+1. Conectar wallet y consultar estado en Sepolia. El token se obtiene del registro `tokenByProject` del factory usando el expediente seleccionado, no de los parámetros editables del formulario.
+2. Para quemar, indicar una cantidad positiva del saldo propio (por defecto 1). La quema es irreversible y reduce saldo y supply.
+3. Para pausar/reanudar se comprueba PAUSER_ROLE; inicialmente A047. El texto y la acción cambian según el estado leído del contrato. La pausa bloquea transferencias, mint y burn.
+4. Simular, revisar gas y acción, confirmar en la wallet y verificar receipt/evento. Cuenta, red, saldo y permisos se revisan nuevamente antes de enviar.
+5. Sincronizar la bitácora después de dos bloques para ver la quema, pausa o reanudación confirmada. Los pendientes conservan su hash en el navegador.
+
+Pruebas locales cubren pausa/reanudación, bloqueo de transferencias y quemas, permisos, cambio de cuenta, cantidad exacta, saldo insuficiente, reducción de supply y eventos de bitácora. No se envían transacciones reales durante esas pruebas.

@@ -1,5 +1,6 @@
 import { Interface, getAddress, ZeroAddress, formatEther } from 'ethers';
 import artifact from '../generated/factoryArtifact.json';
+import {tokenInterface} from './tokenContract';
 import registry from '../../deployment/sepolia-registry.json';
 import { PARTICIPANTS, SEPOLIA_HEX, type WalletProvider } from './factoryWallet';
 import type { prepareFactoryRequest } from './erc20Factory';
@@ -86,9 +87,9 @@ export async function confirmTokenTransaction(wallet:WalletProvider, pending:Pen
   return 'confirmed';
 }
 export interface JournalEntry {
-  id:string;kind:'Factory'|'Aprobación'|'Revocación'|'Token';transactionHash:string;blockNumber:number;
+  id:string;kind:'Factory'|'Aprobación'|'Revocación'|'Token'|'Quema'|'Pausa'|'Reanudación';transactionHash:string;blockNumber:number;
   timestamp?:string;address:string;projectId?:string;digest?:string;admin?:string;treasury?:string;
-  tokenName?:string;tokenSymbol?:string;decimals?:number;initialSupplyBaseUnits?:string;maxSupplyBaseUnits?:string;
+  tokenName?:string;tokenSymbol?:string;decimals?:number;initialSupplyBaseUnits?:string;maxSupplyBaseUnits?:string;amountBaseUnits?:string;actor?:string;
 }
 export const FACTORY_JOURNAL_ENTRY:JournalEntry={id:registry.transactionHash,kind:'Factory',transactionHash:registry.transactionHash,blockNumber:registry.blockNumber,timestamp:registry.timestamp,address:registry.address};
 export function journalFromLogs(logs:ChainLog[]):JournalEntry[] {
@@ -101,6 +102,17 @@ export function journalFromLogs(logs:ChainLog[]):JournalEntry[] {
     if(event.name==='ApprovalChanged') entries.set(base.id,{...base,kind:event.args.approved?'Aprobación':'Revocación',address:getAddress(event.args.reviewer)});
   }
   return [...entries.values()].sort((a,b)=>a.blockNumber-b.blockNumber);
+}
+export function tokenOperationsFromLogs(logs:ChainLog[], token:JournalEntry):JournalEntry[] {
+  const entries=new Map<string,JournalEntry>();
+  for(const log of logs) {
+    if(log.removed||getAddress(log.address)!==getAddress(token.address))continue;
+    const event=tokenInterface.parseLog(log);if(!event)continue;
+    const base={id:`${log.transactionHash}:${log.logIndex}`,transactionHash:log.transactionHash,blockNumber:Number(BigInt(log.blockNumber)),address:token.address,projectId:token.projectId,tokenName:token.tokenName,tokenSymbol:token.tokenSymbol,decimals:token.decimals};
+    if(event.name==='Transfer'&&event.args.to===ZeroAddress&&event.args.from!==ZeroAddress)entries.set(base.id,{...base,kind:'Quema',amountBaseUnits:String(event.args.value),actor:getAddress(event.args.from)});
+    if(event.name==='Paused'||event.name==='Unpaused')entries.set(base.id,{...base,kind:event.name==='Paused'?'Pausa':'Reanudación',actor:getAddress(event.args.account)});
+  }
+  return [...entries.values()];
 }
 export async function readJournal(wallet:WalletProvider) {
   await assertSepolia(wallet);
@@ -124,7 +136,15 @@ export async function readJournal(wallet:WalletProvider) {
       entry.tokenName=config.name;entry.tokenSymbol=config.symbol;entry.decimals=Number(config.decimals);
       entry.initialSupplyBaseUnits=String(config.initialSupply);entry.maxSupplyBaseUnits=String(config.maxSupply);
     }
+    const operations:ChainLog[]=[];
+    for(let from=entry.blockNumber;from<=latest;from+=5000) {
+      await assertSepolia(wallet);
+      const batch=await wallet.request({method:'eth_getLogs',params:[{address:entry.address,fromBlock:'0x'+from.toString(16),toBlock:'0x'+Math.min(latest,from+4999).toString(16),topics:[[tokenInterface.getEvent('Transfer')!.topicHash,tokenInterface.getEvent('Paused')!.topicHash,tokenInterface.getEvent('Unpaused')!.topicHash]]}]});
+      if(!Array.isArray(batch))throw new Error('El RPC no devolvió operaciones válidas del token.');
+      operations.push(...batch);
+    }
+    entries.push(...tokenOperationsFromLogs(operations,entry));
   }
   await assertSepolia(wallet);
-  return [FACTORY_JOURNAL_ENTRY,...entries];
+  return [FACTORY_JOURNAL_ENTRY,...entries.sort((a,b)=>a.blockNumber-b.blockNumber)];
 }

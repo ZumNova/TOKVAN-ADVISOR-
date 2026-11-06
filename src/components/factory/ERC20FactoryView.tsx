@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FactoryDeploymentPanel from './FactoryDeploymentPanel';
 import TokenExecutionPanel from './TokenExecutionPanel';
 import FactoryJournal from './FactoryJournal';
+import TokenManagementDialog from './TokenManagementDialog';
 import { FACTORY_REGISTRY } from '../../lib/tokenWorkflow';
 import { DEPLOYER } from '../../lib/factoryWallet';
 import type { TokenProject } from '../../types';
@@ -22,6 +23,7 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
   const [input, setInput] = useState<FactoryInput>(() => savedDraft ?? {...defaults});
   const [journalRevision, setJournalRevision] = useState(0);
   const [selectedId, setSelectedId] = useState('');
+  const [managementMode, setManagementMode] = useState<'burn' | 'pause' | null>(null);
   const [result, setResult] = useState<ReturnType<typeof prepareFactoryRequest> | null>(() => savedDraft ? prepareFactoryRequest(savedDraft) : null);
   const [error, setError] = useState('');
   const project = projects.find(p => p.id === selectedId);
@@ -97,7 +99,11 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
             <label key={key} className="flex gap-2 text-sm items-center"><input type="checkbox" checked={input[key]} onChange={e => update(key, e.target.checked)} />{label}</label>)}</div>
           <p className="text-xs text-slate-400">El máximo limita el supply en circulación. La administradora recibe los roles habilitados y puede delegarlos.
             La pausa bloquea transferencias, emisión y quema. Sin upgrade, whitelist ni controles KYC on-chain en v1.</p>
-          <button disabled={blockers.length > 0} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold disabled:opacity-40">Preparar para revisión</button>
+          <div className="flex flex-wrap gap-3">
+            <button disabled={blockers.length > 0} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold disabled:opacity-40">Preparar para revisión</button>
+            <button type="button" onClick={() => setManagementMode('burn')} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold" aria-haspopup="dialog">Quemar tokens</button>
+            <button type="button" onClick={() => setManagementMode('pause')} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold" aria-haspopup="dialog">Pausar / Reanudar</button>
+          </div>
         </form>
       </div>
       {error && <p role="alert" className="text-red-300 break-words">{error}</p>}
@@ -111,6 +117,7 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
         <details><summary className="cursor-pointer">Ver transacciones y cantidades exactas</summary><pre className="mt-3 max-h-80 overflow-auto text-xs bg-[#0B0D12] p-3 rounded-lg">{requestJson(result)}</pre></details>
       </div>}
       <FactoryJournal revision={journalRevision} />
+      {managementMode && <TokenManagementDialog mode={managementMode} target={{factory:input.factory, projectReference:input.projectId}} onClose={() => setManagementMode(null)} onConfirmed={() => setJournalRevision(value => value + 1)} />}
     </section>
   );
 }

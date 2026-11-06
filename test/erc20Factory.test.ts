@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { setTimeout } from 'node:timers/promises';
 import { Contract, ContractFactory, JsonRpcProvider, ZeroAddress } from 'ethers';
+import {readManagedToken,simulateManagement,sendManagement,confirmManagement} from '../src/lib/tokenManagement';
+import {tokenInterface} from '../src/lib/tokenContract';
 import { PARTICIPANTS, type WalletProvider } from '../src/lib/factoryWallet';
 import { FACTORY_REGISTRY, readTokenState, sendTokenAction, confirmTokenTransaction, journalFromLogs, type ChainLog } from '../src/lib/tokenWorkflow';
 import { prepareFactoryRequest, requestJson, type FactoryInput } from '../src/lib/erc20Factory';
@@ -113,6 +115,37 @@ test('exported transactions execute full approval/create flow on a local Sepolia
     assert.equal(entries.filter(e=>e.kind==='Revocación').length,1);
     assert.equal(entries.filter(e=>e.kind==='Token').length,1);
     assert.equal(entries.find(e=>e.kind==='Token')!.address,finalState.token);
+    // Management operations use the actual deployed token, not editable form metadata.
+    for(const address of [input.admin,input.treasury]) {
+      await provider.send('anvil_impersonateAccount',[address]);
+      await provider.send('anvil_setBalance',[address,'0x56bc75e2d63100000']);
+    }
+    const target={factory:FACTORY_REGISTRY.address,projectReference:'TOKVAN-SEPOLIA-TKN-001'};
+    account=PARTICIPANTS.operator;
+    await assert.rejects(simulateManagement(wallet,target,'pause'),/permiso/);
+    account=input.admin;
+    const pauseReview=await simulateManagement(wallet,target,'pause');
+    account=input.treasury;
+    await assert.rejects(sendManagement(wallet,pauseReview));
+    account=input.admin;
+    const paused=await sendManagement(wallet,pauseReview);
+    assert.equal(await confirmManagement(wallet,paused),'confirmed');
+    assert.equal((await readManagedToken(wallet,target)).paused,true);
+    account=input.treasury;
+    await assert.rejects(simulateManagement(wallet,target,'burn','1'),/pausado/);
+    await assert.rejects(provider.call({from:input.treasury,to:finalState.token,data:tokenInterface.encodeFunctionData('transfer',[deployer.address,1n])}));
+    account=input.admin;
+    const resumed=await sendManagement(wallet,await simulateManagement(wallet,target,'unpause'));
+    assert.equal(await confirmManagement(wallet,resumed),'confirmed');
+    account=input.treasury;
+    const before=await readManagedToken(wallet,target);
+    const burned=await sendManagement(wallet,await simulateManagement(wallet,target,'burn','1'));
+    assert.equal(await confirmManagement(wallet,burned),'confirmed');
+    const after=await readManagedToken(wallet,target);
+    assert.equal(before.balance-after.balance,10n**18n);assert.equal(before.supply-after.supply,10n**18n);
+    await assert.rejects(simulateManagement(wallet,target,'burn','999999999999999999999999999999'),/suficientes/);
+    await assert.rejects(readManagedToken(wallet,{...target,projectReference:'nonexistent'}),/todavía/);
+
   } finally {
     provider.destroy(); process.kill('SIGTERM');
   }

@@ -19,7 +19,7 @@ Red: Sepolia, chain ID 11155111. Estándar actual: ERC-20.
 | Directorio | `0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D` |
 | Operador | `0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25` |
 
-## 002 · TOKVAN Test Token (TKN) — preparado, pendiente de firmas
+## 002 · TOKVAN Test Token (TKN) — confirmado
 
 - Expediente de prueba: `TOKVAN-SEPOLIA-TKN-001`.
 - Factory: el registro 001, reutilizado sin desplegar otro.
@@ -27,13 +27,18 @@ Red: Sepolia, chain ID 11155111. Estándar actual: ERC-20.
 - Supply inicial y máximo: 1.000.000 TKN (1000000000000000000000000 unidades mínimas).
 - Emisión adicional: deshabilitada; quema y pausa: habilitadas.
 - Administradora y tesorería: A047.
-- No existe una dirección o transacción de creación confirmada registrada en este documento todavía.
+- Contrato: `0x6B7Bf9902CcE9fD0b4b522Bc85a61446662e161A`.
+- Transacción: `0xb664266039e3413691f4d33931ee610ca03a2ece41cd5afa868283d387c82841`.
+- Bloque: 12077861.
+- Hash de emisión: `0xb5b73eaa2e64f033b6291ca95db0142fac90be4df6ccf812d6e24ca57ac276d1`.
+- Verificación del 06/11/2026: evento TokenCreated y registro tokenByProject coinciden; símbolo TKN, 18 decimales, supply 1.000.000, saldo de A047 999.990 TKN, pausa desactivada y permiso de pausa activo para A047.
+- El usuario confirmó una transferencia de 10 TKN a otra wallet. Las pruebas reales de pausa/reanudación y quema quedan pendientes de sus firmas.
 
-Estos son los valores precargados para revisar en la web. Si se modifican, prevalece la configuración aprobada on-chain y se requiere un nuevo hash de revisión.
+Estos son los parámetros de la emisión confirmada. Modificar el formulario no modifica este token ya desplegado.
 
 ## Bitácora operativa en la web
 
-En **Factory ERC-20 → Bitácora de Sepolia**, pulsar **Sincronizar bitácora** con una wallet en Sepolia. La web consulta `ApprovalChanged` y `TokenCreated` del factory desde el bloque 12072858. Registra hashes, bloques, revisores, revocaciones, contratos creados y parámetros de emisión. El historial confirmado puede reconstruirse desde cualquier navegador usando el mismo factory y descargarse como JSON.
+En **Factory ERC-20 → Bitácora de Sepolia**, pulsar **Sincronizar bitácora** con una wallet en Sepolia. La web consulta `ApprovalChanged` y `TokenCreated` del factory desde el bloque 12072858. Registra hashes, bloques, revisores, revocaciones, contratos creados, parámetros de emisión y eventos de quema, pausa y reanudación. El historial confirmado puede reconstruirse desde cualquier navegador usando el mismo factory y descargarse como JSON.
 
 Los pendientes y el formulario preparado se conservan sólo en localStorage. No son confirmaciones on-chain. Las aprobaciones sólo pasan a la bitácora confirmada al existir eventos en bloques; enviar una transacción no equivale a crear un token. Este documento es un registro inicial del repositorio; el historial posterior se consulta en la web/cadena y se exporta.
 

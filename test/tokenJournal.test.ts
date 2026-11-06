@@ -20,12 +20,12 @@ test('journal can be rebuilt without localStorage and includes TKN metadata',asy
   const wallet:WalletProvider={request:async({method,params})=>{
     if(method==='eth_chainId')return '0xaa36a7';
     if(method==='eth_blockNumber')return '0x'+(BigInt(log.blockNumber)+2n).toString(16);
-    if(method==='eth_getLogs') {logQueries++;assert.equal((params![0] as {address:string}).address,FACTORY_REGISTRY.address);return [log];}
+    if(method==='eth_getLogs') {logQueries++;return (params![0] as {address:string}).address===FACTORY_REGISTRY.address?[log]:[];}
     if(method==='eth_getTransactionByHash')return {to:FACTORY_REGISTRY.address,input:request.deployment.data};
     throw new Error('Unexpected RPC: '+method);
   }};
   const entries=await readJournal(wallet);
-  assert.equal(logQueries,1);assert.equal(entries.length,2);
+  assert.equal(logQueries,2);assert.equal(entries.length,2);
   assert.equal(entries[0].kind,'Factory');assert.equal(entries[1].tokenSymbol,'TKN');
   assert.equal(entries[1].initialSupplyBaseUnits,'1000000000000000000000000');assert.equal(entries[1].decimals,18);
 });

@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {formatUnits} from 'ethers';
 import {injectedWallet,walletError} from '../../lib/factoryWallet';
 import {FACTORY_REGISTRY,FACTORY_JOURNAL_ENTRY,readJournal,type JournalEntry} from '../../lib/tokenWorkflow';
 export default function FactoryJournal({revision}:{revision:number}) {
@@ -18,7 +19,7 @@ export default function FactoryJournal({revision}:{revision:number}) {
   };
   return <section className="rounded-2xl bg-[#141A27] border border-[#273246] p-5 space-y-4">
     <h2 className="text-xl font-semibold">Bitácora de Sepolia · ERC-20</h2>
-    <p className="text-sm text-slate-300">Factory registrado y eventos confirmados de aprobación, revocación y creación de tokens. La cadena conserva el historial; los envíos pendientes se guardan en este navegador. Se consultan eventos hasta dos bloques antes del último: después de confirmar, espere unos segundos y sincronice.</p>
+    <p className="text-sm text-slate-300">Factory registrado y eventos confirmados de aprobación, revocación, creación, quema, pausa y reanudación de tokens. La cadena conserva el historial; los envíos pendientes se guardan en este navegador. Se consultan eventos hasta dos bloques antes del último: después de confirmar, espere unos segundos y sincronice.</p>
     <div className="flex flex-wrap gap-3">
       <button disabled={busy} onClick={refresh} className="rounded-lg border border-[#316BFA] px-4 py-2 text-sm disabled:opacity-40">{busy?'Leyendo Sepolia…':'Sincronizar bitácora'}</button>
       <button onClick={download} className="rounded-lg border border-[#273246] px-4 py-2 text-sm">Descargar bitácora JSON</button>
@@ -28,6 +29,8 @@ export default function FactoryJournal({revision}:{revision:number}) {
       <div className="flex flex-wrap justify-between gap-2"><strong>{entry.kind} · {entry.tokenSymbol ?? 'ERC-20'}{entry.tokenName ? ` · ${entry.tokenName}` : ''}</strong><span className="text-green-300">Confirmado · bloque {entry.blockNumber}</span></div>
       <a className="block break-all text-[#7096FF] underline" href={`https://sepolia.etherscan.io/address/${entry.address}`} target="_blank" rel="noreferrer">{entry.address}</a>
       <a className="block break-all text-slate-300 underline" href={`https://sepolia.etherscan.io/tx/${entry.transactionHash}`} target="_blank" rel="noreferrer">Transacción: {entry.transactionHash}</a>
+      {entry.amountBaseUnits && entry.decimals !== undefined && <p>Quemados: {formatUnits(entry.amountBaseUnits,entry.decimals)} {entry.tokenSymbol}</p>}
+      {entry.actor && <p className="break-all">Wallet: {entry.actor}</p>}
       {entry.digest&&<p className="break-all text-slate-400">Emisión (hash): {entry.digest}</p>}
       {entry.projectId&&<p className="break-all text-slate-400">Expediente (hash): {entry.projectId}</p>}
       {entry.admin&&<p className="break-all">Administración: {entry.admin} · Tesorería: {entry.treasury}</p>}
