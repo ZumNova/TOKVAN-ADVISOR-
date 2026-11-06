@@ -34,7 +34,7 @@ La versión actual usa datos y respuestas de IA simulados. No requiere claves de
 
 Abrir **Factory ERC-20** desde la barra superior. Incluye contratos Solidity con tres aprobaciones independientes, preparador de transacciones para Sepolia y pruebas de integración en Anvil.
 
-Ver [arquitectura, pruebas y despliegue](docs/ERC20_FACTORY.md). Los contratos aún no están desplegados en una red pública.
+Ver [arquitectura, pruebas y despliegue](docs/ERC20_FACTORY.md). El factory está desplegado en Sepolia. Ver la [bitácora](docs/BITACORA_SEPOLIA.md). El panel permite emitir TKN con tres aprobaciones y firma del operador.
 
 ```bash
 npm run contracts:build

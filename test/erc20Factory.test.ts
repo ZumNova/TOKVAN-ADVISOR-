@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { setTimeout } from 'node:timers/promises';
 import { Contract, ContractFactory, JsonRpcProvider, ZeroAddress } from 'ethers';
+import { PARTICIPANTS, type WalletProvider } from '../src/lib/factoryWallet';
+import { FACTORY_REGISTRY, readTokenState, sendTokenAction, confirmTokenTransaction, journalFromLogs, type ChainLog } from '../src/lib/tokenWorkflow';
 import { prepareFactoryRequest, requestJson, type FactoryInput } from '../src/lib/erc20Factory';
 
 const input: FactoryInput = {
@@ -67,6 +69,50 @@ test('exported transactions execute full approval/create flow on a local Sepolia
     assert.equal(await token.totalSupply(), request.config.initialSupply);
     assert.equal(await token.balanceOf(input.treasury), request.config.initialSupply);
     await assert.rejects(provider.call({...request.deployment, from: operator.address}));
+
+    // Exercise the actual browser workflow with the configured roles on local Anvil only.
+    const configured = await new ContractFactory(artifact.abi, artifact.bytecode.object, deployer).deploy(...Object.values(PARTICIPANTS));
+    await configured.waitForDeployment();
+    await provider.send('anvil_setCode', [FACTORY_REGISTRY.address, await provider.getCode(await configured.getAddress())]);
+    for (const address of Object.values(PARTICIPANTS)) {
+      await provider.send('anvil_impersonateAccount', [address]);
+      await provider.send('anvil_setBalance', [address, '0x56bc75e2d63100000']);
+    }
+    let account = PARTICIPANTS.technicalReviewer;
+    const wallet: WalletProvider = {request: async ({method,params}) => method==='eth_accounts' ? [account] : provider.send(method,params??[])};
+    const liveRequest=prepareFactoryRequest({...input,projectId:'TOKVAN-SEPOLIA-TKN-001',factory:FACTORY_REGISTRY.address,name:'TOKVAN Test Token',symbol:'TKN'});
+    assert.equal((await readTokenState(wallet,liveRequest)).approvals,0);
+    await assert.rejects(sendTokenAction(wallet,liveRequest,'deployment',account),/Operador/);
+    account=PARTICIPANTS.operator;
+    await assert.rejects(sendTokenAction(wallet,liveRequest,'deployment',account),/Faltan/);
+    const allLogs: ChainLog[]=[];
+    const execute=async(action:'approval'|'revocation'|'deployment')=>{
+      const pending=await sendTokenAction(wallet,liveRequest,action,account);
+      assert.equal(await confirmTokenTransaction(wallet,pending),'confirmed');
+      const receipt=await provider.send('eth_getTransactionReceipt',[pending.hash]);
+      allLogs.push(...receipt.logs);
+      return pending;
+    };
+    for(const reviewer of [PARTICIPANTS.technicalReviewer,PARTICIPANTS.complianceReviewer,PARTICIPANTS.boardReviewer]) {
+      account=reviewer;await execute('approval');
+    }
+    assert.equal((await readTokenState(wallet,liveRequest)).approvals,7);
+    await assert.rejects(sendTokenAction(wallet,liveRequest,'approval',account),/ya aprobó/);
+    await execute('revocation');
+    assert.equal((await readTokenState(wallet,liveRequest)).approvals,3);
+    await execute('approval');
+    account=PARTICIPANTS.operator;
+    const altered=prepareFactoryRequest({...input,projectId:'TOKVAN-SEPOLIA-TKN-001',factory:FACTORY_REGISTRY.address,name:'Changed',symbol:'TKN'});
+    await assert.rejects(sendTokenAction(wallet,altered,'deployment',account),/Faltan/);
+    await execute('deployment');
+    const finalState=await readTokenState(wallet,liveRequest);
+    assert.notEqual(finalState.token,ZeroAddress);
+    await assert.rejects(sendTokenAction(wallet,liveRequest,'deployment',account),/ya tiene/);
+    const entries=journalFromLogs([...allLogs,...allLogs]);
+    assert.equal(entries.filter(e=>e.kind==='Aprobación').length,4);
+    assert.equal(entries.filter(e=>e.kind==='Revocación').length,1);
+    assert.equal(entries.filter(e=>e.kind==='Token').length,1);
+    assert.equal(entries.find(e=>e.kind==='Token')!.address,finalState.token);
   } finally {
     provider.destroy(); process.kill('SIGTERM');
   }

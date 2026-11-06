@@ -8,7 +8,7 @@
 4. La cuenta operadora simula `createToken(projectId, config)` con `eth_call`, revisa gas y envía la transacción.
 5. Confirmar el receipt y leer `TokenCreated` / `tokenByProject`. Sólo entonces existe el token.
 
-El panel de despliegue conecta la wallet del navegador y permite firmar la creación del factory en Sepolia desde A047. La emisión de tokens sigue usando el preparador de transacciones. Los dictámenes del sandbox son demostrativos y no modifican aprobaciones on-chain. El JSON es un paquete de revisión, no el formato de importación de Safe Transaction Builder: usar sus campos `to`, `value` y `data` con una wallet compatible o el ABI con una multisig.
+La pantalla conecta la wallet del navegador para aprobar, revocar y crear tokens contra el factory registrado. Cada acción se simula antes de abrir la solicitud de firma. Los dictámenes del sandbox son demostrativos y no modifican aprobaciones on-chain. El JSON es un paquete de revisión, no el formato de importación de Safe Transaction Builder: usar sus campos `to`, `value` y `data` con una wallet compatible o el ABI con una multisig.
 
 ## Contratos
 
@@ -65,7 +65,7 @@ Repetir con las cuentas de Compliance y Directorio. Para revocar, usar `false`. 
 
 ## Estado de esta entrega
 
-Implementación y pruebas locales. No se han desplegado contratos en una red pública. La web sigue siendo una demo de gestión con un preparador funcional; no persiste expedientes en un backend. El despliegue del factory se firma desde la wallet del navegador; las aprobaciones y creación de tokens siguen fuera de la UI.
+Factory desplegado y verificado en Sepolia: `0x56C8f5CcBb52B9A7c3577fc797Cf1BB6c42028fd`. La emisión TKN está preparada y pendiente de las firmas del usuario. La pantalla permite aprobar, revocar y crear tokens mediante la wallet; el resto de la gestión de expedientes sigue siendo una demo sin backend. Ver [bitácora inicial](BITACORA_SEPOLIA.md).
 
 ## Despliegue desde la wallet del navegador
 
@@ -79,3 +79,15 @@ La cuenta A047 paga el despliegue y conserva su rol Técnico. El operador sigue 
 La pantalla utiliza la wallet inyectada (`window.ethereum`); no incluye WalletConnect ni selección de múltiples extensiones. Un cambio de cuenta o red invalida la estimación. Las comisiones finales se revisan en la wallet.
 
 El artefacto público de compilación está en `src/generated/factoryArtifact.json`. Tras cambiar Solidity, ejecutar `npm run contracts:export` y `npm run test:factory` para comprobar que el bytecode web coincide con Foundry.
+
+## Prueba TKN desde el panel
+
+1. Usar **Nueva emisión ERC-20 de prueba · TKN**, revisar los parámetros y pulsar **Preparar para revisión**. El factory existente se carga automáticamente.
+2. Conectar A047 en Sepolia, consultar estado, simular aprobación y firmarla. Verificar confirmación.
+3. Repetir con FB24 (Compliance) y 1E8D (Directorio), sin cambiar los parámetros.
+4. Conectar 8A25 (Operador), actualizar aprobaciones, simular creación y firmarla. Verificar confirmación.
+5. Sincronizar/descargar la bitácora. La dirección, símbolo, parámetros, hash y bloque del token se leen de la emisión real.
+
+El formulario preparado y los hashes pendientes se guardan localmente para retomar después de recargar. La bitácora confirmada se reconstruye desde eventos del factory en Sepolia, con consultas en bloques de 5.000 y un margen de dos bloques respecto de la cabecera del RPC. Las operaciones recientes pueden requerir esperar y sincronizar nuevamente. Requiere que el RPC de la wallet admita consultas históricas. Las aprobaciones consumidas dejan la máscara en cero; su historial permanece en los eventos.
+
+La firma es siempre del usuario. No se guardan claves privadas. Si se reemplaza/acelera una transacción, su hash original puede permanecer pendiente; revisar el historial de la wallet antes de volver a enviar. La bitácora on-chain mostrará los eventos de la transacción que efectivamente se incluya.

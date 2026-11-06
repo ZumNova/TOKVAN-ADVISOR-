@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "chainId": 11155111,
+  "standard": "ERC-20",
+  "address": "0x56C8f5CcBb52B9A7c3577fc797Cf1BB6c42028fd",
+  "transactionHash": "0xd686e15a22b1f52803dc72ade56a90ba70dfae232ec9d729ec2e79cad2da4cf4",
+  "blockNumber": 12072858,
+  "timestamp": "2026-11-05T23:55:00.000Z"
+}
