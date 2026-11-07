@@ -39,3 +39,9 @@ Metadatos demo: `/metadata/tokvan-nft-1.json`; imagen: `/metadata/tokvan-nft.svg
 - `npm run test:erc721`: flujo de wallet sobre Anvil local (puerto 18546, chain ID 11155111), comprobación de eventos y bitácora.
 - `npm run test:factory`: regresión ERC-20 local.
 - `npm run lint` y `npm run build`.
+
+## Volver a una colección existente
+
+En **Bitácora ERC-721**, pulse **Actualizar bitácora**. El bloque **Mis colecciones** muestra nombre, símbolo, dirección, hash de creación y nombres/IDs de NFTs; los quemados se identifican. Pulse **Usar para recuperar · [nombre]** para cargar el formulario y los controles de esa colección sin desplegar ni firmar nada.
+
+La recuperación verifica transacción, evento, parámetros y asociación del expediente en el factory. No necesita recordar el expediente original: se conserva su identificador hash on-chain. Los nombres individuales se consultan desde los metadatos IPFS de la emisión, también después de quemar; si el gateway no responde se muestra el ID y la recuperación sigue disponible. El JSON exportado incluye estos nombres cuando pudieron consultarse.

@@ -4,7 +4,7 @@ import {spawn} from 'node:child_process';
 import {setTimeout} from 'node:timers/promises';
 import {JsonRpcProvider, Contract, ZeroAddress} from 'ethers';
 import {DEPLOYER,PARTICIPANTS,type WalletProvider} from '../src/lib/factoryWallet';
-import {NFT_DEFAULTS,prepareCollection,metadataURI,reviewNFTOperation,sendNFTOperation,confirmNFTOperation,readNFTState,readNFTJournal,verifyNFTFactory,nftInterface,type NFTOperation,type NFTFactoryRecord} from '../src/lib/erc721Workflow';
+import {NFT_DEFAULTS,prepareCollection,metadataURI,reviewNFTOperation,sendNFTOperation,confirmNFTOperation,readNFTState,readNFTJournal,recoverNFTCollection,verifyNFTFactory,nftInterface,type NFTOperation,type NFTFactoryRecord} from '../src/lib/erc721Workflow';
 test('validates NFT parameters and binds approvals to factory, project and every option',()=>{
  const base=prepareCollection(NFT_DEFAULTS,DEPLOYER);
  for(const patch of [{name:''},{maxSupply:'0'},{maxSupply:'1.5'},{admin:ZeroAddress},{symbol:'a'.repeat(17)}])assert.throws(()=>prepareCollection({...NFT_DEFAULTS,...patch},DEPLOYER));
@@ -50,6 +50,19 @@ test('browser workflow deploys, approves, creates, mints, pauses, burns and jour
   await provider.send('anvil_mine',['0x3']);
   const journal=await readNFTJournal(wallet,record);
   for(const kind of ['Factory ERC-721','Colección ERC-721','Aprobación ERC-721','Revocación ERC-721','NFT emitido','NFT quemado','Colección pausada','Colección reanudada'])assert.ok(journal.some(e=>e.kind===kind),kind);
+  const collectionEntry=journal.find(e=>e.kind==='Colección ERC-721')!;
+  assert.equal(collectionEntry.collectionName,input.name);
+  const recovered=await recoverNFTCollection(wallet,record,collectionEntry.hash,state.collection);
+  assert.equal(recovered.state.collection,state.collection);
+  assert.equal(recovered.state.nft?.minted,1n);
+  assert.equal(recovered.state.nft?.supply,0n);
+  assert.equal(prepareCollection(recovered.input,record.address).digest,prepareCollection(input,record.address).digest);
+  await assert.rejects(recoverNFTCollection(wallet,record,collectionEntry.hash,PARTICIPANTS.operator));
+  await assert.rejects(recoverNFTCollection(wallet,record,record.hash,state.collection));
+  // Recovering a burned collection still allows its administrator to pause and resume.
+  await execute({kind:'pause',input:recovered.input});
+  assert.equal((await readNFTState(wallet,record,recovered.input)).nft?.paused,true);
+  await execute({kind:'unpause',input:recovered.input});
   assert.equal(new Set(journal.map(e=>e.id)).size,journal.length);
   assert.ok(journal.every(e=>[record!.address,state.collection].includes(e.address)));
   const wrongNetwork:WalletProvider={request:({method,params})=>method==='eth_chainId'?Promise.resolve('0x89'):wallet.request({method,params})};

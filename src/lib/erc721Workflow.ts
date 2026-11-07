@@ -7,7 +7,7 @@ export const NFT_STORAGE_PREFIX='tokvan:erc721:sepolia:v1';
 export const nftFactoryInterface=new Interface(factoryArtifact.abi);
 export const nftInterface=new Interface(nftArtifact.abi);
 const tuple='tuple(string name,string symbol,address admin,uint256 maxSupply,bool burnable,bool pausable)';
-export interface CollectionInput {projectReference:string;name:string;symbol:string;admin:string;maxSupply:string;burnable:boolean;pausable:boolean;}
+export interface CollectionInput {recoveredProjectId?:string;projectReference:string;name:string;symbol:string;admin:string;maxSupply:string;burnable:boolean;pausable:boolean;}
 export const NFT_DEFAULTS:CollectionInput={projectReference:'TOKVAN-SEPOLIA-NFT-001',name:'TOKVAN NFT Test',symbol:'TKNFT',admin:DEPLOYER,maxSupply:'100',burnable:true,pausable:true};
 export interface NFTFactoryRecord {address:string;hash:string;blockNumber:number;}
 export async function requireNFTChain(wallet:WalletProvider) {
@@ -32,7 +32,8 @@ export function prepareCollection(input:CollectionInput,factory:string) {
   if(!input.projectReference.trim()||!name||toUtf8Bytes(name).length>64||!symbol||toUtf8Bytes(symbol).length>16)throw new Error('Complete expediente, nombre (hasta 64 bytes) y símbolo (hasta 16 bytes).');
   if(typeof input.burnable!=='boolean'||typeof input.pausable!=='boolean')throw new Error('Opciones de colección inválidas.');
   const config={name,symbol,admin:address(input.admin),maxSupply:nftInteger(input.maxSupply),burnable:input.burnable,pausable:input.pausable};
-  const projectId=id(input.projectReference.trim());
+  if(input.recoveredProjectId && (!/^0x[0-9a-fA-F]{64}$/.test(input.recoveredProjectId)||input.projectReference!==input.recoveredProjectId))throw new Error('El expediente recuperado no puede modificarse. Prepare otra colección.');
+  const projectId=input.recoveredProjectId || id(input.projectReference.trim());
   const digest=keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32','uint256','address','bytes32',tuple],[id('TOKVAN_ERC721_FACTORY_V1'),11155111,address(factory),projectId,config]));
   return {config,projectId,digest};
 }
@@ -197,7 +198,7 @@ export async function confirmNFTOperation(wallet:WalletProvider,pending:NFTPendi
   if(!matching)throw new Error('No se encontró el evento esperado de esta operación.');
   return {status:'confirmed' as const,tokenId:op.kind==='mint'?String(matching.args.tokenId):undefined};
 }
-export interface NFTJournalEntry {id:string;kind:string;address:string;hash:string;block:number;tokenId?:string;from?:string;to?:string;digest?:string;projectId?:string;}
+export interface NFTJournalEntry {collectionName?:string;symbol?:string;tokenName?:string;id:string;kind:string;address:string;hash:string;block:number;tokenId?:string;from?:string;to?:string;digest?:string;projectId?:string;}
 async function getLogs(wallet:WalletProvider,address:string,from:number,to:number,topics:string[]) {
   const logs:NFTLog[]=[];
   for(let start=from;start<=to;start+=5000) {
@@ -206,6 +207,40 @@ async function getLogs(wallet:WalletProvider,address:string,from:number,to:numbe
     if(!Array.isArray(batch))throw new Error('El RPC no devolvió eventos válidos.');logs.push(...batch);
   }
   return logs.filter(l=>!l.removed&&getAddress(l.address)===getAddress(address));
+}
+export async function recoverNFTCollection(wallet:WalletProvider,record:NFTFactoryRecord,hash:string,expectedAddress:string) {
+  const factory=await verifiedFactory(wallet,record);
+  const tx=await wallet.request({method:'eth_getTransactionByHash',params:[hash]}) as {to:string|null;input:string}|null;
+  const receipt=await wallet.request({method:'eth_getTransactionReceipt',params:[hash]}) as {status:string;logs:NFTLog[]}|null;
+  if(!tx?.to||getAddress(tx.to)!==factory.address||!receipt||BigInt(receipt.status)!==1n)throw new Error('No se pudo verificar la creación de esta colección en el factory seleccionado.');
+  const decoded=nftFactoryInterface.parseTransaction({data:tx.input});
+  if(decoded?.name!=='createCollection')throw new Error('El hash no corresponde a la creación de una colección.');
+  const projectId=String(decoded.args.projectId),config=decoded.args.config;
+  const input:CollectionInput={projectReference:projectId,recoveredProjectId:projectId,name:config.name,symbol:config.symbol,admin:getAddress(config.admin),maxSupply:String(config.maxSupply),burnable:config.burnable,pausable:config.pausable};
+  const prepared=prepareCollection(input,factory.address);
+  const event=receipt.logs.filter(l=>!l.removed&&getAddress(l.address)===factory.address).map(l=>nftFactoryInterface.parseLog(l)).find(l=>l?.name==='CollectionCreated'&&getAddress(l.args.collection)===getAddress(expectedAddress)&&l.args.projectId===projectId&&l.args.digest===prepared.digest);
+  if(!event)throw new Error('La colección no coincide con el evento de creación.');
+  const state=await readNFTState(wallet,factory,input);
+  if(state.collection!==getAddress(expectedAddress)||!state.nft)throw new Error('La colección no pertenece a este expediente.');
+  return {input,state};
+}
+async function journalTokenName(wallet:WalletProvider,entry:NFTJournalEntry) {
+  try {
+    // Read mint calldata so the name remains available even after burning.
+    const tx=await wallet.request({method:'eth_getTransactionByHash',params:[entry.hash]}) as {to:string;input:string}|null;
+    if(!tx||getAddress(tx.to)!==getAddress(entry.address))return;
+    const decoded=nftInterface.parseTransaction({data:tx.input});
+    if(decoded?.name!=='mint')return;
+    const uri=String(decoded.args[1]);
+    if(!/^ipfs:\/\/[a-zA-Z0-9]+$/.test(uri))return;
+    const response=await fetch('https://gateway.pinata.cloud/ipfs/'+uri.slice(7),{signal:AbortSignal.timeout(4000)});
+    if(!response.ok)return;
+    const reader=response.body?.getReader();if(!reader)return;
+    let text='',size=0;const decoder=new TextDecoder();
+    while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>32768){await reader.cancel();return;}text+=decoder.decode(value,{stream:true});}
+    text+=decoder.decode();const metadata=JSON.parse(text);
+    if(typeof metadata.name==='string')entry.tokenName=metadata.name.slice(0,200);
+  } catch { /* Metadata availability must never prevent collection recovery. */ }
 }
 export async function readNFTJournal(wallet:WalletProvider,record:NFTFactoryRecord) {
   const factory=await verifiedFactory(wallet,record);
@@ -227,6 +262,14 @@ export async function readNFTJournal(wallet:WalletProvider,record:NFTFactoryReco
     if(event.name==='Transfer')entries.push({...base,kind:event.args.from===ZeroAddress?'NFT emitido':event.args.to===ZeroAddress?'NFT quemado':'NFT transferido',tokenId:String(event.args.tokenId),from:getAddress(event.args.from),to:getAddress(event.args.to)});
     else entries.push({...base,kind:event.name==='Paused'?'Colección pausada':'Colección reanudada',from:getAddress(event.args.account)});
   }
+  await Promise.all(collections.map(async collection=>{
+    const [name,symbol]=await Promise.all([rpcCall(wallet,collection.address,nftInterface,'name'),rpcCall(wallet,collection.address,nftInterface,'symbol')]);
+    for(const entry of entries)if(entry.address===collection.address){entry.collectionName=String(name);entry.symbol=String(symbol);}
+  }));
+  // Small batches keep gateway requests bounded. Names are optional, IDs remain authoritative.
+  const mints=entries.filter(entry=>entry.kind==='NFT emitido');
+  for(let i=0;i<mints.length;i+=4)await Promise.all(mints.slice(i,i+4).map(entry=>journalTokenName(wallet,entry)));
+  for(const entry of entries)if(entry.tokenId)entry.tokenName=mints.find(m=>m.address===entry.address&&m.tokenId===entry.tokenId)?.tokenName;
   await requireNFTChain(wallet);
   return [...new Map(entries.map(e=>[e.id,e])).values()].sort((a,b)=>a.block-b.block);
 }
