@@ -56,3 +56,17 @@ test('browser workflow deploys, approves, creates, mints, pauses, burns and jour
   await assert.rejects(readNFTState(wrongNetwork,record,input),/Sepolia/);
  }finally{provider.destroy();node.kill();}
 });
+
+test('failed wallet wrapper clears pending state without accepting wrapped success or another sender',async()=>{
+ const pending={hash:'0x'+'ab'.repeat(32),from:DEPLOYER,to:PARTICIPANTS.operator,data:'0x8456cb59',context:{operation:{kind:'pause' as const,input:NFT_DEFAULTS}}};
+ let status='0x0',from=DEPLOYER;
+ const wallet:WalletProvider={request:async({method})=>{
+  if(method==='eth_chainId')return '0xaa36a7';
+  if(method==='eth_getTransactionReceipt')return {status,logs:[],blockNumber:'0x1'};
+  if(method==='eth_getTransactionByHash')return {from,to:PARTICIPANTS.boardReviewer,input:'0xcef6d209',value:'0x0'};
+  throw new Error(method);
+ }};
+ assert.equal((await confirmNFTOperation(wallet,pending)).status,'failed');
+ status='0x1';await assert.rejects(confirmNFTOperation(wallet,pending),/no coincide/);
+ status='0x0';from=PARTICIPANTS.boardReviewer;await assert.rejects(confirmNFTOperation(wallet,pending),/wallet/);
+});

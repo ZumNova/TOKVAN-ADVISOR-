@@ -176,8 +176,11 @@ export async function confirmNFTOperation(wallet:WalletProvider,pending:NFTPendi
   const receipt=await wallet.request({method:'eth_getTransactionReceipt',params:[pending.hash]}) as null|{status:string;logs:NFTLog[];blockNumber:string};
   if(!receipt)return {status:'pending' as const};
   const tx=await wallet.request({method:'eth_getTransactionByHash',params:[pending.hash]}) as {from:string;to:string|null;input:string;value:string}|null;
+  // A reverted wallet wrapper is terminal too; only successful operations
+  // must match our direct calldata and emit the expected event.
+  if(!tx || getAddress(tx.from)!==getAddress(pending.from))throw new Error('La transacción no corresponde a la wallet que envió la operación.');
+  if(BigInt(receipt.status)===0n){await requireNFTChain(wallet);return {status:'failed' as const};}
   if(!tx?.to||!pending.to||getAddress(tx.to)!==getAddress(pending.to)||getAddress(tx.from)!==getAddress(pending.from)||tx.input.toLowerCase()!==pending.data.toLowerCase()||BigInt(tx.value)!==0n)throw new Error('La transacción no coincide con la operación ERC-721 guardada.');
-  if(BigInt(receipt.status)===0n)return {status:'failed' as const};
   if(BigInt(receipt.status)!==1n)throw new Error('Receipt inválido.');
   const op=pending.context.operation;
   const isFactory=['approve','revoke','create'].includes(op.kind);
