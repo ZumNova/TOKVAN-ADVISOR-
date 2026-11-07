@@ -5,15 +5,15 @@ import {requireNFTChain} from '../../lib/erc721Workflow';
 import {IMAGE_TYPES, MAX_IMAGE_BYTES, mediaMessage, isIPFSUri, type MediaResult} from '../../lib/nftMedia';
 
 const button = 'rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed';
-interface Props {collection: string; disabled: boolean; disabledReason?: string; onURI: (uri: string) => void; onBusy: (busy: boolean) => void;}
-export default function NFTMediaPanel({collection, disabled, disabledReason, onURI, onBusy}: Props) {
-  const storageKey = `tokvan:erc721:media:v1:${collection.toLowerCase()}`;
+interface Props {standard?:'ERC721'|'ERC1155';collection: string; disabled: boolean; disabledReason?: string; onURI: (uri: string) => void; onBusy: (busy: boolean) => void;}
+export default function NFTMediaPanel({standard='ERC721', collection, disabled, disabledReason, onURI, onBusy}: Props) {
+  const storageKey = `tokvan:${standard.toLowerCase()}:media:v1:${collection.toLowerCase()}`;
   const [result, setResult] = useState<MediaResult | undefined>(() => {
     try {const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
       return isIPFSUri(saved?.metadataUri) && isIPFSUri(saved?.imageUri) && typeof saved?.metadata?.name === 'string' ? saved : undefined;
     } catch {return undefined;}
   });
-  const [name, setName] = useState(result?.metadata.name || 'TOKVAN NFT #1');
+  const [name, setName] = useState(result?.metadata.name || (standard==='ERC1155'?'TOKVAN Tipo #1':'TOKVAN NFT #1'));
   const [description, setDescription] = useState(result?.metadata.description || 'NFT de prueba de TOKVAN en Sepolia.');
   const [file, setFile] = useState<File>(); const [preview, setPreview] = useState('');
   const [configured, setConfigured] = useState<boolean>();
@@ -54,14 +54,14 @@ export default function NFTMediaPanel({collection, disabled, disabledReason, onU
   const blocked = disabled || busy;
   const uploadReason = busy ? 'Espere: se está preparando el NFT.'
     : disabled ? (disabledReason || 'Espere a que termine la operación actual.')
-    : result ? 'Los archivos ya están preparados. Continúe con «Emitir un NFT · Simular», debajo de este panel.'
+    : result ? 'Los archivos ya están preparados. Continúe con el botón de emisión debajo de este panel.'
     : configured === false ? 'Primero pulse «Comprobar conexión con Pinata» para volver a consultar la configuración.'
     : configured !== true ? 'Comprobando Pinata. Si no avanza, pulse «Comprobar conexión con Pinata».'
     : !file ? 'Primero pulse «Elegir imagen» y seleccione un archivo de su equipo.'
     : !name.trim() ? 'Complete el nombre del NFT para habilitar la subida.' : '';
 
   return <div className="rounded-xl border border-blue-200 p-4 space-y-3">
-    <h3 className="font-semibold">Imagen y datos del NFT</h3>
+    <h3 className="font-semibold">{standard==='ERC1155'?'Imagen y datos del tipo de token':'Imagen y datos del NFT'}</h3>
     <p className="text-sm">Elegí una imagen y completá sus datos. Creamos el JSON y la URI automáticamente. La imagen y los datos se publicarán en IPFS.</p>
     {configured === false && <p role="status" className="rounded bg-amber-50 p-3 text-amber-900">Pinata todavía no está conectado. Falta configurar su clave privada en Vercel. Podés preparar los datos mientras tanto.</p>}
     <button type="button" className={button} disabled={blocked} onClick={() => void check()}>Comprobar conexión con Pinata</button>
