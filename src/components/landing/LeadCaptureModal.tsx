@@ -29,6 +29,9 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [consent, setConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [targetAudience, setTargetAudience] = useState('');
+  const [commercialChannels, setCommercialChannels] = useState('');
 
   // Diagnostic result
   const [generatedDraftId, setGeneratedDraftId] = useState('');
@@ -55,7 +58,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
     }
 
     const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const draftId = `TOKVAN-PY-2027-000${randomSuffix}`;
+    const draftId = `TOKVANT-PY-2027-000${randomSuffix}`;
     setGeneratedDraftId(draftId);
     setRecommendedStandard(standard);
     setStep(3);
@@ -63,7 +66,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
 
   const handleStartProjectDraft = () => {
     const draftProject: TokenProject = {
-      id: generatedDraftId || `TOKVAN-PY-2027-000${Math.floor(100 + Math.random() * 900)}`,
+      id: generatedDraftId || `TOKVANT-PY-2027-000${Math.floor(100 + Math.random() * 900)}`,
       title: `${companyName || 'Proyecto'} — Tokenización ${assetType}`,
       organizationId: 'org-py-001',
       organizationName: companyName || 'Empresa Emisora',
@@ -129,7 +132,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-2xl rounded-2xl bg-[#141A27] border border-[#273246] shadow-2xl p-6 md:p-8 overflow-hidden max-h-[90vh] overflow-y-auto">
-        
+
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -149,7 +152,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
             ¿Qué desea tokenizar en su organización?
           </h2>
           <p className="text-sm text-[#9BA6BD] mt-1">
-            Complete los parámetros de su activo. Obtendrá una recomendación técnica objetiva y un identificador de expediente empresarial.
+            Complete los parámetros de su activo. Recibirá una orientación técnica preliminar y podrá explorar un borrador de proyecto en el entorno de demostración.
           </p>
         </div>
 
@@ -167,7 +170,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
           <ChevronRight className="w-3.5 h-3.5 text-[#273246]" />
           <div className={`flex items-center gap-2 ${step === 3 ? 'text-[#316BFA]' : 'text-[#9BA6BD]'}`}>
             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${step === 3 ? 'bg-[#316BFA] text-white' : 'bg-[#273246] text-[#9BA6BD]'}`}>3</span>
-            <span>Diagnóstico TOKVAN</span>
+            <span>Diagnóstico TOKVANT</span>
           </div>
         </div>
 
@@ -281,6 +284,62 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
         {/* STEP 2: ENTITY & CONTACT */}
         {step === 2 && (
           <form onSubmit={handleCalculateDiagnostic} className="space-y-4">
+
+{/* INFORMACIÓN COMERCIAL */}
+<div className="rounded-xl border border-[#39547C] bg-[#101A2A] p-4 space-y-4">
+
+  <div>
+    <h3 className="text-sm font-bold text-white">
+      Estrategia comercial del proyecto
+    </h3>
+    <p className="mt-1 text-xs leading-relaxed text-[#AABBD4]">
+      Estos datos nos ayudan a comprender a quién estará dirigido
+      el activo digital y qué canales de distribución existen.
+    </p>
+  </div>
+
+  <div>
+    <label
+      htmlFor="targetAudience"
+      className="mb-2 block text-xs font-semibold text-[#D1E2FC]"
+    >
+      ¿A quién estaría dirigido el token?
+    </label>
+
+    <input
+      id="targetAudience"
+      type="text"
+      value={targetAudience}
+      onChange={(e) => setTargetAudience(e.target.value)}
+      placeholder="Clientes, usuarios, empresas o inversores previstos"
+      className="w-full rounded-lg border border-[#455C80] bg-[#0B0D12] px-3.5 py-3 text-sm text-white placeholder:text-[#798BA7] focus:border-[#567EFF] focus:outline-none"
+    />
+  </div>
+
+  <div>
+    <label
+      htmlFor="commercialChannels"
+      className="mb-2 block text-xs font-semibold text-[#D1E2FC]"
+    >
+      ¿Qué canales comerciales tiene actualmente?
+    </label>
+
+    <input
+      id="commercialChannels"
+      type="text"
+      value={commercialChannels}
+      onChange={(e) => setCommercialChannels(e.target.value)}
+      placeholder="Equipo comercial, aliados, comunidad, redes sociales..."
+      className="w-full rounded-lg border border-[#455C80] bg-[#0B0D12] px-3.5 py-3 text-sm text-white placeholder:text-[#798BA7] focus:border-[#567EFF] focus:outline-none"
+    />
+  </div>
+
+  <p className="text-xs leading-relaxed text-[#AABBD4]">
+    Ambos campos son opcionales.
+  </p>
+
+</div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
@@ -369,10 +428,28 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                   className="mt-1 h-4 w-4 rounded border-[#273246] bg-[#0B0D12] text-[#316BFA] focus:ring-0"
                 />
                 <span className="text-xs text-[#9BA6BD] leading-relaxed">
-                  Autorizo a TOKVAN a procesar esta información conforme al marco de confidencialidad profesional para emitir el diagnóstico preliminar de estructuración y crear un expediente de proyecto.
+                  Autorizo a TOKVANT a procesar esta información conforme al marco de confidencialidad profesional para emitir el diagnóstico preliminar de estructuración y crear un expediente de proyecto.
                 </span>
               </label>
             </div>
+
+{/* CONSENTIMIENTO COMERCIAL OPCIONAL */}
+<div className="pt-2">
+  <label className="flex cursor-pointer items-start gap-3">
+    <input
+      type="checkbox"
+      checked={marketingConsent}
+      onChange={(e) => setMarketingConsent(e.target.checked)}
+      className="mt-1 h-4 w-4 rounded border-[#455C80] bg-[#0B0D12] text-[#567EFF]"
+    />
+
+    <span className="text-xs leading-relaxed text-[#AABBD4]">
+      Deseo recibir novedades, contenidos educativos y
+      comunicaciones comerciales de TOKVANT.
+      Esta autorización es opcional.
+    </span>
+  </label>
+</div>
 
             <div className="pt-4 flex items-center justify-between border-t border-[#273246]">
               <button
@@ -401,7 +478,6 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#273246]">
                 <div>
                   <div className="text-[11px] font-semibold text-[#7096FF] uppercase tracking-wider">
-                    Expediente Registrado con Éxito
                   </div>
                   <div className="text-lg font-bold text-white font-mono mt-0.5">
                     {generatedDraftId}
@@ -409,7 +485,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 </div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#16A34A]/10 border border-[#16A34A]/30 text-[#16A34A] text-xs font-semibold self-start sm:self-auto">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Diagnóstico Inicial Emitido</span>
+                  <span>Orientación preliminar generada</span>
                 </div>
               </div>
 
@@ -437,13 +513,15 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
             <div className="rounded-xl bg-[#141A27] border border-[#316BFA]/30 p-4 space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#7096FF]">
                 <ShieldCheck className="w-4 h-4" />
-                <span>Dictamen Técnico Preliminar de TOKVAN</span>
+                <span>Orientación técnica preliminar de TOKVANT</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se recomienda estructurar bajo la norma <strong className="text-white">{recommendedStandard}</strong>. Este estándar asegura que ninguna persona no verificada pueda adquirir cuotas, garantizando cumplimiento regulatorio on-chain.
+                Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se recomienda estructurar bajo la norma <strong className="text-white">{recommendedStandard}</strong>. Este estándar puede incorporar mecanismos de identidad y
+elegibilidad, según la implementación y configuración.
+Su utilización no garantiza automáticamente cumplimiento regulatorio.
               </p>
               <div className="text-[11px] text-[#9BA6BD] pt-1">
-                * Nota institucional: Este diagnóstico es de carácter orientativo preliminar y no constituye asesoría legal ni financiera vinculante. Requiere validación por la mesa técnica y de compliance de TOKVAN.
+                * Nota institucional: Este diagnóstico es de carácter orientativo preliminar y no constituye asesoría legal ni financiera vinculante. Requiere validación por la mesa técnica y de compliance de TOKVANT.
               </div>
             </div>
 
@@ -454,7 +532,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 onClick={onClose}
                 className="w-full sm:w-auto px-4 py-2.5 text-xs font-medium text-[#9BA6BD] hover:text-white transition-colors cursor-pointer"
               >
-                Cerrar y Descargar Resumen
+                Cerrar diagnóstico
               </button>
 
               <button

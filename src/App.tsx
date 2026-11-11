@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { TopBar } from './components/navigation/TopBar';
 import { LandingPage } from './components/landing/LandingPage';
+import { CommercialLandingPage } from './components/landing/CommercialLandingPage';
 import { LeadCaptureModal } from './components/landing/LeadCaptureModal';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { ProjectsList } from './components/dashboard/ProjectsList';
@@ -175,12 +176,9 @@ export default function App() {
       {/* Main Viewport Content */}
       <main className="flex-1">
         {currentView === 'landing' && (
-          <LandingPage
+          <CommercialLandingPage
             onNavigate={handleNavigate}
             onOpenLeadModal={handleOpenLeadModal}
-            onSelectStandardDetail={(std) => {
-              setCurrentView('standards');
-            }}
           />
         )}
 
