@@ -141,7 +141,7 @@ export default function App() {
                 onClick={() => handleNavigate('landing')}
                 className="hover:text-white transition-colors cursor-pointer"
               >
-                TOKVAN
+                TOKVANT
               </button>
               <span aria-hidden="true">/</span>
               <span className="text-white capitalize">
@@ -274,7 +274,7 @@ export default function App() {
         }}
       />
 
-      {/* TOKVAN AI Dual Layer Drawer */}
+      {/* TOKVANT IA drawer */}
       <TokvanAiDrawer
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}

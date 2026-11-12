@@ -19,7 +19,7 @@ export const TokvanLogo: React.FC<TokvanLogoProps> = ({
       <div className={`relative flex flex-col items-center justify-center overflow-hidden rounded-xl bg-[#0B0D12] border border-[#273246] p-4 ${className}`}>
         <img
           src="/assets/aistudio/17f06f1e-7042-4115-b9d1-1f0c7e1f0d50_f7aafaaa.jpg"
-          alt="TOKVAN Consultoría y tokenización - Identidad Institucional"
+          alt="TOKVANT Consultoría y tokenización - Identidad Institucional"
           className="max-h-72 w-auto object-contain rounded-lg shadow-2xl"
           referrerPolicy="no-referrer"
         />

@@ -40,7 +40,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
             <Lock className="w-4 h-4" />
-            <span>TOKVAN Backoffice & Compliance Console</span>
+            <span>TOKVANT Backoffice & Compliance Console</span>
             <span aria-hidden="true">·</span>
             <span className="text-[#9BA6BD]">Supervisión Administrativa</span>
           </div>
@@ -53,7 +53,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         </div>
 
         <span className="text-xs font-mono px-3 py-1 bg-[#141A27] border border-[#273246] rounded-md text-slate-300 self-start sm:self-auto">
-          Mesa de Revisión TOKVAN: En Línea
+          Mesa de Revisión TOKVANT: En Línea
         </span>
       </div>
 
