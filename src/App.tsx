@@ -16,6 +16,7 @@ import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
 import ClientProjectHome from './components/wizard/ClientProjectHome';
 import StaffAccess from './components/admin/StaffAccess';
 import { roleCanOpen, type StaffRole } from './lib/staffAccess';
+import {validReview,reviewRoleForWallet,type ReviewProof} from './lib/reviewSignatures';
 import {listClientProjects,type ClientProjectRecord} from './lib/clientProjects';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
@@ -96,46 +97,21 @@ export default function App() {
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
-  const handleUpdateApproval = (
-    projectId: string,
-    stepId: string,
-    status: 'Aprobado' | 'Rechazado' | 'Corrección solicitada',
-    comments: string
-  ) => {
-    setProjects((prev) =>
-      prev.map((proj) => {
-        if (proj.id !== projectId) return proj;
-
-        const updatedSteps = proj.approvals.map((st) => {
-          if (st.id !== stepId) return st;
-          return {
-            ...st,
-            status,
-            comments,
-            timestamp: new Date().toUTCString(),
-            signatureHash: `0x${Math.random().toString(16).substring(2, 10)}...${Math.random().toString(16).substring(2, 6)}`,
-          };
-        });
-
-        // If all approved, check status
-        const allApproved = updatedSteps.every((s) => s.status === 'Aprobado');
-        const anyRejected = updatedSteps.some((s) => s.status === 'Rechazado');
-
-        let newStatus = proj.status;
-        if (allApproved) {
-          newStatus = 'Listo para despliegue';
-        } else if (anyRejected) {
-          newStatus = 'Requiere atención';
-        }
-
-        return {
-          ...proj,
-          approvals: updatedSteps,
-          status: newStatus,
-        };
-      })
-    );
-    showToast(`Dictamen registrado con éxito en el expediente.`);
+  const handleUpdateApproval = (proof:ReviewProof) => {
+    const project=projects.find(p=>p.id===proof.projectId);
+    if(!project||!staff||reviewRoleForWallet(staff.account)!==proof.role||!validReview(project,proof)){
+      showToast('No se pudo verificar la firma para este dictamen.');return;
+    }
+    setProjects(prev=>prev.map(p=>p.id!==proof.projectId?p:{
+      ...p,
+      status:proof.decision==='Rechazado'?'Requiere atención':'En revisión',
+      approvals:p.approvals.map(step=>step.id!==proof.stepId?step:{
+        ...step,status:proof.decision,comments:proof.comments,timestamp:proof.timestamp,
+        signatureHash:proof.signature,signerWallet:proof.signer,signedProjectHash:proof.projectHash,
+        signedMessage:JSON.stringify(proof),approverName:proof.signer,
+      }),
+    }));
+    showToast('Dictamen firmado en esta sesión de demostración.');
   };
 
   return (
@@ -280,6 +256,7 @@ export default function App() {
           <ApprovalWorkflowView
             projects={projects}
             onUpdateApproval={handleUpdateApproval}
+            staffAccount={staff?.account ?? null}
             onNavigate={handleNavigate}
           />
         )}

@@ -11,47 +11,50 @@ import {
   ChevronRight,
   ExternalLink
 } from 'lucide-react';
-import { TokenProject, ApprovalStep, UserRole } from '../../types';
+import { TokenProject, ApprovalStep } from '../../types';
+import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
+import {projectReviewHash,reviewMessage,reviewRoleForWallet,reviewWallets,validReview,type ReviewProof,type ReviewDecision} from '../../lib/reviewSignatures';
 
 interface ApprovalWorkflowViewProps {
   projects: TokenProject[];
-  onUpdateApproval: (projectId: string, stepId: string, status: 'Aprobado' | 'Rechazado' | 'Corrección solicitada', comments: string) => void;
+  onUpdateApproval: (proof: ReviewProof) => void;
+  staffAccount: string | null;
   onNavigate: (view: string) => void;
 }
 
 export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   projects,
   onUpdateApproval,
+  staffAccount,
   onNavigate,
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || '');
-  const [simulatedRole, setSimulatedRole] = useState<'Technical Reviewer' | 'Compliance Reviewer' | 'Enterprise Board'>('Compliance Reviewer');
-  const [reviewerName, setReviewerName] = useState('Dra. María Elena Duarte (CCO)');
   const [commentsInput, setCommentsInput] = useState('');
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
-
+  const [actionError,setActionError]=useState<string | null>(null);
+  const [busy,setBusy]=useState(false);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
-
-  const handleRoleChange = (role: 'Technical Reviewer' | 'Compliance Reviewer' | 'Enterprise Board') => {
-    setSimulatedRole(role);
-    if (role === 'Technical Reviewer') setReviewerName('Ing. Carlos Benítez (Lead Auditor)');
-    else if (role === 'Compliance Reviewer') setReviewerName('Dra. María Elena Duarte (CCO)');
-    else setReviewerName('Lic. Rodrigo Zaldívar (Director Financiero)');
-  };
-
-  const handleExecuteApproval = (status: 'Aprobado' | 'Rechazado' | 'Corrección solicitada') => {
-    if (!activeProject) return;
-
-    // Find the step corresponding to current role
-    const step = activeProject.approvals.find((s) => s.role === simulatedRole);
+  const activeRole=reviewRoleForWallet(staffAccount);
+  const handleExecuteApproval = async (status: ReviewDecision) => {
+    if (!activeProject || !activeRole || !staffAccount || busy) return;
+    const step = activeProject.approvals.find(s => s.role === activeRole);
     if (!step) return;
-
-    const comments = commentsInput || (status === 'Aprobado' ? 'Aprobado conforme a especificaciones normativas y de seguridad.' : 'Requiere revisión.');
-    onUpdateApproval(activeProject.id, step.id, status, comments);
-
-    setActionSuccessMessage(`Decisión registrada: ${simulatedRole} marcó '${status}' en el expediente.`);
-    setCommentsInput('');
-    setTimeout(() => setActionSuccessMessage(null), 4000);
+    setBusy(true);setActionError(null);setActionSuccessMessage(null);
+    try {
+      const wallet=(window as Window & {ethereum?:{request:(args:{method:string;params?:unknown[]})=>Promise<unknown>}}).ethereum;
+      if(!wallet)throw new Error('Abrí la wallet autorizada en el navegador.');
+      const accounts=await wallet.request({method:'eth_accounts'}) as string[];
+      if(!accounts?.[0]||getAddress(accounts[0])!==getAddress(staffAccount)||getAddress(accounts[0])!==getAddress(reviewWallets[activeRole]))throw new Error('Seleccioná la wallet asignada a este rol en el factory de Sepolia.');
+      const unsigned={projectId:activeProject.id,stepId:step.id,role:activeRole,decision:status,comments:commentsInput.trim(),projectHash:projectReviewHash(activeProject),timestamp:new Date().toISOString(),nonce:crypto.randomUUID(),signer:getAddress(staffAccount)};
+      if(!unsigned.comments)throw new Error('Escribí el fundamento del dictamen antes de firmar.');
+      const signature=await wallet.request({method:'personal_sign',params:[hexlify(toUtf8Bytes(reviewMessage(unsigned))),staffAccount]}) as string;
+      const proof:ReviewProof={...unsigned,signature};
+      if(!validReview(activeProject,proof))throw new Error('La firma no corresponde al expediente o a la wallet del rol.');
+      onUpdateApproval(proof);
+      setActionSuccessMessage(`Dictamen de ${activeRole} firmado en esta sesión de demostración.`);
+      setCommentsInput('');
+    }catch(e){setActionError(e instanceof Error?e.message:'No se pudo firmar el dictamen.');}
+    finally{setBusy(false);}
   };
 
   return (
@@ -70,29 +73,14 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             Gobernanza, Dictámenes y Autorización de Despliegue
           </h1>
           <p className="text-xs text-[#9BA6BD] mt-1">
-            Sandbox: estos dictámenes son simulados. El factory ERC-20 exige tres aprobaciones reales on-chain antes de permitir la emisión.
+            Demo local: esta firma de mensaje no registra una aprobación on-chain ni llega a otros equipos. El factory exige tres aprobaciones on-chain por separado.
           </p>
         </div>
 
-        {/* Role Switcher for demonstration testing */}
-        <div className="flex items-center gap-2 p-1.5 rounded-xl bg-[#141A27] border border-[#273246] self-start sm:self-auto">
-          <span className="text-[11px] font-semibold text-[#9BA6BD] px-2">Rol Activo:</span>
-          {(['Technical Reviewer', 'Compliance Reviewer', 'Enterprise Board'] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => handleRoleChange(r)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                simulatedRole === r
-                  ? 'bg-[#316BFA] text-white shadow-sm'
-                  : 'text-[#9BA6BD] hover:text-white hover:bg-[#273246]'
-              }`}
-            >
-              {r === 'Technical Reviewer' ? 'Técnico' : r === 'Compliance Reviewer' ? 'Compliance' : 'Directorio'}
-            </button>
-          ))}
-        </div>
+        <div className="rounded-xl border border-[#39547C] bg-[#141A27] px-4 py-2 text-sm text-white">Rol firmante: <strong>{activeRole ? (activeRole==='Enterprise Board'?'Directorio':activeRole==='Technical Reviewer'?'Técnico':'Compliance') : 'Solo lectura'}</strong><span className="block font-mono text-[10px] text-[#9BA6BD]">{staffAccount||'Sin wallet'}</span></div>
       </div>
 
+      {actionError&&<p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-200">{actionError}</p>}
       {actionSuccessMessage && (
         <div className="rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 p-4 text-xs font-semibold text-[#16A34A] flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -195,12 +183,13 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             {/* Approval Steps Progression */}
             <div className="rounded-2xl bg-[#141A27] border border-[#273246] p-6 space-y-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200 pb-2 border-b border-[#273246]">
-                Circuito de 3 Pasos con Segregación de Funciones
+Circuito de cuatro etapas · recepción y tres dictámenes
               </h3>
 
               <div className="space-y-4">
+                <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-4 text-sm"><div className="font-semibold text-white">1 · Administración · recepción del expediente</div><p className="mt-2 text-[#9BA6BD]">La 047 registra y asigna el expediente. En esta demo, la recepción central aún no está conectada; este paso no se marca como completado ni genera una firma ficticia.</p></div>
                 {activeProject.approvals.map((step, idx) => {
-                  const isCurrentSimulatedRole = step.role === simulatedRole;
+                  const isCurrentSimulatedRole = step.role === activeRole;
                   return (
                     <div
                       key={step.id}
@@ -213,7 +202,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center gap-3">
                           <span className="w-6 h-6 rounded-full bg-[#273246] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">
-                            {idx + 1}
+                            {idx + 2}
                           </span>
                           <div>
                             <div className="text-xs font-bold text-white flex items-center gap-2">
@@ -244,13 +233,14 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                       {step.approverName && (
                         <div className="mt-3 pt-3 border-t border-[#273246]/60 text-xs text-[#9BA6BD] flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <span>Firmado por: </span>
+                            <span>{step.signerWallet?'Firmado por wallet: ':'Dato de ejemplo: '}</span>
                             <strong className="text-white">{step.approverName}</strong>
                             <span className="text-[10px] ml-2 font-mono">({step.timestamp})</span>
                           </div>
+                          {step.signerWallet && <span className="block font-mono text-[10px] break-all">Wallet: {step.signerWallet}</span>}
                           {step.signatureHash && (
                             <div className="font-mono text-[10px] text-[#7096FF]">
-                              Firma: {step.signatureHash}
+                              {step.signerWallet?'Firma: ':'Referencia ficticia: '}{step.signatureHash}
                             </div>
                           )}
                         </div>
@@ -271,7 +261,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             <div className="rounded-2xl bg-[#0B0D12] border border-[#316BFA]/40 p-6 space-y-4">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
                 <PenTool className="w-4 h-4" />
-                <span>Emisión de Dictamen como {simulatedRole}</span>
+                <span>Dictamen {activeRole ? `como ${activeRole}` : '· consulta de todos los pasos'}</span>
               </div>
 
               <div>
@@ -287,28 +277,29 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                 />
               </div>
 
+              {!activeRole && <p className="text-sm text-amber-200">Podés consultar todo el expediente. Las firmas corresponden exclusivamente a las wallets de Técnico, Compliance y Directorio fijadas en los factories de Sepolia.</p>}
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <span className="text-[11px] text-[#9BA6BD]">
-                  Firmante activo: <strong className="text-white">{reviewerName}</strong>
+                  Wallet autorizada: <strong className="text-white font-mono break-all">{activeRole ? reviewWallets[activeRole] : 'Esta wallet puede consultar, pero no firmar los tres dictámenes.'}</strong>
                 </span>
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => handleExecuteApproval('Corrección solicitada')}
+                    onClick={() => void handleExecuteApproval('Corrección solicitada')} disabled={!activeRole||busy}
                     className="px-4 py-2 text-xs font-semibold text-[#D97706] hover:bg-[#D97706]/10 border border-[#D97706]/30 rounded-lg transition-colors cursor-pointer"
                   >
                     Solicitar Corrección
                   </button>
 
                   <button
-                    onClick={() => handleExecuteApproval('Rechazado')}
+                    onClick={() => void handleExecuteApproval('Rechazado')} disabled={!activeRole||busy}
                     className="px-4 py-2 text-xs font-semibold text-[#DC2626] hover:bg-[#DC2626]/10 border border-[#DC2626]/30 rounded-lg transition-colors cursor-pointer"
                   >
                     Rechazar
                   </button>
 
                   <button
-                    onClick={() => handleExecuteApproval('Aprobado')}
+                    onClick={() => void handleExecuteApproval('Aprobado')} disabled={!activeRole||busy}
                     className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors cursor-pointer shadow-lg shadow-[#16A34A]/20"
                   >
                     <CheckCircle2 className="w-4 h-4" />

@@ -1,9 +1,9 @@
 import { getAddress, verifyMessage } from 'ethers';
 
 export const OWNER = '0x521125be95c5679539aB07582F55F0040975A047';
-export type StaffRole = 'administrator' | 'factory' | 'reviewer' | 'compliance';
+export type StaffRole = 'administrator' | 'factory' | 'reviewer' | 'compliance' | 'board';
 export type Grant = { address: string; role: StaffRole; expires: number; signature: string };
-export const roles: StaffRole[] = ['administrator', 'factory', 'reviewer', 'compliance'];
+export const roles: StaffRole[] = ['administrator', 'factory', 'reviewer', 'compliance', 'board'];
 const KEY = 'tokvant:staff-grants:v1';
 export const grantMessage = (address: string, role: StaffRole, expires: number) => `TOKVANT staff access\nOrigin: ${location.origin}\nWallet: ${getAddress(address)}\nRole: ${role}\nExpires: ${expires}`;
 export const validGrant = (value: unknown): value is Grant => {
@@ -22,9 +22,8 @@ export const saveGrant = (grant: Grant) => {
   localStorage.setItem(KEY, JSON.stringify([...current, grant]));
 };
 export const roleCanOpen = (role: StaffRole | 'owner' | null, view: string) => {
-  if (role === 'owner' || role === 'administrator') return true;
-  if (view === 'factory') return role === 'factory';
-  if (['projects', 'dashboard', 'approvals'].includes(view)) return role === 'reviewer' || role === 'compliance';
-  if (view === 'simulator' || view === 'standards' || view === 'architecture') return Boolean(role);
+  if (!role) return false;
+  if (view === 'admin') return role === 'owner' || role === 'administrator';
+  if (['factory','projects','dashboard','approvals','simulator','standards','architecture'].includes(view)) return true;
   return false;
 };

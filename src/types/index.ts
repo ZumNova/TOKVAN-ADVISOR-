@@ -114,6 +114,9 @@ export interface ApprovalStep {
   timestamp?: string;
   comments?: string;
   signatureHash?: string;
+  signerWallet?: string;
+  signedProjectHash?: string;
+  signedMessage?: string;
 }
 
 export interface TokenProject {

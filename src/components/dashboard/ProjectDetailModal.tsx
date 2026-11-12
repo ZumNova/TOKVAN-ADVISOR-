@@ -152,7 +152,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                   </div>
                   {app.approverName && (
                     <div className="text-[11px] text-[#9BA6BD] mt-0.5">
-                      Firmado por: {app.approverName} ({app.timestamp})
+                      {app.signerWallet?'Firmado por wallet: ':'Dato de ejemplo: '}{app.approverName} ({app.timestamp})
                     </div>
                   )}
                   {app.comments && (

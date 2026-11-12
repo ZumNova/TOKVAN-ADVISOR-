@@ -56,8 +56,8 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
-  const canSeeDashboard = staffRole !== 'factory';
-  const allowedLinks = internalLinks.filter(link => staffRole === 'owner' || staffRole === 'administrator' || (staffRole === 'factory' ? ['factory','simulator','standards','architecture'].includes(link.view) : ['dashboard','projects','approvals','simulator','standards','architecture'].includes(link.view)));
+  const canSeeDashboard = true;
+  const allowedLinks = internalLinks.filter(link => staffRole && (link.view !== 'admin' || staffRole === 'owner' || staffRole === 'administrator'));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
   const navigate = (view: string) => {

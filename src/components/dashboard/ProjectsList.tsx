@@ -58,10 +58,10 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
             <span>Portafolio de Activos Tokenizados</span>
             <span aria-hidden="true">·</span>
-            <span className="text-[#9BA6BD]">Datos de Demostración Verificados</span>
+            <span className="text-[#9BA6BD]">Datos de demostración</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-display mt-0.5">
-            Expedientes y Contratos de la Organización
+            Expedientes de emisión
           </h2>
         </div>
 
@@ -73,6 +73,8 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           <span>Nuevo Expediente de Tokenización</span>
         </button>
       </div>
+
+      <p className="rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 text-sm text-amber-100">Esta bandeja muestra proyectos de demostración y proyectos creados en este navegador. Aún no recibe solicitudes desde otros equipos. La recepción central y los documentos privados están pendientes.</p>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-[#141A27] border border-[#273246]">
