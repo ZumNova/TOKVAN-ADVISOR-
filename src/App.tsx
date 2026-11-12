@@ -14,6 +14,8 @@ import { AdminPortal } from './components/admin/AdminPortal';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
 import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
 import ClientProjectHome from './components/wizard/ClientProjectHome';
+import StaffAccess from './components/admin/StaffAccess';
+import { roleCanOpen, type StaffRole } from './lib/staffAccess';
 import {listClientProjects,type ClientProjectRecord} from './lib/clientProjects';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
@@ -23,6 +25,15 @@ const FactoryWorkspace = lazy(() => import('./components/factory/FactoryWorkspac
 
 export default function App() {
   const [currentView, setCurrentView] = useState<string>('landing');
+  const [staff, setStaff] = useState<{account:string;role:StaffRole|'owner'} | null>(null);
+  const [requestedView, setRequestedView] = useState<string>('dashboard');
+  React.useEffect(() => {
+    const ethereum = (window as Window & {ethereum?:{on?:(event:string, fn:()=>void)=>void;removeListener?:(event:string, fn:()=>void)=>void}}).ethereum;
+    const clear = () => { setStaff(null); setCurrentView('landing'); };
+    ethereum?.on?.('accountsChanged', clear);
+    ethereum?.on?.('chainChanged', clear);
+    return () => { ethereum?.removeListener?.('accountsChanged', clear); ethereum?.removeListener?.('chainChanged', clear); };
+  }, []);
   const [projects, setProjects] = useState<TokenProject[]>(MOCK_PROJECTS);
   const [activeOrg, setActiveOrg] = useState<OrganizationTenant>(INITIAL_ORGANIZATION);
   const [leads, setLeads] = useState<LeadSubmission[]>(MOCK_LEADS);
@@ -47,6 +58,9 @@ export default function App() {
   };
 
   const handleNavigate = (view: string) => {
+    if (['dashboard','projects','factory','simulator','standards','approvals','admin','architecture'].includes(view) && !roleCanOpen(staff?.role ?? null, view)) {
+      setRequestedView(view); setCurrentView('staff-access'); window.scrollTo({top:0}); return;
+    }
     refreshClientRecords();
     if(view==='wizard'){setWizardSeedProject(undefined);setWizardStep(1);}
     setCurrentView(view);
@@ -132,6 +146,7 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         activeOrg={activeOrg}
+        staffRole={staff?.role ?? null}
         onToggleAiDrawer={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
         isAiDrawerOpen={isAiDrawerOpen}
       />
@@ -163,6 +178,8 @@ export default function App() {
                   ? 'Expedientes de Emisión'
                   : currentView === 'wizard'
                   ? 'Asistente de Tokenización'
+                  : currentView === 'staff-access'
+                  ? 'Acceso al equipo'
                   : currentView === 'client-confirmation'
                   ? 'Tu solicitud'
                   : currentView === 'factory'
@@ -198,9 +215,10 @@ export default function App() {
           />
           </>
         )}
+        {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
         {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')}/>}
 
-        {currentView === 'dashboard' && (
+        {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <DashboardOverview
               organization={activeOrg}
@@ -211,7 +229,7 @@ export default function App() {
           </div>
         )}
 
-        {currentView === 'projects' && (
+        {currentView === 'projects' && roleCanOpen(staff?.role ?? null, 'projects') && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <ProjectsList
               projects={projects}
@@ -222,7 +240,7 @@ export default function App() {
                 setCurrentView('wizard');
               }}
               onNavigateToApprovals={(proj) => {
-                setCurrentView('approvals');
+                handleNavigate('approvals');
               }}
             />
           </div>
@@ -242,23 +260,23 @@ export default function App() {
           />
         )}
 
-        {currentView === 'factory' && (
+        {currentView === 'factory' && roleCanOpen(staff?.role ?? null, 'factory') && (
           <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} /></Suspense>
         )}
 
-        {currentView === 'simulator' && (
+        {currentView === 'simulator' && roleCanOpen(staff?.role ?? null, 'simulator') && (
           <TokenSimulator
             onNavigate={handleNavigate}
           />
         )}
 
-        {currentView === 'standards' && (
+        {currentView === 'standards' && roleCanOpen(staff?.role ?? null, 'standards') && (
           <StandardsCatalogView
-            onNavigateToSimulator={() => setCurrentView('simulator')}
+            onNavigateToSimulator={() => handleNavigate('simulator')}
           />
         )}
 
-        {currentView === 'approvals' && (
+        {currentView === 'approvals' && roleCanOpen(staff?.role ?? null, 'approvals') && (
           <ApprovalWorkflowView
             projects={projects}
             onUpdateApproval={handleUpdateApproval}
@@ -266,7 +284,7 @@ export default function App() {
           />
         )}
 
-        {currentView === 'admin' && (
+        {currentView === 'admin' && roleCanOpen(staff?.role ?? null, 'admin') && (
           <AdminPortal
             organizations={MOCK_ORGANIZATIONS}
             leads={leads}
@@ -274,7 +292,7 @@ export default function App() {
           />
         )}
 
-        {currentView === 'architecture' && (
+        {currentView === 'architecture' && roleCanOpen(staff?.role ?? null, 'architecture') && (
           <ArchitectureDocsView />
         )}
       </main>
@@ -292,7 +310,7 @@ export default function App() {
         onClose={() => setSelectedProjectForDetail(null)}
         onNavigateToApprovals={(p) => {
           setSelectedProjectForDetail(null);
-          setCurrentView('approvals');
+          handleNavigate('approvals');
         }}
       />
 

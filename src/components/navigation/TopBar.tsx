@@ -16,6 +16,7 @@ interface TopBarProps {
   currentView: string;
   onNavigate: (view: string) => void;
   activeOrg: OrganizationTenant;
+  staffRole: string | null;
   onToggleAiDrawer: () => void;
   isAiDrawerOpen: boolean;
 }
@@ -46,6 +47,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentView,
   onNavigate,
   activeOrg,
+  staffRole,
   onToggleAiDrawer,
   isAiDrawerOpen,
 }) => {
@@ -53,6 +55,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [modulesOpen, setModulesOpen] = useState(false);
 
   const isPublic = currentView === 'landing';
+  const hasStaff = Boolean(staffRole);
+  const canSeeDashboard = staffRole !== 'factory';
+  const allowedLinks = internalLinks.filter(link => staffRole === 'owner' || staffRole === 'administrator' || (staffRole === 'factory' ? ['factory','simulator','standards','architecture'].includes(link.view) : ['dashboard','projects','approvals','simulator','standards','architecture'].includes(link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
   const navigate = (view: string) => {
@@ -116,7 +121,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
 
         {/* NAVEGACIÓN DE PLATAFORMA */}
-        {!isPublic && !isClientFlow && (
+        {!isPublic && !isClientFlow && hasStaff && (
           <div className="hidden min-w-0 items-center gap-4 md:flex">
 
             <button
@@ -127,13 +132,13 @@ export const TopBar: React.FC<TopBarProps> = ({
               Portal comercial
             </button>
 
-            <button
+            {canSeeDashboard && <button
               type="button"
               onClick={() => navigate('dashboard')}
               className="whitespace-nowrap text-xs font-semibold text-white"
             >
               Dashboard
-            </button>
+            </button>}
 
             <div className="relative">
 
@@ -154,7 +159,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                   aria-label="Módulos de la plataforma"
                   className="absolute left-0 top-full z-50 mt-3 w-64 rounded-xl border border-[#39547C] bg-[#101A2A] p-2 shadow-2xl"
                 >
-                  {internalLinks.map((link) => (
+                  {allowedLinks.map((link) => (
                     <button
                       key={link.view}
                       type="button"
@@ -182,10 +187,10 @@ export const TopBar: React.FC<TopBarProps> = ({
             <>
               <button
                 type="button"
-                onClick={() => navigate('dashboard')}
+                onClick={() => navigate('staff-access')}
                 className="hidden whitespace-nowrap rounded-lg border border-[#45628B] px-3 py-2 text-xs font-semibold text-[#D1E2FC] hover:bg-[#17253B] sm:inline-flex"
               >
-                Explorar demo empresa
+                Acceso equipo TOKVANT
               </button>
 
               <button
@@ -206,7 +211,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </span>
               </div>
 
-              <button
+              {canSeeDashboard && <button
                 type="button"
                 onClick={onToggleAiDrawer}
                 aria-pressed={isAiDrawerOpen}
@@ -214,20 +219,20 @@ export const TopBar: React.FC<TopBarProps> = ({
               >
                 <Sparkles size={14} />
                 TOKVANT IA
-              </button>
+              </button>}
 
-              <button
+              {canSeeDashboard && <button
                 type="button"
                 onClick={() => navigate('wizard')}
                 className="hidden whitespace-nowrap rounded-lg bg-[#567EFF] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#4169E1] xl:inline-flex"
               >
                 + Nuevo proyecto
-              </button>
+              </button>}
             </>
           )}
 
           {/* MENÚ MÓVIL */}
-          {!isClientFlow && <button
+          {!isClientFlow && (isPublic || hasStaff) && <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
@@ -263,10 +268,10 @@ export const TopBar: React.FC<TopBarProps> = ({
 
               <button
                 type="button"
-                onClick={() => navigate('dashboard')}
+                onClick={() => navigate('staff-access')}
                 className="mt-4 w-full rounded-lg border border-[#45628B] px-4 py-3 text-sm text-white"
               >
-                Explorar demo empresa
+                Acceso equipo TOKVANT
               </button>
             </>
           ) : (
@@ -279,7 +284,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 Portal comercial
               </button>
 
-              {internalLinks.map((link) => (
+              {allowedLinks.map((link) => (
                 <button
                   key={link.view}
                   type="button"
@@ -290,7 +295,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </button>
               ))}
 
-              <button
+              {canSeeDashboard && <button
                 type="button"
                 onClick={() => {
                   setMobileOpen(false);
@@ -299,7 +304,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 className="mt-4 w-full rounded-lg border border-[#45628B] px-4 py-3 text-sm text-white"
               >
                 TOKVANT IA
-              </button>
+              </button>}
             </>
           )}
         </nav>
