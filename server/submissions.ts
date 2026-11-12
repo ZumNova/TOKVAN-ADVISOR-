@@ -1,12 +1,12 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
-import {createRequire} from 'node:module';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
 import {getAddress,isAddress,verifyMessage} from 'ethers';
 import type {ProjectDocument,TokenProject} from '../src/types';
 
 const BUCKET='tokvant-expedientes';
-const deployment=createRequire(import.meta.url)('../deployment/sepolia-participants.json') as {deployer:string;participants:{technicalReviewer:string;complianceReviewer:string;boardReviewer:string;operator:string}};
+// Sepolia staff wallets; kept in sync with deployment/sepolia-participants.json.
+const deployment={deployer:'0x521125be95c5679539aB07582F55F0040975A047',participants:{technicalReviewer:'0x521125be95c5679539aB07582F55F0040975A047',complianceReviewer:'0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24',boardReviewer:'0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D',operator:'0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25'}};
 const TABLE='client_submissions';
 const MAX_FILE=25*1024*1024;
 const MAX_TOTAL=100*1024*1024;
