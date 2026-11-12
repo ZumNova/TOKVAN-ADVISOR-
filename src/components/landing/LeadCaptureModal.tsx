@@ -71,7 +71,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       organizationId: 'org-py-001',
       organizationName: companyName || 'Empresa Emisora',
       assetType: sector.includes('Agro') ? 'Agropecuario' : sector.includes('Inmobiliario') ? 'Inmobiliario' : 'Deuda / Factoring',
-      jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : 'Estados Unidos (Reg D / Reg S)',
+      jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : country === 'Argentina' ? 'Argentina' : country === 'Estados Unidos' ? 'Estados Unidos (Reg D / Reg S)' : 'Por definir (revisión del expediente)',
       standard: recommendedStandard,
       network: 'polygon',
       status: 'Preliminar',

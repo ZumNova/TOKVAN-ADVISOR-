@@ -370,15 +370,18 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 </label>
                 <select
                   value={jurisdiction}
-                  onChange={(e) => setJurisdiction(e.target.value as any)}
+                  onChange={(e) => setJurisdiction(e.target.value as TokenProject['jurisdiction'])}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#316BFA]"
                 >
                   <option value="Paraguay (BCP / CNV / Ley DLT)">Paraguay (BCP / CNV / Ley DLT)</option>
+                  <option value="Argentina">Argentina</option>
                   <option value="Estados Unidos (Reg D / Reg S)">Estados Unidos (Reg D / Reg S)</option>
                   <option value="Suiza (DLT Act)">Suiza (DLT Act)</option>
                   <option value="Unión Europea (MiCA)">Unión Europea (MiCA)</option>
                   <option value="Multi-jurisdiccional">Multi-jurisdiccional</option>
+                  <option value="Por definir (revisión del expediente)">Por definir (revisión del expediente)</option>
                 </select>
+                <p className="mt-2 text-xs text-[#9BA6BD]">Selección preliminar, sujeta a revisión del expediente. Si intervienen varios países, seleccione «Multi-jurisdiccional» e identifique en el expediente el país de la emisora, la ubicación del activo y los países de oferta e inversores. Esta selección no habilita países ni modifica las reglas del contrato.</p>
               </div>
             </div>
 
