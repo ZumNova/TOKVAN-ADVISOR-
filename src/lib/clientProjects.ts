@@ -1,3 +1,4 @@
+import {isAddress} from 'ethers';
 import type {TokenProject} from '../types';
 
 const PREFIX='tokvant:client-project:v1:';
@@ -15,7 +16,7 @@ export function listClientProjects():ClientProjectRecord[]{
   try{
    const r=JSON.parse(localStorage.getItem(key)||'null');
    const p=r?.project;
-   const validFields=p&&['id','title','organizationName','assetType','jurisdiction'].every(k=>typeof p[k]==='string')&&['assetDescription','assetTypeOther','taxId'].every(k=>p[k]===undefined||typeof p[k]==='string')&&(!p.contact||(['fullName','email','phone'].every(k=>typeof p.contact[k]==='string')&&typeof p.contact.consent==='boolean'));
+   const validFields=p&&['id','title','organizationName','assetType','jurisdiction'].every(k=>typeof p[k]==='string')&&['assetDescription','assetTypeOther','taxId','clientWalletAddress'].every(k=>p[k]===undefined||typeof p[k]==='string')&&(!p.clientWalletNetwork||['sepolia','polygon','ethereum','arbitrum'].includes(p.clientWalletNetwork))&&(!p.contact||(['fullName','email','phone'].every(k=>typeof p.contact[k]==='string')&&typeof p.contact.consent==='boolean'));
    if(validFields&&['draft','prepared'].includes(r.stage)&&Number.isInteger(r.step)&&r.step>=1&&r.step<=5&&typeof r.savedAt==='string'&&Array.isArray(p.documents)&&p.documents.every((d:unknown)=>d&&typeof d==='object'&&['id','name','fileName'].every(k=>typeof (d as Record<string,unknown>)[k]==='string'))&&Array.isArray(p.approvals)&&Array.isArray(p.securityChecks)&&p.parameters&&typeof p.parameters.tokenName==='string'&&typeof p.parameters.tokenSymbol==='string'&&typeof p.parameters.initialSupply==='number'&&typeof p.parameters.decimals==='number'&&['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(p.standard)&&['sepolia','polygon','ethereum','arbitrum'].includes(p.network))result.push(r);
   }catch{/* Ignore a damaged record without deleting it. */}
  }
@@ -30,6 +31,7 @@ export function clientProjectChecks(project:TokenProject){
   {step:2,label:'Estándar y red propuestos',ok:Boolean(project.standard&&project.network)},
   {step:3,label:'Nombre, símbolo y cantidades del token',ok:Boolean(project.parameters.tokenName.trim()&&project.parameters.tokenSymbol.trim()&&Number.isFinite(project.parameters.initialSupply)&&project.parameters.initialSupply>0&&Number.isInteger(project.parameters.decimals)&&project.parameters.decimals>=0&&project.parameters.decimals<=18&&(!(project.standard==='ERC-721'||project.standard==='ERC-1155')||(project.parameters.decimals===0&&Number.isInteger(project.parameters.initialSupply))))},
   {step:4,label:'Al menos un adjunto con hash calculado',ok:project.documents.some(d=>d.storage==='browser'&&/^[a-f0-9]{64}$/.test(d.sha256||''))},
+  ...(project.clientWalletAddress?.trim() ? [{step:5,label:'Wallet EVM válida y misma red propuesta para el token',ok:isAddress(project.clientWalletAddress.trim())&&project.clientWalletNetwork===project.network}] : []),
  ];
 }
 export function clientCompleteness(project:TokenProject){const checks=clientProjectChecks(project);return Math.round(100*checks.filter(c=>c.ok).length/checks.length);}

@@ -128,6 +128,9 @@ export interface TokenProject {
   contact?: {fullName:string;email:string;phone:string;consent:boolean};
   commercialContext?: {targetAudience:string;commercialChannels:string;objective:string;country:string;sector:string;experienceLevel:string;marketingConsent:boolean};
   completenessScore?: number;
+  clientWalletAddress?: string;
+  clientWalletNetwork?: NetworkId;
+  walletSupportRequested?: boolean;
   jurisdiction: 'Paraguay (BCP / CNV / Ley DLT)' | 'Argentina' | 'Estados Unidos (Reg D / Reg S)' | 'Suiza (DLT Act)' | 'Unión Europea (MiCA)' | 'Multi-jurisdiccional' | 'Por definir (revisión del expediente)';
   standard: StandardType;
   network: NetworkId;

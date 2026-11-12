@@ -24,6 +24,11 @@ test('completitud no toma documentos ficticios como evidencia adjunta',()=>{
  assert.equal(clientProjectChecks(p).find(c=>c.step===4)?.ok,false);
  const complete={...p,documents:[{...p.documents[0],storage:'browser' as const,sha256:'a'.repeat(64)}]};
  assert.equal(clientCompleteness(complete),100);
+ const withWallet={...complete,clientWalletAddress:'0x521125be95c5679539aB07582F55F0040975A047',clientWalletNetwork:complete.network};
+ assert.equal(clientCompleteness(withWallet),100);
+ assert.equal(clientProjectChecks({...withWallet,clientWalletNetwork:'sepolia'}).find(c=>c.step===5)?.ok,complete.network==='sepolia');
+ assert.equal(clientProjectChecks({...withWallet,clientWalletAddress:'0x123'}).find(c=>c.step===5)?.ok,false);
+ assert.equal(clientProjectChecks({...complete,clientWalletAddress:''}).find(c=>c.step===5),undefined);
  assert.equal(clientProjectChecks({...complete,contact:{...p.contact,email:'invalido'}}).find(c=>c.label.includes('email'))?.ok,false);
  assert.equal(clientProjectChecks({...complete,standard:'ERC-721' as const,parameters:{...complete.parameters,decimals:2}}).find(c=>c.step===3)?.ok,false);
 });

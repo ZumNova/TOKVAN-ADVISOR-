@@ -89,6 +89,8 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
 
   const [documents, setDocuments] = useState<ProjectDocument[]>(initialProject?.documents?.filter(d=>d.storage==='browser') || []);
   const [contact, setContact] = useState(initialProject?.contact || {fullName:'',email:'',phone:'',consent:false});
+  const [clientWalletAddress, setClientWalletAddress] = useState(initialProject?.clientWalletAddress || '');
+  const [clientWalletNetwork, setClientWalletNetwork] = useState<NetworkId>(initialProject?.clientWalletNetwork || initialProject?.network || 'polygon');
   const [documentsBusy, setDocumentsBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submitLock = useRef(false);
@@ -113,6 +115,9 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
       jurisdiction,
       standard,
       network,
+      clientWalletAddress: clientWalletAddress.trim(),
+      clientWalletNetwork: clientWalletAddress.trim() ? clientWalletNetwork : undefined,
+      walletSupportRequested: !clientWalletAddress.trim(),
       status: 'Borrador',
       progressPercent,
       targetValuationUsd,
@@ -654,7 +659,21 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <div><dt className="text-[#9BA6BD]">Responsable</dt><dd>{contact.fullName}</dd></div><div><dt className="text-[#9BA6BD]">Contacto</dt><dd className="break-all">{contact.email} {contact.phone}</dd></div>
             <div><dt className="text-[#9BA6BD]">Activo y jurisdicción</dt><dd>{assetType==='Otro'?assetTypeOther:assetType} · {jurisdiction}</dd></div><div><dt className="text-[#9BA6BD]">Token propuesto</dt><dd>{tokenName} · {tokenSymbol} · {standard}</dd></div>
             <div><dt className="text-[#9BA6BD]">Unidades / decimales</dt><dd>{initialSupply} / {decimals}</dd></div><div><dt className="text-[#9BA6BD]">Adjuntos</dt><dd>{documents.length} · Pendientes de revisión</dd></div>
+            <div className="sm:col-span-2"><dt className="text-[#9BA6BD]">Wallet del cliente</dt><dd className="break-all">{clientWalletAddress.trim() ? `${clientWalletAddress.trim()} · ${SUPPORTED_NETWORKS[clientWalletNetwork]?.name}` : 'Pendiente · Solicita acompañamiento de TOKVANT'}</dd></div>
           </dl>
+          <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-5 space-y-4">
+            <div><h3 className="font-semibold text-white">Wallet para este proyecto · opcional</h3><p className="mt-2 text-sm text-[#9BA6BD]">Si ya tenés una wallet EVM, indicá su dirección y la red en la que usarías el token. Si todavía no tenés una, dejá el campo vacío: TOKVANT podrá orientarte durante la revisión. No conectes la wallet ni firmes nada para completar esta solicitud.</p></div>
+            <label className="block text-sm text-slate-200">Dirección pública de tu wallet
+              <input value={clientWalletAddress} onChange={e=>setClientWalletAddress(e.target.value)} placeholder="0x…" autoComplete="off" spellCheck={false} className="mt-2 w-full rounded-lg border border-[#39547C] bg-[#101A2A] px-3 py-3 font-mono text-sm text-white" />
+            </label>
+            {clientWalletAddress.trim() ? <label className="block text-sm text-slate-200">Red en la que usarías esta wallet
+              <select value={clientWalletNetwork} onChange={e=>setClientWalletNetwork(e.target.value as NetworkId)} className="mt-2 w-full rounded-lg border border-[#39547C] bg-[#101A2A] px-3 py-3 text-white">
+                {Object.values(SUPPORTED_NETWORKS).map(net=><option key={net.id} value={net.id}>{net.name}</option>)}
+              </select>
+            </label> : <p className="text-sm text-[#B8C9E1]">Sin wallet por ahora · podés continuar y solicitar acompañamiento.</p>}
+            <p className="text-xs text-[#9BA6BD]">Red propuesta para el token: <strong className="text-white">{SUPPORTED_NETWORKS[network]?.name}</strong>. La dirección EVM puede usarse en distintas redes; aquí registramos la red prevista para este proyecto.</p>
+            {clientWalletAddress.trim() && !checks.find(c=>c.step===5)?.ok && <p role="alert" className="text-sm text-amber-200">Revisá la dirección y seleccioná la misma red propuesta para el token.</p>}
+          </div>
           <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Etapa de prueba: al finalizar se guarda tu solicitud en este navegador. Todavía no se entrega a administración ni se envían emails. Podrás descargar la copia y volver al inicio.</p>
         </section>}
 
