@@ -19,6 +19,9 @@ interface ProjectsListProps {
   onSelectProject: (project: TokenProject) => void;
   onCreateNew: () => void;
   onNavigateToApprovals: (project: TokenProject) => void;
+  onRefreshShared?: () => void;
+  sharedLoading?: boolean;
+  sharedError?: string;
 }
 
 export const ProjectsList: React.FC<ProjectsListProps> = ({
@@ -26,6 +29,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   onSelectProject,
   onCreateNew,
   onNavigateToApprovals,
+  onRefreshShared,sharedLoading,sharedError,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -58,23 +62,24 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
             <span>Portafolio de Activos Tokenizados</span>
             <span aria-hidden="true">·</span>
-            <span className="text-[#9BA6BD]">Datos de demostración</span>
+            <span className="text-[#9BA6BD]">Bandeja de recepción y ejemplos</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-display mt-0.5">
             Expedientes de emisión
           </h2>
         </div>
 
-        <button
+        <div className="flex gap-2 flex-wrap">{onRefreshShared&&<button onClick={onRefreshShared} disabled={sharedLoading} className="rounded-lg border border-[#45628B] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{sharedLoading?'Cargando recibidos…':'Cargar expedientes recibidos'}</button>}<button
           onClick={onCreateNew}
           className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer self-start sm:self-auto shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Expediente de Tokenización</span>
-        </button>
+        </button></div>
       </div>
 
-      <p className="rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 text-sm text-amber-100">Esta bandeja muestra proyectos de demostración y proyectos creados en este navegador. Aún no recibe solicitudes desde otros equipos. La recepción central y los documentos privados están pendientes.</p>
+      {sharedError&&<p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-200">{sharedError}</p>}
+      <p className="rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 text-sm text-amber-100">Los expedientes recibidos aparecen al pulsar «Cargar expedientes recibidos» y firmar con una wallet del equipo. Los proyectos de ejemplo siguen visibles y se identifican por sus datos de demostración.</p>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-[#141A27] border border-[#273246]">
@@ -175,7 +180,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                               {p.title}
                             </button>
                             <div className="flex items-center gap-2 text-[11px] text-[#9BA6BD] font-mono mt-0.5">
-                              <span>{p.id}</span>
+                              <span>{p.id}</span>{p.submissionId&&<span className="text-emerald-300">Recibido</span>}
                               <span aria-hidden="true">·</span>
                               <span className="text-[#7096FF] font-semibold">{p.parameters.tokenSymbol}</span>
                               <span aria-hidden="true">·</span>

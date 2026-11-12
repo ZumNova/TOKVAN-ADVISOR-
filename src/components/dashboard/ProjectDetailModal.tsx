@@ -1,18 +1,20 @@
 import React from 'react';
 import { X, ShieldCheck, FileText, CheckCircle2, AlertTriangle, ExternalLink, Cpu, Copy } from 'lucide-react';
-import { TokenProject } from '../../types';
+import { TokenProject, ProjectDocument } from '../../types';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
 
 interface ProjectDetailModalProps {
   project: TokenProject | null;
   onClose: () => void;
   onNavigateToApprovals?: (project: TokenProject) => void;
+  onDownloadDocument?: (project:TokenProject,doc:ProjectDocument)=>void;
 }
 
 export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   project,
   onClose,
   onNavigateToApprovals,
+  onDownloadDocument,
 }) => {
   if (!project) return null;
 
@@ -52,6 +54,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             <span>Estado: <strong className="text-[#7096FF]">{project.status}</strong></span>
           </div>
         </div>
+
+        {project.submissionId&&<div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3.5 text-sm text-emerald-100">Solicitud recibida por TOKVANT el {project.receivedAt?new Date(project.receivedAt).toLocaleString('es-AR'):'día de recepción'}. Los datos y adjuntos fueron aportados por el cliente; la revisión técnica, legal y de cumplimiento está pendiente.</div>}
 
         {/* Simulation Notice */}
         {project.isSimulationOnly && (
@@ -181,7 +185,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         {/* Documents */}
         <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-5 space-y-3">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 pb-2 border-b border-[#273246]">
-            Documentación y Evidencia Registral Anclada
+            Documentación adjunta · pendiente de revisión
           </h3>
 
           {project.documents.length === 0 ? (
@@ -198,7 +202,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                     <span className="text-white font-medium">{doc.name}</span>
                     <span className="text-[11px] text-[#9BA6BD] font-mono">({doc.fileName} · {doc.fileSize})</span>
                   </div>
-                  <span className="text-[10px] text-[#16A34A] font-semibold">{doc.status}</span>
+                  <div className="flex gap-2 items-center">{doc.storage==='remote'&&onDownloadDocument&&<button onClick={()=>onDownloadDocument(project,doc)} className="text-[#9BBCFF] underline">Descargar privado</button>}<span className="text-[10px] text-[#16A34A] font-semibold">{doc.status}</span></div>
                 </div>
               ))}
             </div>

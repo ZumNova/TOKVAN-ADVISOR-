@@ -70,7 +70,7 @@ export interface ProjectDocument {
   fileSize: string;
   uploadDate: string;
   status: 'Verificado' | 'Pendiente' | 'Rechazado';
-  storage?: 'browser';
+  storage?: 'browser' | 'remote';
   sha256?: string;
   sizeBytes?: number;
 }
@@ -131,6 +131,8 @@ export interface TokenProject {
   contact?: {fullName:string;email:string;phone:string;consent:boolean};
   commercialContext?: {targetAudience:string;commercialChannels:string;objective:string;country:string;sector:string;experienceLevel:string;marketingConsent:boolean};
   completenessScore?: number;
+  submissionId?: string;
+  receivedAt?: string;
   clientWalletAddress?: string;
   clientWalletNetwork?: NetworkId;
   walletSupportRequested?: boolean;

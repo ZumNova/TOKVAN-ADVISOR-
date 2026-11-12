@@ -2,12 +2,18 @@ import {isAddress} from 'ethers';
 import type {TokenProject} from '../types';
 
 const PREFIX='tokvant:client-project:v1:';
-export interface ClientProjectRecord {project:TokenProject;step:number;stage:'draft'|'prepared';savedAt:string;}
+export interface ClientProjectRecord {project:TokenProject;step:number;stage:'draft'|'prepared'|'submitted';savedAt:string;receivedAt?:string;submissionId?:string;}
 export function newClientProjectId(){return `TOKVANT-${crypto.randomUUID().toUpperCase()}`;}
 export function saveClientProject(project:TokenProject,step:number,stage:ClientProjectRecord['stage']='draft'){
  const record:ClientProjectRecord={project,step,stage,savedAt:new Date().toISOString()};
  localStorage.setItem(PREFIX+project.id,JSON.stringify(record));
  return record;
+}
+export function markClientProjectSubmitted(id:string,submissionId:string,receivedAt:string){
+ const key=PREFIX+id;const record=JSON.parse(localStorage.getItem(key)||'null') as ClientProjectRecord|null;
+ if(!record||record.project.id!==id)throw new Error('No se encontró el expediente local para confirmar la recepción.');
+ const updated={...record,stage:'submitted' as const,submissionId,receivedAt,savedAt:new Date().toISOString()};
+ localStorage.setItem(key,JSON.stringify(updated));return updated;
 }
 export function listClientProjects():ClientProjectRecord[]{
  const result:ClientProjectRecord[]=[];
@@ -17,7 +23,7 @@ export function listClientProjects():ClientProjectRecord[]{
    const r=JSON.parse(localStorage.getItem(key)||'null');
    const p=r?.project;
    const validFields=p&&['id','title','organizationName','assetType','jurisdiction'].every(k=>typeof p[k]==='string')&&['assetDescription','assetTypeOther','taxId','clientWalletAddress'].every(k=>p[k]===undefined||typeof p[k]==='string')&&(!p.clientWalletNetwork||['sepolia','polygon','ethereum','arbitrum'].includes(p.clientWalletNetwork))&&(!p.contact||(['fullName','email','phone'].every(k=>typeof p.contact[k]==='string')&&typeof p.contact.consent==='boolean'));
-   if(validFields&&['draft','prepared'].includes(r.stage)&&Number.isInteger(r.step)&&r.step>=1&&r.step<=5&&typeof r.savedAt==='string'&&Array.isArray(p.documents)&&p.documents.every((d:unknown)=>d&&typeof d==='object'&&['id','name','fileName'].every(k=>typeof (d as Record<string,unknown>)[k]==='string'))&&Array.isArray(p.approvals)&&Array.isArray(p.securityChecks)&&p.parameters&&typeof p.parameters.tokenName==='string'&&typeof p.parameters.tokenSymbol==='string'&&typeof p.parameters.initialSupply==='number'&&typeof p.parameters.decimals==='number'&&['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(p.standard)&&['sepolia','polygon','ethereum','arbitrum'].includes(p.network))result.push(r);
+   if(validFields&&['draft','prepared','submitted'].includes(r.stage)&&Number.isInteger(r.step)&&r.step>=1&&r.step<=5&&typeof r.savedAt==='string'&&Array.isArray(p.documents)&&p.documents.every((d:unknown)=>d&&typeof d==='object'&&['id','name','fileName'].every(k=>typeof (d as Record<string,unknown>)[k]==='string'))&&Array.isArray(p.approvals)&&Array.isArray(p.securityChecks)&&p.parameters&&typeof p.parameters.tokenName==='string'&&typeof p.parameters.tokenSymbol==='string'&&typeof p.parameters.initialSupply==='number'&&typeof p.parameters.decimals==='number'&&['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(p.standard)&&['sepolia','polygon','ethereum','arbitrum'].includes(p.network))result.push(r);
   }catch{/* Ignore a damaged record without deleting it. */}
  }
  return result.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));

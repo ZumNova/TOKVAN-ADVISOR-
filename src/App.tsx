@@ -17,7 +17,8 @@ import ClientProjectHome from './components/wizard/ClientProjectHome';
 import StaffAccess from './components/admin/StaffAccess';
 import { roleCanOpen, type StaffRole } from './lib/staffAccess';
 import {validReview,reviewRoleForWallet,type ReviewProof} from './lib/reviewSignatures';
-import {listClientProjects,type ClientProjectRecord} from './lib/clientProjects';
+import {listClientProjects,markClientProjectSubmitted,type ClientProjectRecord} from './lib/clientProjects';
+import {submitClientProject,listSharedSubmissions,downloadSharedDocument} from './lib/sharedSubmissions';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
 import { TokenProject, OrganizationTenant, LeadSubmission } from './types';
@@ -47,6 +48,10 @@ export default function App() {
   const [wizardStep,setWizardStep] = useState(1);
   const [clientRecords,setClientRecords] = useState<ClientProjectRecord[]>(()=>{try{return listClientProjects();}catch{return [];}});
   const [clientReceipt,setClientReceipt] = useState<ClientProjectRecord>();
+  const [submissionProgress,setSubmissionProgress]=useState('');
+  const [submissionError,setSubmissionError]=useState('');
+  const [sharedLoading,setSharedLoading]=useState(false);
+  const [sharedError,setSharedError]=useState('');
   const refreshClientRecords=()=>{try{setClientRecords(listClientProjects());}catch{/* The wizard reports storage errors when saving. */}};
   const resumeClientProject=(record:ClientProjectRecord)=>{setWizardSeedProject(record.project);setWizardStep(record.step);setCurrentView('wizard');window.scrollTo({top:0,behavior:'smooth'});};
 
@@ -80,6 +85,25 @@ export default function App() {
     showToast(`Expediente ${newDraft.id} generado desde el diagnóstico institucional.`);
   };
 
+  const deliverProject=async(record:ClientProjectRecord)=>{
+    if(submissionProgress)return;
+    setSubmissionError('');setSubmissionProgress('Iniciando envío…');
+    try{
+      const receipt=await submitClientProject(record.project,setSubmissionProgress);
+      const updated=markClientProjectSubmitted(record.project.id,receipt.id,receipt.receivedAt);
+      setClientReceipt(updated);refreshClientRecords();
+    }catch(e){setSubmissionError(e instanceof Error?e.message:'No se pudo enviar el expediente.');}
+    finally{setSubmissionProgress('');}
+  };
+  const refreshShared=async()=>{
+    if(!staff||sharedLoading)return;
+    setSharedLoading(true);setSharedError('');
+    try{
+      const received=await listSharedSubmissions(staff.account);
+      setProjects(previous=>[...received,...previous.filter(p=>!p.submissionId&&!received.some(r=>r.id===p.id))]);
+    }catch(e){setSharedError(e instanceof Error?e.message:'No se pudo cargar la bandeja.');}
+    finally{setSharedLoading(false);}
+  };
   const handleSaveProjectFromWizard = (finalizedProject: TokenProject) => {
     setProjects((prev) => {
       const existsIndex = prev.findIndex((p) => p.id === finalizedProject.id);
@@ -94,6 +118,7 @@ export default function App() {
     refreshClientRecords();
     setClientReceipt({project:finalizedProject,step:5,stage:'prepared',savedAt:new Date().toISOString()});
     setCurrentView('client-confirmation');
+    void deliverProject({project:finalizedProject,step:5,stage:'prepared',savedAt:new Date().toISOString()});
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
@@ -184,7 +209,7 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'landing' && (
           <>
-          <ClientProjectHome records={clientRecords} onResume={resumeClientProject}/>
+          <ClientProjectHome records={clientRecords} onResume={resumeClientProject} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>
           <CommercialLandingPage
             onNavigate={handleNavigate}
             onOpenLeadModal={handleOpenLeadModal}
@@ -192,7 +217,7 @@ export default function App() {
           </>
         )}
         {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
-        {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')}/>}
+        {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>}
 
         {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -210,6 +235,7 @@ export default function App() {
             <ProjectsList
               projects={projects}
               onSelectProject={(proj) => setSelectedProjectForDetail(proj)}
+              onRefreshShared={()=>void refreshShared()} sharedLoading={sharedLoading} sharedError={sharedError}
               onCreateNew={() => {
                 setWizardSeedProject(undefined);
                 setWizardStep(1);
@@ -285,6 +311,7 @@ export default function App() {
       <ProjectDetailModal
         project={selectedProjectForDetail}
         onClose={() => setSelectedProjectForDetail(null)}
+        onDownloadDocument={(project,doc)=>{if(!staff)return;void downloadSharedDocument(staff.account,project,doc).catch(e=>showToast(e instanceof Error?e.message:'No se pudo descargar.'));}}
         onNavigateToApprovals={(p) => {
           setSelectedProjectForDetail(null);
           handleNavigate('approvals');

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {File} from 'node:buffer';
 import {MOCK_PROJECTS} from '../src/constants/mockData';
-import {clientCompleteness,clientProjectChecks,listClientProjects,saveClientProject,newClientProjectId} from '../src/lib/clientProjects';
+import {clientCompleteness,clientProjectChecks,listClientProjects,saveClientProject,newClientProjectId,markClientProjectSubmitted} from '../src/lib/clientProjects';
 import {MAX_DOCUMENT_BYTES,readClientFile,sha256,validateClientFile} from '../src/lib/clientDocuments';
 
 test('borrador conserva contacto, paso, descripción y adjuntos; preparar reemplaza el mismo registro',()=>{
@@ -12,6 +12,7 @@ test('borrador conserva contacto, paso, descripción y adjuntos; preparar reempl
  saveClientProject(p,4);
  const restored=listClientProjects();assert.equal(restored.length,1);assert.deepEqual(restored[0].project.contact,p.contact);assert.equal(restored[0].step,4);assert.equal(restored[0].project.assetDescription,p.assetDescription);
  saveClientProject(p,5,'prepared');assert.equal(listClientProjects().length,1);assert.equal(listClientProjects()[0].stage,'prepared');
+ markClientProjectSubmitted(p.id,'11111111-2222-3333-4444-555555555555','2026-11-12T12:00:00.000Z');assert.equal(listClientProjects()[0].stage,'submitted');assert.equal(listClientProjects()[0].submissionId,'11111111-2222-3333-4444-555555555555');
  data.set('tokvant:client-project:v1:broken','{');assert.equal(listClientProjects().length,1);
  const key=[...data.keys()][0];const damaged=JSON.parse(data.get(key)!);damaged.project.organizationName=null;data.set(key,JSON.stringify(damaged));assert.equal(listClientProjects().length,0);
 });

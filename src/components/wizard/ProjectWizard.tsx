@@ -674,7 +674,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <p className="text-xs text-[#9BA6BD]">Red propuesta para el token: <strong className="text-white">{SUPPORTED_NETWORKS[network]?.name}</strong>. La dirección EVM puede usarse en distintas redes; aquí registramos la red prevista para este proyecto.</p>
             {clientWalletAddress.trim() && !checks.find(c=>c.step===5)?.ok && <p role="alert" className="text-sm text-amber-200">Revisá la dirección y seleccioná la misma red propuesta para el token.</p>}
           </div>
-          <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Etapa de prueba: al finalizar se guarda tu solicitud en este navegador. Todavía no se entrega a administración ni se envían emails. Podrás descargar la copia y volver al inicio.</p>
+          <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Al finalizar guardaremos una copia en este navegador e intentaremos enviar el expediente y los adjuntos al espacio privado de TOKVANT. Solo se considerará recibido cuando aparezca el comprobante. Si falla la conexión, podrás reintentar sin perder tu borrador. Los avisos por email aún no están activos.</p>
         </section>}
 
         {/* STEPPER NAVIGATION BUTTONS */}
@@ -714,7 +714,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
               className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors cursor-pointer shadow-lg shadow-[#16A34A]/20"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{submitting?'Guardando solicitud…':'Preparar expediente para TOKVANT'}</span>
+              <span>{submitting?'Guardando solicitud…':'Enviar solicitud a TOKVANT'}</span>
             </button>
           )}
         </div>
