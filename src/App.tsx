@@ -146,7 +146,6 @@ export default function App() {
       <TopBar
         currentView={currentView}
         onNavigate={handleNavigate}
-        activeOrg={activeOrg}
         staffRole={staff?.role ?? null}
         onToggleAiDrawer={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
         isAiDrawerOpen={isAiDrawerOpen}
@@ -197,10 +196,7 @@ export default function App() {
               </span>
             </div>
 
-            <div className="flex items-center gap-4 text-[11px]">
-              {!['wizard','client-confirmation'].includes(currentView)&&<span className="hidden sm:inline">Empresa: <strong className="text-white">{activeOrg.legalName}</strong></span>}
-              <span className="text-[#7096FF] font-mono">Sandbox Demo Activo</span>
-            </div>
+            <span className="text-[#7096FF] font-mono text-[11px]">Entorno de pruebas</span>
           </div>
         </div>
       )}
@@ -222,8 +218,7 @@ export default function App() {
         {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <DashboardOverview
-              organization={activeOrg}
-              projects={projects}
+              projects={projects.filter(project=>!project.isSimulationOnly)}
               onNavigate={handleNavigate}
               onSelectProject={(proj) => setSelectedProjectForDetail(proj)}
             />

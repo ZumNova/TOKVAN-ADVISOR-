@@ -1,30 +1,23 @@
 import React from 'react';
 import { 
-  Building2, 
   Coins, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
   ArrowRight, 
   Plus, 
   Cpu, 
   ShieldCheck, 
   Layers, 
   FileCheck2,
-  ExternalLink
 } from 'lucide-react';
-import { TokenProject, OrganizationTenant } from '../../types';
+import { TokenProject } from '../../types';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
 
 interface DashboardOverviewProps {
-  organization: OrganizationTenant;
   projects: TokenProject[];
   onNavigate: (view: string) => void;
   onSelectProject: (project: TokenProject) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
-  organization,
   projects,
   onNavigate,
   onSelectProject,
@@ -41,15 +34,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   return (
     <div className="space-y-8">
       
-      {/* Top Banner with Org Context & Demonstrative Tag */}
+      {/* Team overview; a client company is shown only inside its own expediente. */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-[#141A27] border border-[#273246]">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
-            <Building2 className="w-4 h-4" />
-            <span>Organización Activa: {organization.legalName}</span>
-            <span aria-hidden="true">·</span>
-            <span className="text-[#9BA6BD]">Tenant ID: {organization.id}</span>
-          </div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-[#7096FF]">Equipo TOKVANT · Expedientes de emisión</div>
           <h1 className="text-xl sm:text-2xl font-bold text-white font-display mt-1">
             Panel Ejecutivo de Activos Digitales y Gobernanza EVM
           </h1>
@@ -104,7 +92,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             ${(totalValuationUsd / 1000000).toFixed(1)}M USD
           </div>
           <div className="text-[11px] text-[#9BA6BD]">
-            Activos respaldados por escrituras y peritajes
+            Valor declarado en los expedientes cargados
           </div>
         </div>
 
@@ -118,7 +106,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             {deployedProjects.length}
           </div>
           <div className="text-[11px] text-[#9BA6BD]">
-            Auditados en Polygon & Arbitrum
+            Según los expedientes recibidos
           </div>
         </div>
 
@@ -160,6 +148,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           <div className="space-y-3">
+            {projects.length===0&&<p className="rounded-xl border border-[#273246] bg-[#0B0D12] p-5 text-sm text-[#9BA6BD]">Todavía no hay expedientes recibidos cargados. Abrí «Expedientes de emisión» y pulsá «Cargar expedientes recibidos».</p>}
             {projects.slice(0, 3).map((project) => {
               const net = SUPPORTED_NETWORKS[project.network] || SUPPORTED_NETWORKS.polygon;
               return (
@@ -244,27 +233,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200">
                 Gobernanza & Firmas
               </h3>
-              <span className="text-xs text-[#D97706] font-semibold">3 Firmas Pendientes</span>
+              <span className="text-xs text-[#D97706] font-semibold">{pendingApprovalsCount} firmas pendientes</span>
             </div>
 
             <p className="text-xs text-[#9BA6BD]">
-              El motor de aprobación exige que ningún contrato toque la blockchain sin la firma de los 3 revisores independientes:
+              Los dictámenes pendientes corresponden a los expedientes recibidos cargados en esta sesión.
             </p>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B0D12] border border-[#273246]">
-                <span className="text-slate-300">1. Revisor Técnico (Bytecode)</span>
-                <span className="text-[#16A34A] font-semibold text-[11px]">Verificado</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B0D12] border border-[#273246]">
-                <span className="text-slate-300">2. Oficial Compliance (KYC/AML)</span>
-                <span className="text-[#D97706] font-semibold text-[11px]">1 Pendiente</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-[#0B0D12] border border-[#273246]">
-                <span className="text-slate-300">3. Directorio Emisor (Poder Legal)</span>
-                <span className="text-[#D97706] font-semibold text-[11px]">2 Pendientes</span>
-              </div>
-            </div>
 
             <button
               onClick={() => onNavigate('approvals')}
@@ -273,20 +247,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <span>Abrir Consola de Aprobaciones</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          </div>
-
-          {/* Zero-Trust Security Sentinel */}
-          <div className="rounded-2xl bg-[#141A27] border border-[#273246] p-6 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#16A34A]">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Firewall Lógico Pre-Deploy</span>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Estado del sistema: Todos los artefactos coinciden con las plantillas auditadas por ConsenSys y Trail of Bits registradas en el Registry SHA-256.
-            </p>
-            <div className="pt-2 text-[11px] text-[#9BA6BD] font-mono">
-              Última verificación de integridad: Hoy 07:30 UTC
-            </div>
           </div>
 
         </div>

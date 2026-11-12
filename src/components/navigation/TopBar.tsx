@@ -6,16 +6,13 @@ import {
   ChevronDown,
   ArrowRight,
   Sparkles,
-  Building2,
 } from 'lucide-react';
 
 import { TokvanLogo } from '../brand/TokvanLogo';
-import { OrganizationTenant } from '../../types';
 
 interface TopBarProps {
   currentView: string;
   onNavigate: (view: string) => void;
-  activeOrg: OrganizationTenant;
   staffRole: string | null;
   onToggleAiDrawer: () => void;
   isAiDrawerOpen: boolean;
@@ -46,7 +43,6 @@ const internalLinks = [
 export const TopBar: React.FC<TopBarProps> = ({
   currentView,
   onNavigate,
-  activeOrg,
   staffRole,
   onToggleAiDrawer,
   isAiDrawerOpen,
@@ -204,13 +200,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             </>
           ) : isClientFlow ? <span className="text-xs text-[#B8C9E1]">Tu proyecto · TOKVANT</span> : (
             <>
-              <div className="hidden items-center gap-2 rounded-lg border border-[#2B3E5D] bg-[#101A2A] px-3 py-2 xl:flex">
-                <Building2 size={14} className="text-[#6CE1E8]" />
-                <span className="max-w-32 truncate text-xs text-[#D1E2FC]">
-                  {activeOrg.legalName}
-                </span>
-              </div>
-
               {canSeeDashboard && <button
                 type="button"
                 onClick={onToggleAiDrawer}
