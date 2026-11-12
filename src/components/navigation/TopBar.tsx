@@ -38,7 +38,7 @@ const internalLinks = [
   { label: 'Factories', view: 'factory' },
   { label: 'Expedientes', view: 'projects' },
   { label: 'Aprobaciones', view: 'approvals' },
-  { label: 'Panel TOKVAN Admin', view: 'admin' },
+  { label: 'Panel TOKVANT Admin', view: 'admin' },
   { label: 'Arquitectura & ADRs', view: 'architecture' },
 ];
 
@@ -212,7 +212,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 className="hidden items-center gap-2 rounded-lg border border-[#39547C] px-3 py-2 text-xs text-[#D1E2FC] hover:bg-[#203A69] lg:inline-flex"
               >
                 <Sparkles size={14} />
-                TOKVANT AI
+                TOKVANT IA
               </button>
 
               <button
@@ -297,7 +297,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 }}
                 className="mt-4 w-full rounded-lg border border-[#45628B] px-4 py-3 text-sm text-white"
               >
-                TOKVANT AI
+                TOKVANT IA
               </button>
             </>
           )}

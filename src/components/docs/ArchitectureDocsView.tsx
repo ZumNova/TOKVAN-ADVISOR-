@@ -131,7 +131,7 @@ export const ArchitectureDocsView: React.FC = () => {
                 </tr>
 
                 <tr>
-                  <td className="py-3 px-4 font-semibold text-white">TOKVAN AI (Bot Educativo + Advisor)</td>
+                  <td className="py-3 px-4 font-semibold text-white">TOKVANT IA (Bot Educativo + Advisor)</td>
                   <td className="py-3 px-4 text-[#16A34A] font-semibold">100% Operativo</td>
                   <td className="py-3 px-4 text-[#9BA6BD]">Análisis contextual del proyecto activo sin permisos de escritura</td>
                   <td className="py-3 px-4 text-[#7096FF]">RAG de jurisprudencia CNV/BCP y Ley DLT</td>
