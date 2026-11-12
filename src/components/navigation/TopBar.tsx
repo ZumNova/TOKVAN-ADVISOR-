@@ -53,6 +53,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [modulesOpen, setModulesOpen] = useState(false);
 
   const isPublic = currentView === 'landing';
+  const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
   const navigate = (view: string) => {
     setMobileOpen(false);
@@ -115,7 +116,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         )}
 
         {/* NAVEGACIÓN DE PLATAFORMA */}
-        {!isPublic && (
+        {!isPublic && !isClientFlow && (
           <div className="hidden min-w-0 items-center gap-4 md:flex">
 
             <button
@@ -196,7 +197,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 <ArrowRight size={14} />
               </button>
             </>
-          ) : (
+          ) : isClientFlow ? <span className="text-xs text-[#B8C9E1]">Tu proyecto · TOKVANT</span> : (
             <>
               <div className="hidden items-center gap-2 rounded-lg border border-[#2B3E5D] bg-[#101A2A] px-3 py-2 xl:flex">
                 <Building2 size={14} className="text-[#6CE1E8]" />
@@ -226,7 +227,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
 
           {/* MENÚ MÓVIL */}
-          <button
+          {!isClientFlow && <button
             type="button"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
@@ -235,12 +236,12 @@ export const TopBar: React.FC<TopBarProps> = ({
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#45628B] text-white xl:hidden"
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* MENÚ RESPONSIVE */}
-      {mobileOpen && (
+      {mobileOpen && !isClientFlow && (
         <nav
           id="tokvant-mobile-menu"
           aria-label={isPublic ? 'Menú comercial' : 'Menú de plataforma'}

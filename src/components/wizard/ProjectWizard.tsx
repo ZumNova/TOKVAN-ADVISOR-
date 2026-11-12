@@ -1,52 +1,42 @@
-import React, { useState } from 'react';
-import { 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft, 
-  FileText, 
-  ShieldCheck, 
-  Sparkles, 
-  AlertTriangle, 
-  Cpu, 
-  Upload, 
-  Lock, 
-  Scale, 
-  HelpCircle,
-  Save,
-  ArrowRight
-} from 'lucide-react';
-import { TokenProject, StandardType, NetworkId, RiskLevel, ProjectDocument } from '../../types';
+import React, { useEffect, useRef, useState } from 'react';
+import {CheckCircle2,ChevronRight,ChevronLeft,Save} from 'lucide-react';
+import {TokenProject,StandardType,NetworkId,ProjectDocument} from '../../types';
 import { TOKEN_STANDARDS } from '../../constants/standards';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
+import {clientCompleteness, clientProjectChecks, newClientProjectId, saveClientProject} from '../../lib/clientProjects';
+import {getClientDocument} from '../../lib/clientDocuments';
+import ClientDocuments from './ClientDocuments';
 
 interface ProjectWizardProps {
   initialProject?: Partial<TokenProject>;
+  initialStep?: number;
   onSaveProject: (project: TokenProject) => void;
   onCancel: () => void;
 }
 
 export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   initialProject,
+  initialStep = 1,
   onSaveProject,
   onCancel,
 }) => {
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
   const totalSteps = 5;
 
   // Form State
   const [projectId] = useState<string>(
-    initialProject?.id || `TOKVAN-PY-2027-000${Math.floor(100 + Math.random() * 900)}`
+    initialProject?.id || newClientProjectId()
   );
   const [title, setTitle] = useState(initialProject?.title || '');
   const [organizationName, setOrganizationName] = useState(
-    initialProject?.organizationName || 'AgroForestal del Este S.A.'
+    initialProject?.organizationName || ''
   );
-  const [taxId, setTaxId] = useState('80054921-3 (Paraguay)');
+  const [taxId, setTaxId] = useState(initialProject?.taxId || '');
   const [assetType, setAssetType] = useState<TokenProject['assetType']>(
     initialProject?.assetType || 'Agropecuario'
   );
   const [assetDescription, setAssetDescription] = useState(
-    'Fideicomiso silvopastoril con 3.500 ha de reforestación y producción ganadera regenerativa en el Chaco Central.'
+    initialProject?.assetDescription || ''
   );
   const [assetTypeOther, setAssetTypeOther] = useState(initialProject?.assetTypeOther || '');
   const [assetTypeError, setAssetTypeError] = useState('');
@@ -54,7 +44,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
     initialProject?.jurisdiction || 'Paraguay (BCP / CNV / Ley DLT)'
   );
   const [targetValuationUsd, setTargetValuationUsd] = useState<number>(
-    initialProject?.targetValuationUsd || 10000000
+    initialProject?.targetValuationUsd ?? 10000000
   );
 
   // Contract standard and network
@@ -67,16 +57,16 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
 
   // Parameters
   const [tokenName, setTokenName] = useState(
-    initialProject?.parameters?.tokenName || 'Chaco Forestal Token'
+    initialProject?.parameters?.tokenName || ''
   );
   const [tokenSymbol, setTokenSymbol] = useState(
-    initialProject?.parameters?.tokenSymbol || 'CHACO-RWA'
+    initialProject?.parameters?.tokenSymbol || ''
   );
   const [decimals, setDecimals] = useState<number>(
-    initialProject?.parameters?.decimals ?? 2
+    ['ERC-721','ERC-1155'].includes(initialProject?.standard || '') ? 0 : initialProject?.parameters?.decimals ?? 2
   );
   const [initialSupply, setInitialSupply] = useState<number>(
-    initialProject?.parameters?.initialSupply || 1000000
+    initialProject?.parameters?.initialSupply ?? 1000000
   );
   const [isPausable, setIsPausable] = useState<boolean>(
     initialProject?.parameters?.isPausable ?? true
@@ -97,73 +87,34 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
     initialProject?.parameters?.custodyModel || 'Custodia institucional MPC'
   );
 
-  // Documents
-  const [documents, setDocuments] = useState<ProjectDocument[]>(
-    initialProject?.documents && initialProject.documents.length > 0
-      ? initialProject.documents
-      : [
-          {
-            id: 'doc-w1',
-            name: 'Escritura Pública y Asiento Registral',
-            category: 'Legal',
-            fileName: 'Escritura_Inmueble_Chaco.pdf',
-            fileSize: '4.2 MB',
-            uploadDate: '2026-11-04',
-            status: 'Verificado',
-          },
-          {
-            id: 'doc-w2',
-            name: 'Informe Pericial de Valuación Independiente',
-            category: 'Financiero',
-            fileName: 'Valuacion_PWC_2026.pdf',
-            fileSize: '8.1 MB',
-            uploadDate: '2026-11-04',
-            status: 'Verificado',
-          },
-        ]
-  );
-
-  // Draft autosave feedback
-  const [lastSaved, setLastSaved] = useState<string>('Guardado local activo');
+  const [documents, setDocuments] = useState<ProjectDocument[]>(initialProject?.documents?.filter(d=>d.storage==='browser') || []);
+  const [contact, setContact] = useState(initialProject?.contact || {fullName:'',email:'',phone:'',consent:false});
+  const [documentsBusy, setDocumentsBusy] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const [formError, setFormError] = useState('');
+  const [lastSaved, setLastSaved] = useState('Preparando borrador…');
 
   // Completion percentage
   const progressPercent = Math.min(100, Math.round((currentStep / totalSteps) * 100));
 
-  const handleNextStep = () => {
-    if (assetType === 'Otro' && !assetTypeOther.trim()) {
-      setAssetTypeError('Indique qué tipo de activo quiere tokenizar.');
-      return;
-    }
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-      setLastSaved(`Borrador actualizado: ${new Date().toLocaleTimeString()}`);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleFinalizeProject = () => {
-    if (assetType === 'Otro' && !assetTypeOther.trim()) {
-      setAssetTypeError('Indique qué tipo de activo quiere tokenizar.');
-      setCurrentStep(1);
-      return;
-    }
+  const buildProject = ():TokenProject => {
     const finalizedProject: TokenProject = {
       id: projectId,
-      title: title || `${organizationName} — Tokenización ${assetType === 'Otro' ? assetTypeOther.trim() : assetType}`,
+      title: title.trim(),
       organizationId: 'org-py-001',
       organizationName,
+      contact:{...contact,fullName:contact.fullName.trim(),email:contact.email.trim(),phone:contact.phone.trim()},
+      taxId,
+      assetDescription,
+      commercialContext: initialProject?.commercialContext,
       assetType,
       assetTypeOther: assetType === 'Otro' ? assetTypeOther.trim() : undefined,
       jurisdiction,
       standard,
       network,
-      status: 'En revisión',
-      progressPercent: 75,
+      status: 'Borrador',
+      progressPercent,
       targetValuationUsd,
       createdAt: initialProject?.createdAt || new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
@@ -188,48 +139,23 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
         },
       },
       documents,
-      securityScore: 94,
-      securityChecks: [
-        {
-          id: 'sc-1',
-          title: 'Verificación de Hash de Plantilla Certificada',
-          category: 'Bytecode',
-          level: 'Informativo',
-          passed: true,
-          details: 'Bytecode certificado por auditorías de ConsenSys y OpenZeppelin.',
-        },
-        {
-          id: 'sc-2',
-          title: 'Control de Emisión y Cap Máximo',
-          category: 'Permisos',
-          level: 'Informativo',
-          passed: true,
-          details: `Cap restringido a ${initialSupply.toLocaleString()} unidades.`,
-        },
-        {
-          id: 'sc-3',
-          title: 'Identity Registry y Reglas de Jurisdicción',
-          category: 'Cumplimiento',
-          level: 'Informativo',
-          passed: true,
-          details: 'Contrato de compliance on-chain activo y vinculado.',
-        },
-      ],
+      securityScore: 0,
+      securityChecks: [],
       approvals: [
         {
-          id: `app-${Date.now()}-1`,
+          id: `app-${projectId}-1`,
           role: 'Technical Reviewer',
           label: 'Revisión Técnica y Auditoría de Parámetros',
           status: 'Pendiente',
         },
         {
-          id: `app-${Date.now()}-2`,
+          id: `app-${projectId}-2`,
           role: 'Compliance Reviewer',
           label: 'Dictamen de Cumplimiento Regulatorio y AML',
           status: 'Pendiente',
         },
         {
-          id: `app-${Date.now()}-3`,
+          id: `app-${projectId}-3`,
           role: 'Enterprise Board',
           label: 'Autorización Ejecutiva de la Organización Emisora',
           status: 'Pendiente',
@@ -237,7 +163,43 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
       ],
     };
 
-    onSaveProject(finalizedProject);
+    return finalizedProject;
+  };
+
+  const draft = buildProject();
+  const snapshot = JSON.stringify(draft);
+  const checks = clientProjectChecks(draft);
+  const completeness = clientCompleteness(draft);
+  useEffect(()=>{
+    if(submitting || documentsBusy)return;
+    try {saveClientProject(JSON.parse(snapshot),currentStep);setLastSaved('Borrador guardado en este navegador');}
+    catch {setLastSaved('No se pudo guardar el borrador');setFormError('No hay almacenamiento disponible. No cierre la página: libere espacio o habilite el almacenamiento del navegador.');}
+  },[snapshot,currentStep,submitting,documentsBusy]);
+
+  const saveAndExit=()=>{
+    if(documentsBusy||submitting)return;
+    try {saveClientProject(buildProject(),currentStep);onCancel();}
+    catch {setFormError('No se pudo guardar. Permanezca en esta página y compruebe el espacio del navegador.');}
+  };
+  const handleNextStep=()=>{
+    if(documentsBusy||submitting)return;
+    const missing=checks.find(c=>c.step===currentStep&&!c.ok);
+    if(missing){setFormError('Complete: '+missing.label+'.');window.scrollTo({top:0,behavior:'smooth'});return;}
+    setFormError('');setCurrentStep(step=>Math.min(5,step+1));window.scrollTo({top:0,behavior:'smooth'});
+  };
+  const handlePrevStep=()=>{setFormError('');setCurrentStep(step=>Math.max(1,step-1));};
+  const handleFinalizeProject=async()=>{
+    if(submitLock.current||documentsBusy)return;
+    const missing=checks.find(c=>!c.ok);
+    if(missing){setFormError('Complete: '+missing.label+'.');setCurrentStep(missing.step);return;}
+    submitLock.current=true;setSubmitting(true);setFormError('');
+    try{
+      await Promise.all(documents.map(doc=>getClientDocument(projectId,doc)));
+      const project={...buildProject(),status:'Preliminar' as const,completenessScore:completeness};
+      saveClientProject(project,5,'prepared');
+      onSaveProject(project);
+    }catch(e){setFormError(e instanceof Error?e.message:'No se pudo guardar la solicitud.');}
+    finally{submitLock.current=false;setSubmitting(false);}
   };
 
   return (
@@ -262,14 +224,16 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <span>{lastSaved}</span>
           </div>
           <button
-            onClick={onCancel}
+            onClick={saveAndExit} disabled={documentsBusy||submitting}
             className="px-3 py-1.5 text-xs text-[#9BA6BD] hover:text-white rounded-lg border border-[#273246] hover:bg-[#141A27] transition-colors cursor-pointer"
           >
-            Guardar y Salir
+            Guardar y salir
           </button>
         </div>
       </div>
 
+      <p className="text-xs text-[#9BA6BD]">Borrador guardado en este equipo y navegador. Podrá retomarlo desde el inicio. La recepción central de TOKVANT se habilitará en la siguiente etapa.</p>
+      {formError&&<p role="alert" className="rounded-lg border border-red-400/50 p-3 text-sm text-red-200">{formError}</p>}
       {/* Progress Stepper Bar */}
       <div className="rounded-xl bg-[#141A27] border border-[#273246] p-4">
         <div className="flex items-center justify-between text-xs font-semibold mb-2">
@@ -298,7 +262,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             4. Documentación
           </div>
           <div className={currentStep >= 5 ? 'text-white font-medium' : 'text-[#9BA6BD]'}>
-            5. Pre-Flight
+            5. Revisar y finalizar
           </div>
         </div>
       </div>
@@ -318,6 +282,13 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
               </p>
             </div>
 
+            <div className="rounded-xl border border-[#39547C] p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-white">Responsable de la solicitud</h3>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {([['fullName','Nombre y apellido *','text'],['email','Email de contacto *','email'],['phone','Teléfono / WhatsApp con código de país (opcional)','tel']] as const).map(([key,label,type])=><label key={key} className="text-xs text-slate-300">{label}<input type={type} maxLength={200} value={contact[key]} onChange={e=>setContact({...contact,[key]:e.target.value})} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-3 text-white"/></label>)}
+              </div>
+              <label className="flex gap-2 text-xs text-slate-300"><input type="checkbox" checked={contact.consent} onChange={e=>setContact({...contact,consent:e.target.checked})}/>Autorizo el uso de mis datos de contacto para gestionar esta solicitud y recibir observaciones de TOKVANT.</label>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
@@ -434,7 +405,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Memoria Descriptiva del Activo
+                Memoria Descriptiva del Activo *
               </label>
               <textarea
                 rows={3}
@@ -454,7 +425,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 Selección de Estándar Contractual y Red Blockchain
               </h2>
               <p className="text-xs text-[#9BA6BD] mt-1">
-                Elija la norma técnica EVM y la red de liquidación. TOKVAN valida automáticamente la compatibilidad de bytecode.
+                Elija la norma técnica EVM y la red de liquidación. Son parámetros propuestos para revisión por TOKVANT.
               </p>
             </div>
 
@@ -466,7 +437,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                   <button
                     key={std}
                     type="button"
-                    onClick={() => setStandard(std)}
+                    onClick={() => {setStandard(std);if(std==='ERC-721'||std==='ERC-1155')setDecimals(0);}}
                     className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
                       standard === std
                         ? 'border-[#316BFA] bg-[#316BFA]/10 ring-1 ring-[#316BFA]'
@@ -496,7 +467,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 Red Blockchain de Liquidación
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(['polygon', 'arbitrum', 'ethereum'] as NetworkId[]).map((netId) => {
+                {(['sepolia', 'polygon', 'arbitrum', 'ethereum'] as NetworkId[]).map((netId) => {
                   const net = SUPPORTED_NETWORKS[netId];
                   return (
                     <button
@@ -524,8 +495,8 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
               <span className="font-semibold text-white block">Evaluación de Conformidad Técnica:</span>
               <p>
                 {standard === 'ERC-3643'
-                  ? 'El estándar ERC-3643 implementará el contrato ONCHAINID Identity Registry y el Compliance Engine para validar que solo inversores con KYC/KYB acreditado puedan transaccionar.'
-                  : `Se seleccionó ${standard}. Se recomienda adjuntar un módulo de lista blanca adicional para garantizar cumplimiento legal según la CNV/BCP.`}
+                  ? 'La propuesta ERC-3643 contempla identidades y reglas de transferencia. El equipo revisará qué controles necesita el proyecto.'
+                  : `Se seleccionó ${standard}. La configuración final y los controles aplicables se revisarán con el equipo de TOKVANT.`}
               </p>
             </div>
           </div>
@@ -539,7 +510,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 Configuración de Parámetros Contractuales
               </h2>
               <p className="text-xs text-[#9BA6BD] mt-1">
-                Defina nombre, símbolo, suministro y políticas inmutables que gobernarán el contrato inteligente.
+                Proponga nombre, símbolo, cantidad y funciones del token. Estos datos no despliegan un contrato y quedan sujetos a revisión.
               </p>
             </div>
 
@@ -572,7 +543,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Suministro Total (Cap Inmutable)
+                  Cantidad propuesta de unidades
                 </label>
                 <input
                   type="number"
@@ -587,6 +558,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                   Precisión Decimal
                 </label>
                 <select
+                  disabled={standard==='ERC-721'||standard==='ERC-1155'}
                   value={decimals}
                   onChange={(e) => setDecimals(Number(e.target.value))}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#316BFA]"
@@ -671,147 +643,27 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
           </div>
         )}
 
-        {/* STEP 4: DOCUMENTATION & EVIDENCE */}
-        {currentStep === 4 && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-base font-bold text-white font-display">
-                Documentación Pericial, Legal y Fiduciaria
-              </h2>
-              <p className="text-xs text-[#9BA6BD] mt-1">
-                La emisión de un activo digital institucional exige respaldo probatorio verificable antes de habilitar la revisión de cumplimiento.
-              </p>
-            </div>
+        {currentStep === 4 && <ClientDocuments projectId={projectId} documents={documents} onChange={setDocuments} onBusyChange={setDocumentsBusy}/>}
 
-            {/* Document list */}
-            <div className="space-y-3">
-              {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-3.5 rounded-xl bg-[#0B0D12] border border-[#273246] text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-[#316BFA] shrink-0" />
-                    <div>
-                      <div className="font-semibold text-white">{doc.name}</div>
-                      <div className="text-[11px] text-[#9BA6BD] font-mono">
-                        {doc.fileName} · {doc.fileSize} · Subido el {doc.uploadDate}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-[#16A34A] px-2.5 py-0.5 rounded bg-[#16A34A]/10 border border-[#16A34A]/20">
-                      {doc.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Upload Area */}
-            <div className="border-2 border-dashed border-[#273246] rounded-xl p-6 text-center space-y-2 hover:border-[#316BFA] transition-colors bg-[#0B0D12]/50">
-              <Upload className="w-6 h-6 text-[#7096FF] mx-auto" />
-              <div className="text-xs font-semibold text-white">Adjuntar Documento Legal o Financiero</div>
-              <p className="text-[11px] text-[#9BA6BD]">
-                Formatos permitidos: PDF, XLSX, DOCX (Máx. 25 MB por archivo). Los documentos son anclados con hash SHA-256 inmutable.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 5: PRE-FLIGHT SECURITY CHECK & SUBMISSION */}
-        {currentStep === 5 && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-base font-bold text-white font-display">
-                Evaluación de Seguridad Pre-Flight & Confirmación
-              </h2>
-              <p className="text-xs text-[#9BA6BD] mt-1">
-                Firewall lógico de contratos: Verificación de invariantes técnicas antes de iniciar el circuito colegiado de firmas.
-              </p>
-            </div>
-
-            {/* Assessment Score Box */}
-            <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#273246]">
-                <div>
-                  <span className="text-[11px] font-semibold text-[#7096FF] uppercase tracking-wider block">
-                    Security Pre-Flight Assessment
-                  </span>
-                  <div className="text-lg font-bold text-white font-mono mt-0.5">
-                    Puntaje de Solidez: 94 / 100
-                  </div>
-                </div>
-                <span className="text-xs font-semibold text-[#16A34A] px-3 py-1 bg-[#16A34A]/10 border border-[#16A34A]/20 rounded-md self-start sm:self-auto">
-                  Aprobación Técnica Viable
-                </span>
-              </div>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex items-start gap-2 text-slate-200">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Bytecode Certificado:</strong> Plantilla {standard} auditada conforme a especificaciones OpenZeppelin.
-                  </span>
-                </div>
-                <div className="flex items-start gap-2 text-slate-200">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Gobernanza:</strong> Administración delegada a Multi-Sig institucional sin llaves privadas expuestas.
-                  </span>
-                </div>
-                <div className="flex items-start gap-2 text-slate-200">
-                  <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Respaldo Documental:</strong> 2 documentos periciales cargados y validados.
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Project Summary Card */}
-            <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-4 text-xs space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-300 block">
-                Resumen de Emisión
-              </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] pt-1">
-                <div>
-                  <span className="text-[#9BA6BD] block">Símbolo:</span>
-                  <span className="text-white font-mono font-bold">{tokenSymbol}</span>
-                </div>
-                <div>
-                  <span className="text-[#9BA6BD] block">Suministro:</span>
-                  <span className="text-white font-mono tabular-nums">{initialSupply.toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-[#9BA6BD] block">Red Destino:</span>
-                  <span className="text-white font-medium capitalize">{network}</span>
-                </div>
-                <div>
-                  <span className="text-[#9BA6BD] block">Estándar:</span>
-                  <span className="text-[#7096FF] font-mono font-bold">{standard}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Institutional Warning */}
-            <div className="rounded-lg bg-[#D97706]/10 border border-[#D97706]/20 p-3 text-xs text-[#D97706] flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                Al enviar este expediente a revisión, se iniciará el flujo de aprobación colegiada (Técnico, Compliance y Directorio). Los parámetros quedarán inmutables para esta versión.
-              </span>
-            </div>
-
-          </div>
-        )}
+        {currentStep === 5 && <section className="space-y-5">
+          <h2 className="text-lg font-bold text-white">Revisá tu expediente</h2>
+          <p className="text-sm text-[#9BA6BD]">Comprobá tus datos de contacto, la propuesta y los adjuntos antes de finalizar esta preparación.</p>
+          <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-5 space-y-3"><h3 className="text-white font-semibold">Completitud del expediente: {completeness}%</h3><p className="text-xs text-[#9BA6BD]">Este indicador cuenta los datos y adjuntos aportados. La revisión técnica, legal y documental queda pendiente.</p>{checks.map(c=><button key={c.label} type="button" disabled={submitting} onClick={()=>setCurrentStep(c.step)} className="block w-full text-left text-sm text-slate-200">{c.ok?'✓':'○'} {c.label} <span className="text-[#9BBCFF]">· Revisar</span></button>)}</div>
+          <dl className="grid sm:grid-cols-2 gap-4 rounded-xl bg-[#0B0D12] p-5 text-sm text-white">
+            <div><dt className="text-[#9BA6BD]">Proyecto</dt><dd>{title}</dd></div><div><dt className="text-[#9BA6BD]">Empresa</dt><dd>{organizationName}</dd></div>
+            <div><dt className="text-[#9BA6BD]">Responsable</dt><dd>{contact.fullName}</dd></div><div><dt className="text-[#9BA6BD]">Contacto</dt><dd className="break-all">{contact.email} {contact.phone}</dd></div>
+            <div><dt className="text-[#9BA6BD]">Activo y jurisdicción</dt><dd>{assetType==='Otro'?assetTypeOther:assetType} · {jurisdiction}</dd></div><div><dt className="text-[#9BA6BD]">Token propuesto</dt><dd>{tokenName} · {tokenSymbol} · {standard}</dd></div>
+            <div><dt className="text-[#9BA6BD]">Unidades / decimales</dt><dd>{initialSupply} / {decimals}</dd></div><div><dt className="text-[#9BA6BD]">Adjuntos</dt><dd>{documents.length} · Pendientes de revisión</dd></div>
+          </dl>
+          <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Etapa de prueba: al finalizar se guarda tu solicitud en este navegador. Todavía no se entrega a administración ni se envían emails. Podrás descargar la copia y volver al inicio.</p>
+        </section>}
 
         {/* STEPPER NAVIGATION BUTTONS */}
         <div className="flex items-center justify-between pt-6 border-t border-[#273246]">
           {currentStep > 1 ? (
             <button
               type="button"
-              onClick={handlePrevStep}
+              onClick={handlePrevStep} disabled={documentsBusy||submitting}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#9BA6BD] hover:text-white transition-colors cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -820,17 +672,17 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
           ) : (
             <button
               type="button"
-              onClick={onCancel}
+              onClick={saveAndExit} disabled={documentsBusy||submitting}
               className="px-4 py-2 text-xs font-medium text-[#9BA6BD] hover:text-white transition-colors cursor-pointer"
             >
-              Cancelar
+              Guardar y salir
             </button>
           )}
 
           {currentStep < totalSteps ? (
             <button
               type="button"
-              onClick={handleNextStep}
+              onClick={handleNextStep} disabled={documentsBusy||submitting}
               className="inline-flex items-center gap-1.5 px-6 py-2.5 text-xs font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer shadow-sm"
             >
               <span>Continuar</span>
@@ -839,11 +691,11 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
           ) : (
             <button
               type="button"
-              onClick={handleFinalizeProject}
+              onClick={()=>void handleFinalizeProject()} disabled={documentsBusy||submitting}
               className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors cursor-pointer shadow-lg shadow-[#16A34A]/20"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Enviar a Flujo de Aprobaciones</span>
+              <span>{submitting?'Guardando solicitud…':'Preparar expediente para TOKVANT'}</span>
             </button>
           )}
         </div>

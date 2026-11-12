@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, ArrowRight, CheckCircle2, ShieldCheck, FileText, ChevronRight } from 'lucide-react';
 import { LeadSubmission, StandardType, TokenProject } from '../../types';
+import {newClientProjectId} from '../../lib/clientProjects';
 
 interface LeadCaptureModalProps {
   isOpen: boolean;
@@ -57,8 +58,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       standard = 'ERC-3643';
     }
 
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const draftId = `TOKVANT-PY-2027-000${randomSuffix}`;
+    const draftId = newClientProjectId();
     setGeneratedDraftId(draftId);
     setRecommendedStandard(standard);
     setStep(3);
@@ -66,10 +66,13 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
 
   const handleStartProjectDraft = () => {
     const draftProject: TokenProject = {
-      id: generatedDraftId || `TOKVANT-PY-2027-000${Math.floor(100 + Math.random() * 900)}`,
+      id: generatedDraftId || newClientProjectId(),
       title: `${companyName || 'Proyecto'} — Tokenización ${assetType}`,
       organizationId: 'org-py-001',
       organizationName: companyName || 'Empresa Emisora',
+      contact: {fullName:fullName.trim(),email:email.trim(),phone:phone.trim(),consent},
+      assetDescription: assetType,
+      commercialContext: {targetAudience,commercialChannels,objective,country,sector,experienceLevel,marketingConsent},
       assetType: sector.includes('Agro') ? 'Agropecuario' : sector.includes('Inmobiliario') ? 'Inmobiliario' : 'Deuda / Factoring',
       jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : country === 'Argentina' ? 'Argentina' : country === 'Estados Unidos' ? 'Estados Unidos (Reg D / Reg S)' : 'Por definir (revisión del expediente)',
       standard: recommendedStandard,

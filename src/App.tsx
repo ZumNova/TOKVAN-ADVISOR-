@@ -13,6 +13,8 @@ import { ApprovalWorkflowView } from './components/approvals/ApprovalWorkflowVie
 import { AdminPortal } from './components/admin/AdminPortal';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
 import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
+import ClientProjectHome from './components/wizard/ClientProjectHome';
+import {listClientProjects,type ClientProjectRecord} from './lib/clientProjects';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
 import { TokenProject, OrganizationTenant, LeadSubmission } from './types';
@@ -30,6 +32,11 @@ export default function App() {
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
   const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<TokenProject | null>(null);
   const [wizardSeedProject, setWizardSeedProject] = useState<Partial<TokenProject> | undefined>(undefined);
+  const [wizardStep,setWizardStep] = useState(1);
+  const [clientRecords,setClientRecords] = useState<ClientProjectRecord[]>(()=>{try{return listClientProjects();}catch{return [];}});
+  const [clientReceipt,setClientReceipt] = useState<ClientProjectRecord>();
+  const refreshClientRecords=()=>{try{setClientRecords(listClientProjects());}catch{/* The wizard reports storage errors when saving. */}};
+  const resumeClientProject=(record:ClientProjectRecord)=>{setWizardSeedProject(record.project);setWizardStep(record.step);setCurrentView('wizard');window.scrollTo({top:0,behavior:'smooth'});};
 
   // Notifications or toast message
   const [notification, setNotification] = useState<string | null>(null);
@@ -40,6 +47,8 @@ export default function App() {
   };
 
   const handleNavigate = (view: string) => {
+    refreshClientRecords();
+    if(view==='wizard'){setWizardSeedProject(undefined);setWizardStep(1);}
     setCurrentView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -51,6 +60,7 @@ export default function App() {
   const handleProjectCreatedFromLead = (newDraft: TokenProject) => {
     setProjects((prev) => [newDraft, ...prev]);
     setWizardSeedProject(newDraft);
+    setWizardStep(1);
     setCurrentView('wizard');
     showToast(`Expediente ${newDraft.id} generado desde el diagnóstico institucional.`);
   };
@@ -66,8 +76,10 @@ export default function App() {
       return [finalizedProject, ...prev];
     });
     setWizardSeedProject(undefined);
-    setCurrentView('projects');
-    showToast(`Expediente ${finalizedProject.id} enviado al circuito colegiado de aprobaciones.`);
+    refreshClientRecords();
+    setClientReceipt({project:finalizedProject,step:5,stage:'prepared',savedAt:new Date().toISOString()});
+    setCurrentView('client-confirmation');
+    window.scrollTo({top:0,behavior:'smooth'});
   };
 
   const handleUpdateApproval = (
@@ -151,6 +163,8 @@ export default function App() {
                   ? 'Expedientes de Emisión'
                   : currentView === 'wizard'
                   ? 'Asistente de Tokenización'
+                  : currentView === 'client-confirmation'
+                  ? 'Tu solicitud'
                   : currentView === 'factory'
                   ? 'Factories de tokenización'
                   : currentView === 'simulator'
@@ -166,7 +180,7 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-4 text-[11px]">
-              <span className="hidden sm:inline">Empresa: <strong className="text-white">{activeOrg.legalName}</strong></span>
+              {!['wizard','client-confirmation'].includes(currentView)&&<span className="hidden sm:inline">Empresa: <strong className="text-white">{activeOrg.legalName}</strong></span>}
               <span className="text-[#7096FF] font-mono">Sandbox Demo Activo</span>
             </div>
           </div>
@@ -176,11 +190,15 @@ export default function App() {
       {/* Main Viewport Content */}
       <main className="flex-1">
         {currentView === 'landing' && (
+          <>
+          <ClientProjectHome records={clientRecords} onResume={resumeClientProject}/>
           <CommercialLandingPage
             onNavigate={handleNavigate}
             onOpenLeadModal={handleOpenLeadModal}
           />
+          </>
         )}
+        {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')}/>}
 
         {currentView === 'dashboard' && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -200,6 +218,7 @@ export default function App() {
               onSelectProject={(proj) => setSelectedProjectForDetail(proj)}
               onCreateNew={() => {
                 setWizardSeedProject(undefined);
+                setWizardStep(1);
                 setCurrentView('wizard');
               }}
               onNavigateToApprovals={(proj) => {
@@ -211,11 +230,14 @@ export default function App() {
 
         {currentView === 'wizard' && (
           <ProjectWizard
+            key={wizardSeedProject?.id || 'new-client-project'}
             initialProject={wizardSeedProject}
+            initialStep={wizardStep}
             onSaveProject={handleSaveProjectFromWizard}
             onCancel={() => {
               setWizardSeedProject(undefined);
-              setCurrentView('dashboard');
+              refreshClientRecords();
+              setCurrentView('landing');
             }}
           />
         )}

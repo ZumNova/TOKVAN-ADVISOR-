@@ -70,6 +70,9 @@ export interface ProjectDocument {
   fileSize: string;
   uploadDate: string;
   status: 'Verificado' | 'Pendiente' | 'Rechazado';
+  storage?: 'browser';
+  sha256?: string;
+  sizeBytes?: number;
 }
 
 export interface TokenParameters {
@@ -120,6 +123,11 @@ export interface TokenProject {
   organizationName: string;
   assetType: 'Inmobiliario' | 'Agropecuario' | 'Deuda / Factoring' | 'Infraestructura' | 'Fondo Privado' | 'Derechos de Emisión' | 'Otro';
   assetTypeOther?: string;
+  assetDescription?: string;
+  taxId?: string;
+  contact?: {fullName:string;email:string;phone:string;consent:boolean};
+  commercialContext?: {targetAudience:string;commercialChannels:string;objective:string;country:string;sector:string;experienceLevel:string;marketingConsent:boolean};
+  completenessScore?: number;
   jurisdiction: 'Paraguay (BCP / CNV / Ley DLT)' | 'Argentina' | 'Estados Unidos (Reg D / Reg S)' | 'Suiza (DLT Act)' | 'Unión Europea (MiCA)' | 'Multi-jurisdiccional' | 'Por definir (revisión del expediente)';
   standard: StandardType;
   network: NetworkId;

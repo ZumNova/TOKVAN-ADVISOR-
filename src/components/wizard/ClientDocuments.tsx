@@ -1,0 +1,24 @@
+import {useEffect,useRef,useState} from 'react';
+import type {ProjectDocument} from '../../types';
+import {addClientDocument,deleteClientDocument,DOCUMENT_ACCEPT,downloadClientFile,getClientDocument} from '../../lib/clientDocuments';
+const input='w-full rounded-lg border border-[#405577] bg-[#0B0D12] p-3 text-sm text-white';
+const button='rounded-lg border border-[#405577] px-3 py-2 text-xs text-white hover:bg-[#273246] disabled:opacity-40';
+function ImagePreview({projectId,document}:{projectId:string;document:ProjectDocument}){
+ const [url,setUrl]=useState('');
+ useEffect(()=>{let active=true;let objectUrl='';void getClientDocument(projectId,document).then(blob=>{if(active&&blob.type.startsWith('image/')){objectUrl=URL.createObjectURL(blob);setUrl(objectUrl);}}).catch(()=>{});return()=>{active=false;if(objectUrl)URL.revokeObjectURL(objectUrl);};},[projectId,document]);
+ return url?<img src={url} alt={`Vista previa: ${document.name}`} className="max-h-48 max-w-full rounded-lg object-contain"/>:null;
+}
+export default function ClientDocuments({projectId,documents,onChange,onBusyChange}:{projectId:string;documents:ProjectDocument[];onChange:(docs:ProjectDocument[])=>void;onBusyChange:(busy:boolean)=>void}){
+ const [name,setName]=useState(''),[category,setCategory]=useState<ProjectDocument['category']>('Legal'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const lock=useRef(false);
+ async function run(action:()=>Promise<void>){if(lock.current)return;lock.current=true;setBusy(true);onBusyChange(true);setError('');try{await action();}catch(e){setError(e instanceof Error?e.message:'No se pudo procesar el archivo.');}finally{lock.current=false;setBusy(false);onBusyChange(false);}}
+ return <section className="space-y-4">
+  <h2 className="text-base font-bold text-white">Documentación e imágenes del proyecto</h2>
+  <p className="text-xs text-[#9BA6BD]">Adjunte respaldo legal, financiero o técnico e imágenes para su NFT o colección ERC-1155. En esta etapa se conservan en este navegador, junto al borrador. La carga privada compartida con TOKVANT se habilitará con los accesos.</p>
+  <div className="grid sm:grid-cols-2 gap-3"><label className="text-xs text-slate-300">Título del documento o imagen<input className={input} maxLength={160} value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Escritura, valuación o imagen del NFT" disabled={busy}/></label><label className="text-xs text-slate-300">Categoría<select className={input} value={category} onChange={e=>setCategory(e.target.value as ProjectDocument['category'])} disabled={busy}>{['Legal','Financiero','Técnico','Compliance'].map(c=><option key={c}>{c}</option>)}</select></label></div>
+  <label className="block rounded-xl border-2 border-dashed border-[#405577] p-5 text-sm text-white">{busy?'Procesando archivo…':'Adjuntar documento o imagen'}<input aria-label="Adjuntar documento o imagen" className="mt-3 block w-full text-xs" type="file" accept={DOCUMENT_ACCEPT} disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void run(async()=>{const doc=await addClientDocument(projectId,file,name,category,documents);onChange([...documents,doc]);setName('');});}}/><span className="block mt-2 text-xs text-[#9BA6BD]">PDF, XLSX, DOCX, PNG, JPG y WEBP · Hasta 25 MB por archivo, 20 adjuntos y 100 MB por borrador. Si no indica un título, se usará el nombre del archivo.</span></label>
+  {error&&<p role="alert" className="text-sm text-red-300">{error}</p>}
+  {!documents.length&&<p className="text-sm text-[#9BA6BD]">Todavía no adjuntó archivos.</p>}
+  {documents.map(doc=><article key={doc.id} className="rounded-lg border border-[#273246] bg-[#0B0D12] p-4 space-y-2 text-xs"><h3 className="font-semibold text-white break-words">{doc.name}</h3><p className="text-[#9BA6BD] break-all">{doc.category} · {doc.fileName} · {doc.fileSize}</p><p className="text-amber-200">{doc.storage==='browser'?'Adjuntado · Pendiente de revisión':'Ejemplo de la demo · Sin archivo adjunto'}</p>{doc.storage==='browser'&&/\.(png|jpe?g|webp)$/i.test(doc.fileName)&&<ImagePreview projectId={projectId} document={doc}/>} {doc.sha256&&<details className="text-[#9BA6BD]"><summary>Ver hash de integridad SHA-256</summary><p className="break-all mt-2">{doc.sha256}</p><p>Calculado sobre el archivo. No certifica su validez legal ni está anclado en blockchain.</p></details>}<div className="flex gap-2">{doc.storage==='browser'&&<button type="button" className={button} disabled={busy} onClick={()=>void run(async()=>downloadClientFile(await getClientDocument(projectId,doc),doc.fileName))}>Descargar archivo</button>}<button type="button" className={button} disabled={busy} onClick={()=>void run(async()=>{if(doc.storage==='browser')await deleteClientDocument(projectId,doc);onChange(documents.filter(d=>d.id!==doc.id));})}>Quitar del borrador</button></div></article>)}
+ </section>;
+}
