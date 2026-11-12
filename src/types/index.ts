@@ -118,7 +118,8 @@ export interface TokenProject {
   title: string;
   organizationId: string;
   organizationName: string;
-  assetType: 'Inmobiliario' | 'Agropecuario' | 'Deuda / Factoring' | 'Infraestructura' | 'Fondo Privado' | 'Derechos de Emisión';
+  assetType: 'Inmobiliario' | 'Agropecuario' | 'Deuda / Factoring' | 'Infraestructura' | 'Fondo Privado' | 'Derechos de Emisión' | 'Otro';
+  assetTypeOther?: string;
   jurisdiction: 'Paraguay (BCP / CNV / Ley DLT)' | 'Argentina' | 'Estados Unidos (Reg D / Reg S)' | 'Suiza (DLT Act)' | 'Unión Europea (MiCA)' | 'Multi-jurisdiccional' | 'Por definir (revisión del expediente)';
   standard: StandardType;
   network: NetworkId;

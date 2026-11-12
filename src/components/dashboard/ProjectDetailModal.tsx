@@ -48,6 +48,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
           <div className="flex flex-wrap items-center gap-4 text-xs text-[#9BA6BD] mt-2">
             <span>Organización: <strong className="text-white">{project.organizationName}</strong></span>
             <span>Jurisdicción: <strong className="text-white">{project.jurisdiction}</strong></span>
+            <span>Activo: <strong className="text-white">{project.assetType === 'Otro' ? project.assetTypeOther || 'Otro' : project.assetType}</strong></span>
             <span>Estado: <strong className="text-[#7096FF]">{project.status}</strong></span>
           </div>
         </div>

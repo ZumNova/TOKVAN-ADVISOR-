@@ -48,6 +48,8 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   const [assetDescription, setAssetDescription] = useState(
     'Fideicomiso silvopastoril con 3.500 ha de reforestación y producción ganadera regenerativa en el Chaco Central.'
   );
+  const [assetTypeOther, setAssetTypeOther] = useState(initialProject?.assetTypeOther || '');
+  const [assetTypeError, setAssetTypeError] = useState('');
   const [jurisdiction, setJurisdiction] = useState<TokenProject['jurisdiction']>(
     initialProject?.jurisdiction || 'Paraguay (BCP / CNV / Ley DLT)'
   );
@@ -128,6 +130,10 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   const progressPercent = Math.min(100, Math.round((currentStep / totalSteps) * 100));
 
   const handleNextStep = () => {
+    if (assetType === 'Otro' && !assetTypeOther.trim()) {
+      setAssetTypeError('Indique qué tipo de activo quiere tokenizar.');
+      return;
+    }
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
       setLastSaved(`Borrador actualizado: ${new Date().toLocaleTimeString()}`);
@@ -141,12 +147,18 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   };
 
   const handleFinalizeProject = () => {
+    if (assetType === 'Otro' && !assetTypeOther.trim()) {
+      setAssetTypeError('Indique qué tipo de activo quiere tokenizar.');
+      setCurrentStep(1);
+      return;
+    }
     const finalizedProject: TokenProject = {
       id: projectId,
-      title: title || `${organizationName} — Tokenización ${assetType}`,
+      title: title || `${organizationName} — Tokenización ${assetType === 'Otro' ? assetTypeOther.trim() : assetType}`,
       organizationId: 'org-py-001',
       organizationName,
       assetType,
+      assetTypeOther: assetType === 'Otro' ? assetTypeOther.trim() : undefined,
       jurisdiction,
       standard,
       network,
@@ -352,7 +364,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 </label>
                 <select
                   value={assetType}
-                  onChange={(e) => setAssetType(e.target.value as any)}
+                  onChange={(e) => {setAssetType(e.target.value as TokenProject['assetType']);setAssetTypeError('');}}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#316BFA]"
                 >
                   <option value="Agropecuario">Agropecuario / Silvopastoril</option>
@@ -361,7 +373,13 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                   <option value="Infraestructura">Infraestructura & Logística</option>
                   <option value="Derechos de Emisión">Créditos de Carbono / Ambientales</option>
                   <option value="Fondo Privado">Fondo Cerrado de Inversión</option>
+                  <option value="Otro">Otro tipo de activo</option>
                 </select>
+                {assetType === 'Otro' && <div className="mt-3">
+                  <label htmlFor="asset-type-other" className="block text-xs font-semibold text-slate-300 mb-1.5">Especifique el tipo de activo *</label>
+                  <input id="asset-type-other" type="text" maxLength={200} required value={assetTypeOther} onChange={e=>{setAssetTypeOther(e.target.value);setAssetTypeError('');}} aria-invalid={Boolean(assetTypeError)} aria-describedby={assetTypeError ? 'asset-type-error' : undefined} placeholder="Ej. Derechos de regalías musicales" className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#316BFA]"/>
+                  {assetTypeError && <p id="asset-type-error" role="alert" className="mt-2 text-xs text-red-300">{assetTypeError}</p>}
+                </div>}
               </div>
 
               <div>

@@ -36,7 +36,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.parameters.tokenSymbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.assetType.toLowerCase().includes(searchQuery.toLowerCase());
+      `${p.assetType} ${p.assetTypeOther || ''}`.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStatus =
       statusFilter === 'all' ||
@@ -194,7 +194,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
 
                       {/* Asset & Valuation */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <div className="font-medium text-white">{p.assetType}</div>
+                        <div className="font-medium text-white">{p.assetType === 'Otro' ? p.assetTypeOther || 'Otro' : p.assetType}</div>
                         <div className="text-[11px] text-[#9BA6BD] font-mono tabular-nums mt-0.5">
                           ${p.targetValuationUsd.toLocaleString()} USD
                         </div>
