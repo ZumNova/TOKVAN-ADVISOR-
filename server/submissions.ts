@@ -1,12 +1,13 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
+import {createRequire} from 'node:module';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
 import {getAddress,verifyMessage} from 'ethers';
-import deployment from '../deployment/sepolia-participants.json';
 import {clientProjectChecks} from '../src/lib/clientProjects';
 import type {ProjectDocument,TokenProject} from '../src/types';
 
 const BUCKET='tokvant-expedientes';
+const deployment=createRequire(import.meta.url)('../deployment/sepolia-participants.json') as {deployer:string;participants:{technicalReviewer:string;complianceReviewer:string;boardReviewer:string;operator:string}};
 const TABLE='client_submissions';
 const MAX_FILE=25*1024*1024;
 const MAX_TOTAL=100*1024*1024;
