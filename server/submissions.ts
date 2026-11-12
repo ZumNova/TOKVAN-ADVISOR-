@@ -2,8 +2,7 @@ import {createHash, timingSafeEqual} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import {getAddress,verifyMessage} from 'ethers';
-import {clientProjectChecks} from '../src/lib/clientProjects';
+import {getAddress,isAddress,verifyMessage} from 'ethers';
 import type {ProjectDocument,TokenProject} from '../src/types';
 
 const BUCKET='tokvant-expedientes';
@@ -48,7 +47,9 @@ export function cleanProject(input:unknown):TokenProject{
   size+=d.sizeBytes!;
  }
  if(size>MAX_TOTAL)throw new Error('El expediente supera 100 MB.');
- if(clientProjectChecks(p).some(c=>!c.ok))throw new Error('Completá el formulario antes de enviarlo.');
+ const params=p.parameters;
+ const complete=typeof p.organizationName==='string'&&!!p.organizationName.trim()&&typeof p.title==='string'&&!!p.title.trim()&&typeof p.contact?.fullName==='string'&&!!p.contact.fullName.trim()&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.contact.email||'')&&p.contact.consent===true&&typeof p.assetDescription==='string'&&!!p.assetDescription.trim()&&(p.assetType!=='Otro'||!!p.assetTypeOther?.trim())&&['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(p.standard)&&['sepolia','polygon','ethereum','arbitrum'].includes(p.network)&&params&&typeof params.tokenName==='string'&&!!params.tokenName.trim()&&typeof params.tokenSymbol==='string'&&!!params.tokenSymbol.trim()&&Number.isFinite(params.initialSupply)&&params.initialSupply>0&&Number.isInteger(params.decimals)&&params.decimals>=0&&params.decimals<=18&&(!['ERC-721','ERC-1155'].includes(p.standard)||(params.decimals===0&&Number.isInteger(params.initialSupply)))&&(!p.clientWalletAddress?.trim()||(isAddress(p.clientWalletAddress.trim())&&p.clientWalletNetwork===p.network));
+ if(!complete)throw new Error('Completá el formulario antes de enviarlo.');
  if(JSON.stringify(p).length>120000)throw new Error('El expediente es demasiado grande.');
  const documents:ProjectDocument[]=p.documents.map(d=>({id:d.id,name:d.name.slice(0,160),category:d.category,fileName:d.fileName,fileSize:d.fileSize,sizeBytes:d.sizeBytes,sha256:d.sha256,uploadDate:new Date().toISOString().slice(0,10),status:'Pendiente',storage:'remote'}));
  return {...p,id:p.id,status:'En revisión',isSimulationOnly:false,submissionId:undefined,receivedAt:undefined,documents,approvals:[
