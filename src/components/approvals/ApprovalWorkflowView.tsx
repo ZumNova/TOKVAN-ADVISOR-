@@ -187,7 +187,7 @@ Circuito de cuatro etapas · recepción y tres dictámenes
               </h3>
 
               <div className="space-y-4">
-                <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-4 text-sm"><div className="font-semibold text-white">1 · Administración · recepción del expediente</div><p className="mt-2 text-[#9BA6BD]">La 047 registra y asigna el expediente. En esta demo, la recepción central aún no está conectada; este paso no se marca como completado ni genera una firma ficticia.</p></div>
+                <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-4 text-sm"><div className="font-semibold text-white">1 · Administración · recepción del expediente</div><p className="mt-2 text-[#9BA6BD]">La recepción compartida se consulta desde «Expedientes de emisión». Este panel todavía guarda los dictámenes firmados solo en la sesión abierta; la recepción no equivale a una aprobación.</p></div>
                 {activeProject.approvals.map((step, idx) => {
                   const isCurrentSimulatedRole = step.role === activeRole;
                   return (
@@ -239,7 +239,7 @@ Circuito de cuatro etapas · recepción y tres dictámenes
                           </div>
                           {step.signerWallet && <span className="block font-mono text-[10px] break-all">Wallet: {step.signerWallet}</span>}
                           {step.signatureHash && (
-                            <div className="font-mono text-[10px] text-[#7096FF]">
+                            <div className="min-w-0 max-w-full break-all font-mono text-[10px] text-[#7096FF]">
                               {step.signerWallet?'Firma: ':'Referencia ficticia: '}{step.signatureHash}
                             </div>
                           )}
