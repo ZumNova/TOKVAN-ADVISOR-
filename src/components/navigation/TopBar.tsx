@@ -53,7 +53,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
-  const canSeeDashboard = true;
+  const canSeeDashboard = staffRole !== 'token_operator';
   const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
