@@ -209,7 +209,7 @@ export default function App() {
           />
           </>
         )}
-        {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
+        {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory'||role === 'token_operator' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
         {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>}
 
         {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
@@ -256,7 +256,7 @@ export default function App() {
         )}
 
         {currentView === 'factory' && roleCanOpen(staff?.role ?? null, 'factory') && (
-          <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} staffAccount={staff?.account ?? null} initialProjectId={selectedProjectForDetail?.id} /></Suspense>
+          <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} staffAccount={staff?.account ?? null} staffRole={staff?.role ?? null} initialProjectId={selectedProjectForDetail?.id} /></Suspense>
         )}
 
         {currentView === 'simulator' && roleCanOpen(staff?.role ?? null, 'simulator') && (

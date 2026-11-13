@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { TokvanLogo } from '../brand/TokvanLogo';
+import {roleCanOpen,type StaffRole} from '../../lib/staffAccess';
 
 interface TopBarProps {
   currentView: string;
@@ -53,7 +54,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
   const canSeeDashboard = true;
-  const allowedLinks = internalLinks.filter(link => staffRole && (link.view !== 'admin' || staffRole === 'owner' || staffRole === 'administrator'));
+  const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
   const navigate = (view: string) => {
