@@ -64,7 +64,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
       if(!validReview(activeProject,proof))throw new Error('La firma no corresponde al expediente o a la wallet del rol.');
       await onUpdateApproval(proof);
       setActionSuccessMessage(activeProject.submissionId?`Dictamen de ${activeRole} guardado en Supabase.`:`Dictamen de ${activeRole} firmado en esta sesión de demostración.`);
-      if(activeProject.submissionId){const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);onApplySharedReviews(activeProject.id,state.reviews);}
+      if(activeProject.submissionId)setGovernance(null);
       setCommentsInput('');
     }catch(e){setActionError(e instanceof Error?e.message:'No se pudo firmar el dictamen.');}
     finally{setBusy(false);}
@@ -79,14 +79,14 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const recordPayment=async()=>{
     if(!activeProject?.submissionId||!staffAccount||!paymentFile)return;
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
-    try{await verifyPayment(staffAccount,activeProject.submissionId,paymentAmount,paymentCurrency,paymentReference,paymentFile);const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);setActionSuccessMessage('Pago y comprobante verificados, firmados y guardados en Supabase.');}
+    try{await verifyPayment(staffAccount,activeProject.submissionId,paymentAmount,paymentCurrency,paymentReference,paymentFile);setGovernance(null);setActionSuccessMessage('Pago y comprobante verificados, firmados y guardados en Supabase. Pulsá «Cargar bitácora compartida» para verlos.');}
     catch(e){setActionError(e instanceof Error?e.message:'No se pudo registrar el pago.');}
     finally{setBusy(false);}
   };
   const authorize=async()=>{
     if(!activeProject?.submissionId||!staffAccount||!governance)return;
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
-    try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Aún faltan las aprobaciones on-chain del factory.');}
+    try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);setGovernance(null);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Pulsá «Cargar bitácora compartida» para verla. Aún faltan las aprobaciones on-chain del factory.');}
     catch(e){setActionError(e instanceof Error?e.message:'No se pudo autorizar la preparación.');}
     finally{setBusy(false);}
   };
