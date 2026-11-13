@@ -256,7 +256,7 @@ export default function App() {
         )}
 
         {currentView === 'factory' && roleCanOpen(staff?.role ?? null, 'factory') && (
-          <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} /></Suspense>
+          <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} staffAccount={staff?.account ?? null} initialProjectId={selectedProjectForDetail?.id} /></Suspense>
         )}
 
         {currentView === 'simulator' && roleCanOpen(staff?.role ?? null, 'simulator') && (
