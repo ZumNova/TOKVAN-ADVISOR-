@@ -36,7 +36,10 @@ export default function App() {
     ethereum?.on?.('chainChanged', clear);
     return () => { ethereum?.removeListener?.('accountsChanged', clear); ethereum?.removeListener?.('chainChanged', clear); };
   }, []);
-  const [projects, setProjects] = useState<TokenProject[]>(MOCK_PROJECTS);
+  const [projects, setProjects] = useState<TokenProject[]>(()=>MOCK_PROJECTS.map(project=>({
+    ...project,
+    approvals:project.approvals.map(step=>({id:step.id,role:step.role,label:step.label,status:'Pendiente' as const})),
+  })));
   const [activeOrg, setActiveOrg] = useState<OrganizationTenant>(INITIAL_ORGANIZATION);
   const [leads, setLeads] = useState<LeadSubmission[]>(MOCK_LEADS);
 
@@ -129,7 +132,7 @@ export default function App() {
     }
     setProjects(prev=>prev.map(p=>p.id!==proof.projectId?p:{
       ...p,
-      status:proof.decision==='Rechazado'?'Requiere atención':'En revisión',
+      status:proof.decision==='Aprobado'?'En revisión':'Requiere atención',
       approvals:p.approvals.map(step=>step.id!==proof.stepId?step:{
         ...step,status:proof.decision,comments:proof.comments,timestamp:proof.timestamp,
         signatureHash:proof.signature,signerWallet:proof.signer,signedProjectHash:proof.projectHash,

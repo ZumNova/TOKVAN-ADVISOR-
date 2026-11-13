@@ -99,7 +99,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
 
           <div className="space-y-2">
             {projects.map((p) => {
-              const pendingCount = p.approvals.filter((a) => a.status === 'Pendiente').length;
+              const pendingCount = p.approvals.filter((a) => a.status !== 'Aprobado').length;
               return (
                 <button
                   key={p.id}
@@ -119,7 +119,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                           : 'bg-[#D97706]/10 text-[#D97706]'
                       }`}
                     >
-                      {pendingCount === 0 ? 'Completado' : `${pendingCount} Pendiente(s)`}
+                      {pendingCount === 0 ? 'Tres dictámenes aprobados' : `${pendingCount} por resolver`}
                     </span>
                   </div>
                   <div className="text-xs font-semibold text-white mt-1 truncate">{p.title}</div>
@@ -278,6 +278,7 @@ Circuito de cuatro etapas · recepción y tres dictámenes
               </div>
 
               {!activeRole && <p className="text-sm text-amber-200">Podés consultar todo el expediente. Las firmas corresponden exclusivamente a las wallets de Técnico, Compliance y Directorio fijadas en los factories de Sepolia.</p>}
+              <p className="text-xs leading-relaxed text-[#9BA6BD]">«Solicitar Corrección» deja el dictamen observado; «Rechazar» lo marca rechazado. Ambos requieren observación y firma de la wallet del rol, y señalan el expediente como «Requiere atención» en esta sesión. Ninguno modifica el factory ni inicia una transacción on-chain.</p>
               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <span className="text-[11px] text-[#9BA6BD]">
                   Wallet autorizada: <strong className="text-white font-mono break-all">{activeRole ? reviewWallets[activeRole] : 'Esta wallet puede consultar, pero no firmar los tres dictámenes.'}</strong>
