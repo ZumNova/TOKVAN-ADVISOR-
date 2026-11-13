@@ -21,8 +21,7 @@ import {listClientProjects,markClientProjectSubmitted,type ClientProjectRecord} 
 import {submitClientProject,listSharedSubmissions,downloadSharedDocument} from './lib/sharedSubmissions';
 import {saveSharedReview,type SharedReview} from './lib/governance';
 
-import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
-import { TokenProject, OrganizationTenant, LeadSubmission } from './types';
+import { TokenProject } from './types';
 
 const FactoryWorkspace = lazy(() => import('./components/factory/FactoryWorkspace'));
 
@@ -37,12 +36,7 @@ export default function App() {
     ethereum?.on?.('chainChanged', clear);
     return () => { ethereum?.removeListener?.('accountsChanged', clear); ethereum?.removeListener?.('chainChanged', clear); };
   }, []);
-  const [projects, setProjects] = useState<TokenProject[]>(()=>MOCK_PROJECTS.map(project=>({
-    ...project,
-    approvals:project.approvals.map(step=>({id:step.id,role:step.role,label:step.label,status:'Pendiente' as const})),
-  })));
-  const [activeOrg, setActiveOrg] = useState<OrganizationTenant>(INITIAL_ORGANIZATION);
-  const [leads, setLeads] = useState<LeadSubmission[]>(MOCK_LEADS);
+  const [projects, setProjects] = useState<TokenProject[]>([]);
 
   // Modals & Drawers state
   const [isLeadModalOpen, setIsLeadModalOpen] = useState<boolean>(false);
@@ -82,7 +76,6 @@ export default function App() {
   };
 
   const handleProjectCreatedFromLead = (newDraft: TokenProject) => {
-    setProjects((prev) => [newDraft, ...prev]);
     setWizardSeedProject(newDraft);
     setWizardStep(1);
     setCurrentView('wizard');
@@ -104,20 +97,11 @@ export default function App() {
     setSharedLoading(true);setSharedError('');
     try{
       const received=await listSharedSubmissions(staff.account);
-      setProjects(previous=>[...received,...previous.filter(p=>!p.submissionId&&!received.some(r=>r.id===p.id))]);
+      setProjects(received);
     }catch(e){setSharedError(e instanceof Error?e.message:'No se pudo cargar la bandeja.');}
     finally{setSharedLoading(false);}
   };
   const handleSaveProjectFromWizard = (finalizedProject: TokenProject) => {
-    setProjects((prev) => {
-      const existsIndex = prev.findIndex((p) => p.id === finalizedProject.id);
-      if (existsIndex >= 0) {
-        const copy = [...prev];
-        copy[existsIndex] = finalizedProject;
-        return copy;
-      }
-      return [finalizedProject, ...prev];
-    });
     setWizardSeedProject(undefined);
     refreshClientRecords();
     setClientReceipt({project:finalizedProject,step:5,stage:'prepared',savedAt:new Date().toISOString()});
@@ -231,7 +215,7 @@ export default function App() {
         {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
           <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             <DashboardOverview
-              projects={projects.filter(project=>!project.isSimulationOnly)}
+              projects={projects}
               onNavigate={handleNavigate}
               onSelectProject={(proj) => setSelectedProjectForDetail(proj)}
             />
@@ -250,6 +234,7 @@ export default function App() {
                 setCurrentView('wizard');
               }}
               onNavigateToApprovals={(proj) => {
+                setSelectedProjectForDetail(proj);
                 handleNavigate('approvals');
               }}
             />
@@ -300,8 +285,8 @@ export default function App() {
 
         {currentView === 'admin' && roleCanOpen(staff?.role ?? null, 'admin') && (
           <AdminPortal
-            organizations={MOCK_ORGANIZATIONS}
-            leads={leads}
+            organizations={[]}
+            leads={[]}
             onNavigate={handleNavigate}
           />
         )}
@@ -324,7 +309,7 @@ export default function App() {
         onClose={() => setSelectedProjectForDetail(null)}
         onDownloadDocument={(project,doc)=>{if(!staff)return;void downloadSharedDocument(staff.account,project,doc).catch(e=>showToast(e instanceof Error?e.message:'No se pudo descargar.'));}}
         onNavigateToApprovals={(p) => {
-          setSelectedProjectForDetail(null);
+          setSelectedProjectForDetail(p);
           handleNavigate('approvals');
         }}
       />

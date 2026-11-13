@@ -117,7 +117,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 Leads capturados desde el portal institucional listos para diagnóstico técnico.
               </p>
             </div>
-            <span className="text-xs font-mono text-[#7096FF]">3 expedientes en seguimiento</span>
+            <span className="text-xs font-mono text-[#7096FF]">{leads.length} solicitudes en seguimiento</span>
           </div>
 
           <div className="overflow-x-auto">

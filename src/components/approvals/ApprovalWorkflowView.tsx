@@ -107,7 +107,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             Gobernanza, Dictámenes y Autorización de Despliegue
           </h1>
           <p className="text-xs text-[#9BA6BD] mt-1">
-            {activeProject?.submissionId?'Expediente recibido: los dictámenes firmados se guardan en la bitácora compartida. El factory exige sus aprobaciones on-chain por separado.':'Proyecto de ejemplo: las firmas de esta tarjeta viven solo en la sesión abierta y no registran aprobaciones on-chain.'}
+            {activeProject?'Los dictámenes firmados se guardan en la bitácora compartida. El factory exige sus aprobaciones on-chain por separado.':'Cargá un expediente recibido desde «Expedientes de emisión» para iniciar el circuito real.'}
           </p>
         </div>
 
@@ -132,6 +132,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
           </h2>
 
           <div className="space-y-2">
+            {projects.length===0&&<p className="rounded-lg border border-[#273246] p-3 text-xs text-[#9BA6BD]">No hay expedientes recibidos cargados. Abrí «Expedientes de emisión» y pulsá «Cargar expedientes recibidos».</p>}
             {projects.map((p) => {
               const pendingCount = p.approvals.filter((a) => a.status !== 'Aprobado').length;
               return (

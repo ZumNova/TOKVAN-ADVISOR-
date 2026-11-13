@@ -34,7 +34,6 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [standardFilter, setStandardFilter] = useState<string>('all');
-
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
       p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -62,7 +61,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
             <span>Portafolio de Activos Tokenizados</span>
             <span aria-hidden="true">·</span>
-            <span className="text-[#9BA6BD]">Bandeja de recepción y ejemplos</span>
+            <span className="text-[#9BA6BD]">Bandeja de expedientes recibidos</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white font-display mt-0.5">
             Expedientes de emisión
@@ -79,7 +78,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
       </div>
 
       {sharedError&&<p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-200">{sharedError}</p>}
-      <p className="rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 text-sm text-amber-100">Los expedientes recibidos aparecen al pulsar «Cargar expedientes recibidos» y firmar con una wallet del equipo. Los proyectos de ejemplo siguen visibles y se identifican por sus datos de demostración.</p>
+      <p className="rounded-lg border border-[#39547C] bg-[#101A2A] p-3 text-sm text-[#B8C9E1]">Para ver solicitudes reales, pulsá «Cargar expedientes recibidos» y firmá con una wallet del equipo. Los casos de ejemplo ya no aparecen en esta bandeja.</p>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-[#141A27] border border-[#273246]">
