@@ -33,7 +33,7 @@ export async function submitClientProject(project:TokenProject,onProgress?:(text
  return receipt;
 }
 const staffMessage=(origin:string,action:string,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
-async function staffRequest(action:'list'|'document',account:string,body:Record<string,unknown>={}){
+export async function staffRequest(action:string,account:string,body:Record<string,unknown>={},endpoint=api){
  const wallet=(window as Window & {ethereum?:{request:(args:{method:string;params?:unknown[]})=>Promise<unknown>}}).ethereum;
  if(!wallet)throw new Error('Conectá la wallet del equipo.');
  const accounts=await wallet.request({method:'eth_accounts'}) as string[];
@@ -43,7 +43,7 @@ async function staffRequest(action:'list'|'document',account:string,body:Record<
  const signature=await wallet.request({method:'personal_sign',params:[hexlify(toUtf8Bytes(staffMessage(location.origin,action,timestamp,nonce,address))),address]}) as string;
  const grant=address===getAddress(OWNER)?null:readGrants().find(g=>getAddress(g.address)===address);
  if(address!==getAddress(OWNER)&&!grant)throw new Error('Importá primero la autorización firmada por la 047.');
- return parse(await fetch(api,{method:'POST',headers:{'Content-Type':'application/json','x-tokvant-wallet':address,'x-tokvant-time':timestamp,'x-tokvant-nonce':nonce,'x-tokvant-signature':signature,...(grant?{'x-tokvant-grant':JSON.stringify(grant)}:{})},body:JSON.stringify({action,...body})}));
+ return parse(await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-tokvant-wallet':address,'x-tokvant-time':timestamp,'x-tokvant-nonce':nonce,'x-tokvant-signature':signature,...(grant?{'x-tokvant-grant':JSON.stringify(grant)}:{})},body:JSON.stringify({action,...body})}));
 }
 export async function listSharedSubmissions(account:string):Promise<TokenProject[]>{
  const result=await staffRequest('list',account);

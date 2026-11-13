@@ -14,25 +14,37 @@ import {
 import { TokenProject, ApprovalStep } from '../../types';
 import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import {projectReviewHash,reviewMessage,reviewRoleForWallet,reviewWallets,validReview,type ReviewProof,type ReviewDecision} from '../../lib/reviewSignatures';
+import {loadGovernance,verifyPayment,downloadPaymentDocument,authorizePreparation,type GovernanceState,type SharedReview} from '../../lib/governance';
 
 interface ApprovalWorkflowViewProps {
   projects: TokenProject[];
-  onUpdateApproval: (proof: ReviewProof) => void;
+  initialProjectId?: string;
+  onUpdateApproval: (proof: ReviewProof) => Promise<void>;
+  onApplySharedReviews: (projectId:string,reviews:SharedReview[]) => void;
   staffAccount: string | null;
+  staffRole: string | null;
   onNavigate: (view: string) => void;
 }
 
 export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   projects,
+  initialProjectId,
   onUpdateApproval,
+  onApplySharedReviews,
   staffAccount,
+  staffRole,
   onNavigate,
 }) => {
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || '');
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjectId || projects[0]?.id || '');
   const [commentsInput, setCommentsInput] = useState('');
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [actionError,setActionError]=useState<string | null>(null);
   const [busy,setBusy]=useState(false);
+  const [governance,setGovernance]=useState<GovernanceState|null>(null);
+  const [paymentAmount,setPaymentAmount]=useState('');
+  const [paymentCurrency,setPaymentCurrency]=useState('USD');
+  const [paymentReference,setPaymentReference]=useState('');
+  const [paymentFile,setPaymentFile]=useState<File|null>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const activeRole=reviewRoleForWallet(staffAccount);
   const handleExecuteApproval = async (status: ReviewDecision) => {
@@ -50,10 +62,32 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
       const signature=await wallet.request({method:'personal_sign',params:[hexlify(toUtf8Bytes(reviewMessage(unsigned))),staffAccount]}) as string;
       const proof:ReviewProof={...unsigned,signature};
       if(!validReview(activeProject,proof))throw new Error('La firma no corresponde al expediente o a la wallet del rol.');
-      onUpdateApproval(proof);
-      setActionSuccessMessage(`Dictamen de ${activeRole} firmado en esta sesión de demostración.`);
+      await onUpdateApproval(proof);
+      setActionSuccessMessage(activeProject.submissionId?`Dictamen de ${activeRole} guardado en Supabase.`:`Dictamen de ${activeRole} firmado en esta sesión de demostración.`);
+      if(activeProject.submissionId){const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);onApplySharedReviews(activeProject.id,state.reviews);}
       setCommentsInput('');
     }catch(e){setActionError(e instanceof Error?e.message:'No se pudo firmar el dictamen.');}
+    finally{setBusy(false);}
+  };
+  const refreshGovernance=async()=>{
+    if(!activeProject?.submissionId||!staffAccount)return;
+    setBusy(true);setActionError(null);
+    try{const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);onApplySharedReviews(activeProject.id,state.reviews);}
+    catch(e){setActionError(e instanceof Error?e.message:'No se pudo cargar la bitácora.');}
+    finally{setBusy(false);}
+  };
+  const recordPayment=async()=>{
+    if(!activeProject?.submissionId||!staffAccount||!paymentFile)return;
+    setBusy(true);setActionError(null);setActionSuccessMessage(null);
+    try{await verifyPayment(staffAccount,activeProject.submissionId,paymentAmount,paymentCurrency,paymentReference,paymentFile);const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);setActionSuccessMessage('Pago y comprobante verificados, firmados y guardados en Supabase.');}
+    catch(e){setActionError(e instanceof Error?e.message:'No se pudo registrar el pago.');}
+    finally{setBusy(false);}
+  };
+  const authorize=async()=>{
+    if(!activeProject?.submissionId||!staffAccount||!governance)return;
+    setBusy(true);setActionError(null);setActionSuccessMessage(null);
+    try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);const state=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(state);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Aún faltan las aprobaciones on-chain del factory.');}
+    catch(e){setActionError(e instanceof Error?e.message:'No se pudo autorizar la preparación.');}
     finally{setBusy(false);}
   };
 
@@ -73,7 +107,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
             Gobernanza, Dictámenes y Autorización de Despliegue
           </h1>
           <p className="text-xs text-[#9BA6BD] mt-1">
-            Demo local: esta firma de mensaje no registra una aprobación on-chain ni llega a otros equipos. El factory exige tres aprobaciones on-chain por separado.
+            {activeProject?.submissionId?'Expediente recibido: los dictámenes firmados se guardan en la bitácora compartida. El factory exige sus aprobaciones on-chain por separado.':'Proyecto de ejemplo: las firmas de esta tarjeta viven solo en la sesión abierta y no registran aprobaciones on-chain.'}
           </p>
         </div>
 
@@ -103,7 +137,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
               return (
                 <button
                   key={p.id}
-                  onClick={() => setSelectedProjectId(p.id)}
+                  onClick={() => {setSelectedProjectId(p.id);setGovernance(null);}}
                   className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer ${
                     activeProject?.id === p.id
                       ? 'border-[#316BFA] bg-[#316BFA]/10 text-white'
@@ -180,6 +214,16 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
               </div>
             </div>
 
+            {activeProject.submissionId&&<div className="rounded-2xl border border-[#39547C] bg-[#101A2A] p-5 space-y-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-white">Bitácora compartida · Supabase</h3><p className="mt-1 text-xs text-[#9BA6BD]">Las firmas de este expediente recibido se verifican y conservan para todo el equipo.</p></div><button type="button" disabled={busy} onClick={()=>void refreshGovernance()} className="rounded-lg border border-[#567EFF] px-3 py-2 text-xs text-white disabled:opacity-50">{governance?'Actualizar bitácora':'Cargar bitácora compartida'}</button></div>
+              {governance&&<div className="space-y-3">
+                <p className="text-xs text-[#B8C9E1]">Dictámenes aprobados: {governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length} / 3 · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'} · Autorización TOKVANT: {governance.authorized?'vigente':'pendiente'}</p>
+                {governance.payments.filter(row=>row.status==='verified').map(row=><div key={row.id} className="break-all rounded-lg border border-[#273246] p-3 text-xs text-[#B8C9E1]">Pago {row.amount} {row.currency} · Referencia {row.reference} · Firmado por {row.signer_wallet} · <button type="button" className="text-[#7096FF] underline" onClick={()=>{if(staffAccount)void downloadPaymentDocument(staffAccount,row).catch(e=>setActionError(e instanceof Error?e.message:'No se pudo descargar.'));}}>Descargar comprobante: {row.file_name}</button></div>)}
+              </div>}
+              {(staffRole==='accounting'||staffRole==='owner')&&<div className="space-y-3 border-t border-[#39547C] pt-4"><h4 className="font-semibold text-white">Contaduría · verificar pago recibido</h4><p className="text-xs text-[#9BA6BD]">Confirmá el cobro fuera de la dapp antes de firmar. El comprobante quedará privado y vinculado a este expediente.</p><div className="grid gap-3 sm:grid-cols-3"><label className="text-xs">Importe<input value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)} inputMode="decimal" placeholder="1500.00" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label><label className="text-xs">Moneda<select value={paymentCurrency} onChange={e=>setPaymentCurrency(e.target.value)} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white"><option>USD</option><option>PYG</option><option>ARS</option><option>EUR</option></select></label><label className="text-xs">Referencia del pago<input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="Transferencia / recibo" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label></div><label className="block text-xs">Comprobante privado PDF o imagen<input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>setPaymentFile(e.target.files?.[0]||null)} className="mt-1 block w-full text-[#B8C9E1]" /></label><button type="button" disabled={busy||!paymentFile||!paymentAmount||!paymentReference.trim()} onClick={()=>void recordPayment()} className="rounded-lg bg-[#316BFA] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar recibo de pago verificado</button></div>}
+              {staffRole==='owner'&&governance&&<div className="border-t border-[#39547C] pt-4"><button type="button" disabled={busy||governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length!==3||!governance.payments.some(row=>row.status==='verified')} onClick={()=>void authorize()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Autorizar preparación del token</button><p className="mt-2 text-xs text-[#9BA6BD]">Esta firma habilita la preparación administrativa; no despliega un token ni sustituye las firmas on-chain del factory.</p></div>}
+            </div>}
+
             {/* Approval Steps Progression */}
             <div className="rounded-2xl bg-[#141A27] border border-[#273246] p-6 space-y-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200 pb-2 border-b border-[#273246]">
@@ -187,7 +231,7 @@ Circuito de cuatro etapas · recepción y tres dictámenes
               </h3>
 
               <div className="space-y-4">
-                <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-4 text-sm"><div className="font-semibold text-white">1 · Administración · recepción del expediente</div><p className="mt-2 text-[#9BA6BD]">La recepción compartida se consulta desde «Expedientes de emisión». Este panel todavía guarda los dictámenes firmados solo en la sesión abierta; la recepción no equivale a una aprobación.</p></div>
+                <div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-4 text-sm"><div className="font-semibold text-white">1 · Administración · recepción del expediente</div><p className="mt-2 text-[#9BA6BD]">{activeProject.submissionId?'Expediente recibido en Supabase. La recepción no equivale a una aprobación; cada revisor firma su propio dictamen.':'Este ejemplo no representa un expediente recibido. Sus dictámenes son locales a esta sesión.'}</p></div>
                 {activeProject.approvals.map((step, idx) => {
                   const isCurrentSimulatedRole = step.role === activeRole;
                   return (

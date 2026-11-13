@@ -30,7 +30,7 @@ function requireStaff(request:Request,action:Action){
  if(verifyMessage(authMessage(new URL(request.url).origin,action,timestamp,nonce,wallet),signature)!==wallet)throw new Error('La wallet no está autorizada para consultar expedientes.');
  if(wallet!==owner){
   let grant;try{grant=JSON.parse(request.headers.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización del equipo inválida.');}
-  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
+  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
   const message=`TOKVANT staff access\nOrigin: ${new URL(request.url).origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
   if(verifyMessage(message,grant.signature)!==owner)throw new Error('La autorización del equipo no está firmada por la 047.');
  }

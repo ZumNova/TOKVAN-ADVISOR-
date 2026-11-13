@@ -11,4 +11,8 @@ test('equipo consulta expedientes y factories; solo administración abre backoff
  }
  assert.equal(roleCanOpen(null,'projects'),false);
  assert.equal(roleCanOpen(null,'factory'),false);
+ assert.equal(roleCanOpen('accounting','projects'),true);
+ assert.equal(roleCanOpen('accounting','approvals'),true);
+ assert.equal(roleCanOpen('accounting','factory'),false);
+ assert.equal(roleCanOpen('accounting','admin'),false);
 });

@@ -19,6 +19,7 @@ import { roleCanOpen, type StaffRole } from './lib/staffAccess';
 import {validReview,reviewRoleForWallet,type ReviewProof} from './lib/reviewSignatures';
 import {listClientProjects,markClientProjectSubmitted,type ClientProjectRecord} from './lib/clientProjects';
 import {submitClientProject,listSharedSubmissions,downloadSharedDocument} from './lib/sharedSubmissions';
+import {saveSharedReview,type SharedReview} from './lib/governance';
 
 import { MOCK_PROJECTS, MOCK_ORGANIZATIONS, INITIAL_ORGANIZATION, MOCK_LEADS } from './constants/mockData';
 import { TokenProject, OrganizationTenant, LeadSubmission } from './types';
@@ -125,11 +126,12 @@ export default function App() {
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
-  const handleUpdateApproval = (proof:ReviewProof) => {
+  const handleUpdateApproval = async (proof:ReviewProof) => {
     const project=projects.find(p=>p.id===proof.projectId);
     if(!project||!staff||reviewRoleForWallet(staff.account)!==proof.role||!validReview(project,proof)){
-      showToast('No se pudo verificar la firma para este dictamen.');return;
+      throw new Error('No se pudo verificar la firma para este dictamen.');
     }
+    if(project.submissionId)await saveSharedReview(staff.account,project.submissionId,proof);
     setProjects(prev=>prev.map(p=>p.id!==proof.projectId?p:{
       ...p,
       status:proof.decision==='Aprobado'?'En revisión':'Requiere atención',
@@ -139,7 +141,15 @@ export default function App() {
         signedMessage:JSON.stringify(proof),approverName:proof.signer,
       }),
     }));
-    showToast('Dictamen firmado en esta sesión de demostración.');
+    showToast(project.submissionId?'Dictamen firmado y guardado en la bitácora compartida.':'Dictamen firmado en esta sesión de demostración.');
+  };
+  const applySharedReviews=(projectId:string,reviews:SharedReview[])=>{
+    setProjects(prev=>prev.map(project=>project.id!==projectId?project:{...project,approvals:project.approvals.map(step=>{
+      const row=reviews.find(item=>item.role===step.role);
+      if(!row||!validReview(project,row.proof))return step;
+      const proof=row.proof;
+      return {...step,status:proof.decision,comments:proof.comments,timestamp:proof.timestamp,signatureHash:proof.signature,signerWallet:proof.signer,signedProjectHash:proof.projectHash,signedMessage:JSON.stringify(proof),approverName:proof.signer};
+    })}));
   };
 
   return (
@@ -279,8 +289,11 @@ export default function App() {
         {currentView === 'approvals' && roleCanOpen(staff?.role ?? null, 'approvals') && (
           <ApprovalWorkflowView
             projects={projects}
+            initialProjectId={selectedProjectForDetail?.id}
             onUpdateApproval={handleUpdateApproval}
+            onApplySharedReviews={applySharedReviews}
             staffAccount={staff?.account ?? null}
+            staffRole={staff?.role ?? null}
             onNavigate={handleNavigate}
           />
         )}
