@@ -52,6 +52,8 @@ Si MetaMask rechaza o falla la estimación, no repetir firmas a ciegas: comproba
 
 El orden recomendado para cerrar la prueba es: (1) transferencia A7Da → 21b4 desde MetaMask; (2) rechazo controlado a una wallet no acreditada; (3) pausa y reanudación; (4) congelamiento y liberación con importes pequeños; (5) revocación y reacreditación solo si se quiere ensayar el circuito completo. Registrar cada hash en la **Bitácora ERC-3643**. Evitar las acciones extraordinarias sobre saldos que se quieran conservar.
 
+**Resultados observados de controles:** con CORPO pausado, una transferencia normal desde MetaMask falló; tras reanudarlo, D189 transfirió `3 CORPO` a A7Da. Se volvió a pausar CORPO y AE0E, como agente, quemó `1 CORPO` de D189: el registro mostró D189 `7.0` y A7Da `4.0`. Aun pausado, AE0E ejecutó una transferencia forzada de `1 CORPO` de D189 a A7Da sin firma de D189; el registro mostró D189 `6.0` y A7Da `5.0`. La revisión local usó `TEST-CORPO-FORZADA-001`; ese texto no se incluye en el evento oficial de la transacción. Queda reanudar transferencias normales y anotar los hashes si se quiere una bitácora verificable de estos ensayos.
+
 ## Privacidad y alcance
 
 El registro compartido guarda wallets, referencias internas y un país propuesto; consulta estado on-chain. No identifica al titular ni guarda documentos KYC/KYB. Los datos personales y archivos de identidad requieren custodia y acceso separados antes de un uso real. El expediente educativo de 14 campos es declarativo: completar 14/14 no significa aprobación legal. La política y una posible custodia de identidades fuera del stack operativo están en `docs/erc3643-participants-and-knowledge.md`.
