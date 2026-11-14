@@ -52,7 +52,20 @@ Si MetaMask rechaza o falla la estimación, no repetir firmas a ciegas: comproba
 
 El orden recomendado para cerrar la prueba es: (1) transferencia A7Da → 21b4 desde MetaMask; (2) rechazo controlado a una wallet no acreditada; (3) pausa y reanudación; (4) congelamiento y liberación con importes pequeños; (5) revocación y reacreditación solo si se quiere ensayar el circuito completo. Registrar cada hash en la **Bitácora ERC-3643**. Evitar las acciones extraordinarias sobre saldos que se quieran conservar.
 
-**Resultados observados de controles:** con CORPO pausado, una transferencia normal desde MetaMask falló; tras reanudarlo, D189 transfirió `3 CORPO` a A7Da. Se volvió a pausar CORPO y AE0E, como agente, quemó `1 CORPO` de D189: el registro mostró D189 `7.0` y A7Da `4.0`. Aun pausado, AE0E ejecutó una transferencia forzada de `1 CORPO` de D189 a A7Da sin firma de D189; el registro mostró D189 `6.0` y A7Da `5.0`. La revisión local usó `TEST-CORPO-FORZADA-001`; ese texto no se incluye en el evento oficial de la transacción. Finalmente AE0E reanudó las transferencias y CORPO quedó despausado. Faltan los hashes de estas pruebas si se quiere una bitácora verificable de cada ensayo.
+**Resultados observados de controles:** con CORPO pausado, una transferencia normal desde MetaMask falló; tras reanudarlo, D189 transfirió `3 CORPO` a A7Da. Se volvió a pausar CORPO y AE0E, como agente, quemó `1 CORPO` de D189: el registro mostró D189 `7.0` y A7Da `4.0`. Aun pausado, AE0E ejecutó una transferencia forzada de `1 CORPO` de D189 a A7Da sin firma de D189; el registro mostró D189 `6.0` y A7Da `5.0`. La revisión local usó `TEST-CORPO-FORZADA-001`; ese texto no se incluye en el evento oficial de la transacción. Finalmente AE0E reanudó las transferencias y CORPO quedó despausado.
+
+### Transacciones de cierre identificadas en la bitácora
+
+| Acción | Bloque | Transacción Sepolia |
+| --- | ---: | --- |
+| Transferencia normal A7Da → D189, 1 CORPO | 12134568 | [0x87ce8cac…998e51](https://sepolia.etherscan.io/tx/0x87ce8cacb223fb37848bf3d00385c0e3fe904137e45a0eafac22f14c6a998e51) |
+| Primera pausa de prueba | 12134591 | [0xa65095d4…61792a](https://sepolia.etherscan.io/tx/0xa65095d43e77624572f2269fb61a538bfa7a22946e7c1a21acc835057661792a) |
+| Primera reanudación | 12134619 | [0xfda08a75…afd710](https://sepolia.etherscan.io/tx/0xfda08a75d257fcf7356469d4636a01e7608fb679d5c12ab0704e89ec9dafd710) |
+| Transferencia normal D189 → A7Da, 3 CORPO | 12134627 | [0xee3b0e41…ee2ba6](https://sepolia.etherscan.io/tx/0xee3b0e4113b3e00396508d8e8b513369e334d1e385e27a1b6fdb35307fee2ba6) |
+| Segunda pausa de prueba | 12136106 | [0xa9351bb8…278fb](https://sepolia.etherscan.io/tx/0xa9351bb8e3dbc4b4813aa9b694004da060a1e88ffa132277352f518ecf2278fb) |
+| Quema por agente, 1 CORPO de D189 a dirección cero | 12136124 | [0xec76827d…27f180](https://sepolia.etherscan.io/tx/0xec76827d28f5fb5682bd1d3f31ab7f33e26b356f9fa8861f2f4126c0ae27f180) |
+| Transferencia forzada D189 → A7Da, 1 CORPO | 12136160 | [0xe03110de…45db3](https://sepolia.etherscan.io/tx/0xe03110de04309c5f83db11bd420c6f1aee46c8962ac5f55a30143f8249445db3) |
+| Reanudación final; token despausado | 12136176 | Hash no incluido en el texto pegado; buscar el evento `Unpaused` de ese bloque en la bitácora o en [Etherscan](https://sepolia.etherscan.io/address/0xe038C37d78178572c81b0E1267F24e8891B42787) |
 
 ## Privacidad y alcance
 
