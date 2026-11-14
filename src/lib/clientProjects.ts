@@ -1,5 +1,6 @@
 import {isAddress} from 'ethers';
 import type {TokenProject} from '../types';
+import {deleteClientDocument} from './clientDocuments';
 
 const PREFIX='tokvant:client-project:v1:';
 export interface ClientProjectRecord {project:TokenProject;step:number;stage:'draft'|'prepared'|'submitted';savedAt:string;receivedAt?:string;submissionId?:string;}
@@ -14,6 +15,13 @@ export function markClientProjectSubmitted(id:string,submissionId:string,receive
  if(!record||record.project.id!==id)throw new Error('No se encontró el expediente local para confirmar la recepción.');
  const updated={...record,stage:'submitted' as const,submissionId,receivedAt,savedAt:new Date().toISOString()};
  localStorage.setItem(key,JSON.stringify(updated));return updated;
+}
+export async function removeClientProject(record:ClientProjectRecord){
+ const key=PREFIX+record.project.id;
+ const current=JSON.parse(localStorage.getItem(key)||'null') as ClientProjectRecord|null;
+ if(!current||current.project.id!==record.project.id)throw new Error('La copia local ya no está disponible.');
+ for(const document of current.project.documents.filter(d=>d.storage==='browser'))await deleteClientDocument(record.project.id,document);
+ localStorage.removeItem(key);
 }
 export function listClientProjects():ClientProjectRecord[]{
  const result:ClientProjectRecord[]=[];

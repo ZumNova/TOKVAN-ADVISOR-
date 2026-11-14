@@ -17,7 +17,7 @@ import ClientProjectHome from './components/wizard/ClientProjectHome';
 import StaffAccess from './components/admin/StaffAccess';
 import { roleCanOpen, type StaffRole } from './lib/staffAccess';
 import {validReview,reviewRoleForWallet,type ReviewProof} from './lib/reviewSignatures';
-import {listClientProjects,markClientProjectSubmitted,type ClientProjectRecord} from './lib/clientProjects';
+import {listClientProjects,markClientProjectSubmitted,removeClientProject,type ClientProjectRecord} from './lib/clientProjects';
 import {submitClientProject,listSharedSubmissions,downloadSharedDocument,loadPrivateContact} from './lib/sharedSubmissions';
 import {saveSharedReview,type SharedReview} from './lib/governance';
 
@@ -51,6 +51,7 @@ export default function App() {
   const [sharedLoading,setSharedLoading]=useState(false);
   const [sharedError,setSharedError]=useState('');
   const refreshClientRecords=()=>{try{setClientRecords(listClientProjects());}catch{/* The wizard reports storage errors when saving. */}};
+  const removeLocalClientProject=async(record:ClientProjectRecord)=>{await removeClientProject(record);refreshClientRecords();};
   const resumeClientProject=(record:ClientProjectRecord)=>{setWizardSeedProject(record.project);setWizardStep(record.step);setCurrentView('wizard');window.scrollTo({top:0,behavior:'smooth'});};
 
   // Notifications or toast message
@@ -202,7 +203,7 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'landing' && (
           <>
-          <ClientProjectHome records={clientRecords} onResume={resumeClientProject} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>
+          <ClientProjectHome records={clientRecords} onResume={resumeClientProject} onRemove={removeLocalClientProject} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>
           <CommercialLandingPage
             onNavigate={handleNavigate}
             onOpenLeadModal={handleOpenLeadModal}
