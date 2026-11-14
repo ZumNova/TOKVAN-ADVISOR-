@@ -8,6 +8,7 @@ interface ProjectDetailModalProps {
   onClose: () => void;
   onNavigateToApprovals?: (project: TokenProject) => void;
   onDownloadDocument?: (project:TokenProject,doc:ProjectDocument)=>void;
+  onLoadPrivateContact?:()=>Promise<{contact:TokenProject['contact']|null;taxId:string|null}>;
 }
 
 export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
@@ -15,7 +16,10 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   onClose,
   onNavigateToApprovals,
   onDownloadDocument,
+  onLoadPrivateContact,
 }) => {
+  const [privateContact,setPrivateContact]=React.useState<{projectId:string;contact:TokenProject['contact']|null;taxId:string|null}|null>(null);
+  const [privateError,setPrivateError]=React.useState('');
   if (!project) return null;
 
   const net = SUPPORTED_NETWORKS[project.network] || SUPPORTED_NETWORKS.polygon;
@@ -56,6 +60,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         </div>
 
         {project.submissionId&&<div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3.5 text-sm text-emerald-100">Solicitud recibida por TOKVANT el {project.receivedAt?new Date(project.receivedAt).toLocaleString('es-AR'):'día de recepción'}. Los datos y adjuntos fueron aportados por el cliente; la revisión técnica, legal y de cumplimiento está pendiente.</div>}
+        {onLoadPrivateContact&&<section className="rounded-xl border border-[#39547C] p-4 text-sm"><h3 className="font-semibold">Contacto privado del expediente · solo 047</h3><button className="mt-2 text-[#9BBCFF] underline" onClick={()=>void onLoadPrivateContact().then(data=>{setPrivateContact({projectId:project.id,...data});setPrivateError('');}).catch(e=>setPrivateError(e instanceof Error?e.message:'No se pudo consultar el contacto.'))}>Consultar contacto con firma</button>{privateContact?.projectId===project.id&&<p className="mt-2 break-words">{privateContact.contact?.fullName||'Sin nombre'} · {privateContact.contact?.email||'Sin email'} · {privateContact.contact?.phone||'Sin teléfono'}{privateContact.taxId?` · ID fiscal: ${privateContact.taxId}`:''}</p>}{privateError&&<p role="alert" className="mt-2 text-red-300">{privateError}</p>}</section>}
+        {project.standard==='ERC-3643'&&!!project.proposedRecipients?.length&&<section className="rounded-xl border border-[#39547C] p-4 text-sm"><h3 className="font-semibold">Wallets receptoras propuestas · pendientes de acreditación</h3>{project.proposedRecipients.map(row=><p className="break-all font-mono text-xs mt-2" key={row.walletAddress}>{row.walletAddress}</p>)}</section>}
 
         {/* Simulation Notice */}
         {project.isSimulationOnly && (

@@ -54,6 +54,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
   const canSeeDashboard = staffRole !== 'token_operator';
+  const canSeeAi = Boolean(staffRole);
   const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
@@ -201,7 +202,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             </>
           ) : isClientFlow ? <span className="text-xs text-[#B8C9E1]">Tu proyecto · TOKVANT</span> : (
             <>
-              {canSeeDashboard && <button
+              {canSeeAi && <button
                 type="button"
                 onClick={onToggleAiDrawer}
                 aria-pressed={isAiDrawerOpen}
@@ -285,7 +286,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </button>
               ))}
 
-              {canSeeDashboard && <button
+              {canSeeAi && <button
                 type="button"
                 onClick={() => {
                   setMobileOpen(false);

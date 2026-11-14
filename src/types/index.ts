@@ -136,6 +136,7 @@ export interface TokenProject {
   clientWalletAddress?: string;
   clientWalletNetwork?: NetworkId;
   walletSupportRequested?: boolean;
+  proposedRecipients?: {walletAddress:string}[];
   jurisdiction: 'Paraguay (BCP / CNV / Ley DLT)' | 'Argentina' | 'Estados Unidos (Reg D / Reg S)' | 'Suiza (DLT Act)' | 'Unión Europea (MiCA)' | 'Multi-jurisdiccional' | 'Por definir (revisión del expediente)';
   standard: StandardType;
   network: NetworkId;

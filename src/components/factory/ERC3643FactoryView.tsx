@@ -9,6 +9,7 @@ import {listSharedSubmissions} from '../../lib/sharedSubmissions';
 import {loadGovernance} from '../../lib/governance';
 import {OWNER} from '../../lib/staffAccess';
 import {getAddress} from 'ethers';
+import ERC3643ParticipantsPanel from './ERC3643ParticipantsPanel';
 const button='rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed';
 const panel='rounded-xl border border-slate-200 bg-white p-5 space-y-4';
 function saved<T>(key:string,fallback:T):T {try{return JSON.parse(localStorage.getItem(REG_PREFIX+key)||'null')??fallback;}catch{return fallback;}}
@@ -102,6 +103,7 @@ export default function ERC3643FactoryView({projects,staffAccount,initialProject
     <label className="block"><input type="checkbox" checked={testConsent} disabled={disabled} onChange={e=>setTestConsent(e.target.checked)}/> Confirmo que estos controles son ficticios, exclusivamente para probar Sepolia.</label>
     <div className="flex flex-wrap gap-2">{actionButton('attest',state.account!==d.authority||!testConsent)}{actionButton('revokeIdentity',state.account!==d.authority)}{actionButton('setIssuerIdentity',state.account!==d.owner)}</div><p className="text-sm">La autoridad puede guardar una acreditación incompleta para probar un rechazo. Para recibir deben estar vigentes identidad (KYC o KYB), AML y elegibilidad. Revocar bloquea recepciones; para bloquear envíos normales use congelamiento.</p>
    </section>
+   {record&&<ERC3643ParticipantsPanel key={state.token} state={state} record={record} input={input} staffAccount={staffAccount} onPick={(wallet,proposedCountry,internalReference)=>{if(state.account===d.authority){setTarget(wallet);setIdentity(undefined);if(proposedCountry)setCountry(String(proposedCountry));setReference(internalReference);}else setRecipient(wallet);setMessage(`Wallet ${wallet} cargada en el formulario correspondiente. Verificá sus datos antes de firmar.`);}}/>}
    <section className={panel}><h2 className="text-lg font-semibold">5. Emisión, transferencias y controles</h2><Field label="Wallet destinataria / nueva wallet para recuperar" value={recipient} onChange={setRecipient} disabled={disabled}/><Field label="Cantidad de tokens" value={amount} onChange={setAmount} disabled={disabled}/>
     <p className="text-sm break-all">Wallet administrada (sección 4): {target}. Transferir usa el saldo de la wallet conectada; quemar y congelar actúan sobre la wallet administrada.</p>
     <div className="flex flex-wrap gap-2">{actionButton('mint',!d.isAgent)}{actionButton('transfer',d.paused)}{actionButton('burn',!d.isAgent)}{actionButton(d.paused?'unpause':'pause',!d.isAgent)}</div>

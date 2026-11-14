@@ -21,7 +21,7 @@ const config=()=>{
  if(!url||!key||!publishable)throw new Error('La recepción privada aún no está configurada en Vercel.');
  return {db:createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}}),url,publishable};
 };
-type Action='start'|'finalize'|'list'|'document';
+type Action='start'|'finalize'|'list'|'document'|'contact';
 const authMessage=(origin:string,action:Action,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
 function requireStaff(request:Request,action:Action){
  const address=request.headers.get('x-tokvant-wallet')||'',timestamp=request.headers.get('x-tokvant-time')||'',nonce=request.headers.get('x-tokvant-nonce')||'',signature=request.headers.get('x-tokvant-signature')||'';
@@ -50,6 +50,7 @@ export function cleanProject(input:unknown):TokenProject{
  const params=p.parameters;
  const complete=typeof p.organizationName==='string'&&!!p.organizationName.trim()&&typeof p.title==='string'&&!!p.title.trim()&&typeof p.contact?.fullName==='string'&&!!p.contact.fullName.trim()&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.contact.email||'')&&p.contact.consent===true&&typeof p.assetDescription==='string'&&!!p.assetDescription.trim()&&(p.assetType!=='Otro'||!!p.assetTypeOther?.trim())&&['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(p.standard)&&['sepolia','polygon','ethereum','arbitrum'].includes(p.network)&&params&&typeof params.tokenName==='string'&&!!params.tokenName.trim()&&typeof params.tokenSymbol==='string'&&!!params.tokenSymbol.trim()&&Number.isFinite(params.initialSupply)&&params.initialSupply>0&&Number.isInteger(params.decimals)&&params.decimals>=0&&params.decimals<=18&&(!['ERC-721','ERC-1155'].includes(p.standard)||(params.decimals===0&&Number.isInteger(params.initialSupply)))&&(!p.clientWalletAddress?.trim()||(isAddress(p.clientWalletAddress.trim())&&p.clientWalletNetwork===p.network));
  if(!complete)throw new Error('Completá el formulario antes de enviarlo.');
+ if(p.proposedRecipients!==undefined&&(!Array.isArray(p.proposedRecipients)||p.proposedRecipients.length>100||p.standard!=='ERC-3643'||p.proposedRecipients.some(row=>!row||typeof row.walletAddress!=='string'||!isAddress(row.walletAddress))||new Set(p.proposedRecipients.map(row=>row.walletAddress.toLowerCase())).size!==p.proposedRecipients.length))throw new Error('Wallets receptoras propuestas inválidas.');
  if(JSON.stringify(p).length>120000)throw new Error('El expediente es demasiado grande.');
  const documents:ProjectDocument[]=p.documents.map(d=>({id:d.id,name:d.name.slice(0,160),category:d.category,fileName:d.fileName,fileSize:d.fileSize,sizeBytes:d.sizeBytes,sha256:d.sha256,uploadDate:new Date().toISOString().slice(0,10),status:'Pendiente',storage:'remote'}));
  return {...p,id:p.id,status:'En revisión',isSimulationOnly:false,submissionId:undefined,receivedAt:undefined,documents,approvals:[
@@ -63,7 +64,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>160000)return response({error:'Solicitud demasiado grande.'},413);
   const payload=await request.json();
   const action=payload?.action as Action;
-  if(!['start','finalize','list','document'].includes(action))return response({error:'Operación desconocida.'},400);
+  if(!['start','finalize','list','document','contact'].includes(action))return response({error:'Operación desconocida.'},400);
   const {db,url,publishable}=config();
   if(action==='start'){
    const project=cleanProject(payload.project);
@@ -79,10 +80,13 @@ export async function POST(request:Request){
     if(JSON.stringify((existing.data.project as TokenProject).documents.map(d=>[d.id,d.sha256,d.sizeBytes]))!==JSON.stringify(project.documents.map(d=>[d.id,d.sha256,d.sizeBytes])))return response({error:'Los adjuntos cambiaron desde el inicio del envío. Reiniciá con un nuevo expediente.'},409);
     id=existing.data.id;
    }else{
-    const inserted=await db.from(TABLE).insert({request_id:project.id,receipt_secret_hash:secretHash,status:'uploading',project}).select('id').single();
+    const {contact:privateContact,taxId:privateTaxId,...operationalProject}=project;
+    const inserted=await db.from(TABLE).insert({request_id:project.id,receipt_secret_hash:secretHash,status:'uploading',project:operationalProject}).select('id').single();
     if(inserted.error)throw inserted.error;
     id=inserted.data.id;
    }
+   const privateSaved=await db.from('submission_private_contacts').upsert({submission_id:id,contact:project.contact,tax_id:project.taxId||null},{onConflict:'submission_id'});
+   if(privateSaved.error)throw privateSaved.error;
    const uploads=[];
    for(const d of project.documents){
     const path=`${id}/${d.id}`;
@@ -109,7 +113,13 @@ export async function POST(request:Request){
    if(saved.error)throw saved.error;
    return response({id,requestId:row.request_id,receivedAt});
   }
-  requireStaff(request,action);
+  const staffWallet=requireStaff(request,action);
+  if(action==='contact'){
+   if(staffWallet!==owner)return response({error:'Solo la administración 047 puede consultar el contacto privado.'},403);
+   const id=String(payload.id||'');if(!/^[0-9a-f-]{36}$/i.test(id))return response({error:'Expediente inválido.'},400);
+   const result=await db.from('submission_private_contacts').select('contact,tax_id').eq('submission_id',id).maybeSingle();
+   if(result.error)throw result.error;return response({contact:result.data?.contact||null,taxId:result.data?.tax_id||null});
+  }
   if(action==='list'){
    const found=await db.from(TABLE).select('id,request_id,project,received_at').eq('status','received').order('received_at',{ascending:false}).limit(100);
    if(found.error)throw found.error;

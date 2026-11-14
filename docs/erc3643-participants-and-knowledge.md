@@ -1,0 +1,9 @@
+# Registro ERC-3643, privacidad y ayuda interna
+
+`20261114_private_contacts.sql` separa contacto e identificación fiscal del JSON operativo de `client_submissions` y reserva el bucket privado `tokvant-identidades` para una futura carga de evidencias de identidad. El bucket no tiene política pública ni interfaz de carga. Antes de almacenar KYC/KYB real falta fijar consentimiento, finalidad, responsable, plazo de conservación, acceso por rol y procedimiento de eliminación. Los archivos legales que el cliente ya adjunta siguen en el bucket privado `tokvant-expedientes`.
+
+`20261114_regulated_participants.sql` crea un registro de tokens ERC-3643 de Sepolia, propuestas de wallets y notas educativas. Las tres tablas tienen RLS activo y no conceden permisos a `anon` ni a `authenticated`; solo las API de Vercel usan la clave secreta del servidor. Ejecutar ambas migraciones en el SQL Editor de Supabase antes de publicar el frontend nuevo.
+
+La 047 vincula cada token al registro desde su panel ERC-3643. Si el expediente recibido incluye `proposedRecipients`, el registro incorpora esas direcciones como propuestas `INITIAL_001`, etcétera. La wallet propietaria del token puede agregar propuestas con código interno, sin nombres, email, documentos ni datos KYC. FB24 lee la lista y usa cada wallet en la acreditación ficticia de la sección 4. El panel consulta el contrato de Sepolia al actualizar: identidad vigente, país, saldo, cupo y congelamiento. Una propuesta no es una autorización ni una transferencia. El contrato sigue decidiendo si la operación es válida; no se añade firma por transferencia.
+
+La biblioteca `educational_notes` acepta borradores con fuente. La 047 los aprueba; las notas aprobadas se pueden consultar desde TOKVANT IA y entrar en su búsqueda educativa. No se indexan contactos privados ni adjuntos. Esta búsqueda sigue siendo determinista; no se invoca un modelo generativo ni se afirma que una nota prueba un hecho on-chain.

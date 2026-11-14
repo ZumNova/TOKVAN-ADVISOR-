@@ -38,6 +38,7 @@ export function clientProjectChecks(project:TokenProject){
   {step:3,label:'Nombre, símbolo y cantidades del token',ok:Boolean(project.parameters.tokenName.trim()&&project.parameters.tokenSymbol.trim()&&Number.isFinite(project.parameters.initialSupply)&&project.parameters.initialSupply>0&&Number.isInteger(project.parameters.decimals)&&project.parameters.decimals>=0&&project.parameters.decimals<=18&&(!(project.standard==='ERC-721'||project.standard==='ERC-1155')||(project.parameters.decimals===0&&Number.isInteger(project.parameters.initialSupply))))},
   {step:4,label:'Al menos un adjunto con hash calculado',ok:project.documents.some(d=>d.storage==='browser'&&/^[a-f0-9]{64}$/.test(d.sha256||''))},
   ...(project.clientWalletAddress?.trim() ? [{step:5,label:'Wallet EVM válida y misma red propuesta para el token',ok:isAddress(project.clientWalletAddress.trim())&&project.clientWalletNetwork===project.network}] : []),
+  ...(project.standard==='ERC-3643'&&project.proposedRecipients?.length ? [{step:5,label:'Wallets destinatarias propuestas válidas y sin repetir',ok:project.proposedRecipients.length<=100&&project.proposedRecipients.every(row=>isAddress(row.walletAddress))&&new Set(project.proposedRecipients.map(row=>row.walletAddress.toLowerCase())).size===project.proposedRecipients.length}] : []),
  ];
 }
 export function clientCompleteness(project:TokenProject){const checks=clientProjectChecks(project);return Math.round(100*checks.filter(c=>c.ok).length/checks.length);}

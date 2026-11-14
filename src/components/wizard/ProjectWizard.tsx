@@ -6,6 +6,7 @@ import { SUPPORTED_NETWORKS } from '../../constants/networks';
 import {clientCompleteness, clientProjectChecks, newClientProjectId, saveClientProject} from '../../lib/clientProjects';
 import {getClientDocument} from '../../lib/clientDocuments';
 import ClientDocuments from './ClientDocuments';
+import {isAddress} from 'ethers';
 
 interface ProjectWizardProps {
   initialProject?: Partial<TokenProject>;
@@ -91,6 +92,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   const [contact, setContact] = useState(initialProject?.contact || {fullName:'',email:'',phone:'',consent:false});
   const [clientWalletAddress, setClientWalletAddress] = useState(initialProject?.clientWalletAddress || '');
   const [clientWalletNetwork, setClientWalletNetwork] = useState<NetworkId>(initialProject?.clientWalletNetwork || initialProject?.network || 'polygon');
+  const [proposedRecipientsText,setProposedRecipientsText]=useState((initialProject?.proposedRecipients||[]).map(row=>row.walletAddress).join('\n'));
   const [documentsBusy, setDocumentsBusy] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submitLock = useRef(false);
@@ -118,6 +120,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
       clientWalletAddress: clientWalletAddress.trim(),
       clientWalletNetwork: clientWalletAddress.trim() ? clientWalletNetwork : undefined,
       walletSupportRequested: !clientWalletAddress.trim(),
+      proposedRecipients: standard==='ERC-3643'?proposedRecipientsText.split(/\r?\n/).map(walletAddress=>walletAddress.trim()).filter(Boolean).map(walletAddress=>({walletAddress})):undefined,
       status: 'Borrador',
       progressPercent,
       targetValuationUsd,
@@ -195,6 +198,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   const handlePrevStep=()=>{setFormError('');setCurrentStep(step=>Math.max(1,step-1));};
   const handleFinalizeProject=async()=>{
     if(submitLock.current||documentsBusy)return;
+    if(standard==='ERC-3643'){const wallets=proposedRecipientsText.split(/\r?\n/).map(v=>v.trim()).filter(Boolean);if(wallets.length>100||wallets.some(v=>!isAddress(v))||new Set(wallets.map(v=>v.toLowerCase())).size!==wallets.length){setFormError('Revisá las wallets destinatarias propuestas: una dirección EVM válida por línea, sin repetir (máximo 100).');setCurrentStep(5);return;}}
     const missing=checks.find(c=>!c.ok);
     if(missing){setFormError('Complete: '+missing.label+'.');setCurrentStep(missing.step);return;}
     submitLock.current=true;setSubmitting(true);setFormError('');
@@ -674,6 +678,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <p className="text-xs text-[#9BA6BD]">Red propuesta para el token: <strong className="text-white">{SUPPORTED_NETWORKS[network]?.name}</strong>. La dirección EVM puede usarse en distintas redes; aquí registramos la red prevista para este proyecto.</p>
             {clientWalletAddress.trim() && !checks.find(c=>c.step===5)?.ok && <p role="alert" className="text-sm text-amber-200">Revisá la dirección y seleccioná la misma red propuesta para el token.</p>}
           </div>
+          {standard==='ERC-3643'&&<div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-5 space-y-3"><h3 className="font-semibold text-white">Wallets receptoras iniciales · opcional</h3><p className="text-sm text-[#9BA6BD]">Una dirección pública EVM por línea (máximo 100). Son candidatas propuestas, no quedan habilitadas ni reciben tokens al enviar la solicitud. TOKVANT y la autoridad de acreditación revisarán cada una. No escribas nombres ni documentos personales aquí.</p><textarea rows={4} value={proposedRecipientsText} onChange={e=>setProposedRecipientsText(e.target.value)} placeholder="0x…\n0x…" spellCheck={false} className="w-full rounded-lg border border-[#39547C] bg-[#101A2A] p-3 font-mono text-sm text-white"/><p className="text-xs text-[#B8C9E1]">{proposedRecipientsText.split(/\r?\n/).filter(v=>v.trim()).length} wallet(s) propuesta(s) · Red del proyecto: {SUPPORTED_NETWORKS[network]?.name}</p></div>}
           <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Al finalizar guardaremos una copia en este navegador e intentaremos enviar el expediente y los adjuntos al espacio privado de TOKVANT. Solo se considerará recibido cuando aparezca el comprobante. Si falla la conexión, podrás reintentar sin perder tu borrador. Los avisos por email aún no están activos.</p>
         </section>}
 

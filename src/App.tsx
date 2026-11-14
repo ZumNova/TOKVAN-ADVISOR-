@@ -18,7 +18,7 @@ import StaffAccess from './components/admin/StaffAccess';
 import { roleCanOpen, type StaffRole } from './lib/staffAccess';
 import {validReview,reviewRoleForWallet,type ReviewProof} from './lib/reviewSignatures';
 import {listClientProjects,markClientProjectSubmitted,type ClientProjectRecord} from './lib/clientProjects';
-import {submitClientProject,listSharedSubmissions,downloadSharedDocument} from './lib/sharedSubmissions';
+import {submitClientProject,listSharedSubmissions,downloadSharedDocument,loadPrivateContact} from './lib/sharedSubmissions';
 import {saveSharedReview,type SharedReview} from './lib/governance';
 
 import { TokenProject } from './types';
@@ -306,6 +306,7 @@ export default function App() {
       {/* Project Inspector Detail Modal */}
       <ProjectDetailModal
         project={selectedProjectForDetail}
+        onLoadPrivateContact={staff?.role==='owner'&&staff.account&&selectedProjectForDetail?.submissionId?()=>loadPrivateContact(staff.account,selectedProjectForDetail.submissionId!):undefined}
         onClose={() => setSelectedProjectForDetail(null)}
         onDownloadDocument={(project,doc)=>{if(!staff)return;void downloadSharedDocument(staff.account,project,doc).catch(e=>showToast(e instanceof Error?e.message:'No se pudo descargar.'));}}
         onNavigateToApprovals={(p) => {
@@ -316,6 +317,7 @@ export default function App() {
 
       {/* TOKVANT IA drawer */}
       <TokvanAiDrawer
+        staffAccount={staff?.account ?? null}
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}
         activeProject={selectedProjectForDetail || projects[0]}

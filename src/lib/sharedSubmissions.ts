@@ -58,3 +58,4 @@ export async function downloadSharedDocument(account:string,project:TokenProject
  if(await sha256(await blob.arrayBuffer())!==doc.sha256)throw new Error('El archivo descargado no coincide con el hash declarado por el cliente.');
  downloadClientFile(blob,doc.fileName);
 }
+export async function loadPrivateContact(account:string,submissionId:string){return staffRequest('contact',account,{id:submissionId}) as Promise<{contact:TokenProject['contact']|null;taxId:string|null}>;}
