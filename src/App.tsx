@@ -102,6 +102,18 @@ export default function App() {
     }catch(e){setSharedError(e instanceof Error?e.message:'No se pudo cargar la bandeja.');}
     finally{setSharedLoading(false);}
   };
+  const openReceivedProject=async(record:ClientProjectRecord)=>{
+    if(!staff||!roleCanOpen(staff.role,'projects')){handleNavigate('projects');return;}
+    setSharedLoading(true);setSharedError('');
+    try{
+      const received=await listSharedSubmissions(staff.account);
+      setProjects(received);
+      const project=received.find(p=>p.id===record.project.id&&p.submissionId===record.submissionId);
+      if(!project)throw new Error('No se encontró este expediente en la bandeja compartida. Verificá el comprobante de recepción.');
+      setSelectedProjectForDetail(project);setCurrentView('projects');window.scrollTo({top:0});
+    }catch(e){setSharedError(e instanceof Error?e.message:'No se pudo abrir el expediente.');setCurrentView('projects');}
+    finally{setSharedLoading(false);}
+  };
   const handleSaveProjectFromWizard = (finalizedProject: TokenProject) => {
     setWizardSeedProject(undefined);
     refreshClientRecords();
@@ -203,7 +215,7 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'landing' && (
           <>
-          <ClientProjectHome records={clientRecords} onResume={resumeClientProject} onRemove={removeLocalClientProject} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>
+          <ClientProjectHome records={clientRecords} onResume={resumeClientProject} onRemove={removeLocalClientProject} onOpenReceived={record=>void openReceivedProject(record)} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>
           <CommercialLandingPage
             onNavigate={handleNavigate}
             onOpenLeadModal={handleOpenLeadModal}
@@ -281,6 +293,7 @@ export default function App() {
             staffAccount={staff?.account ?? null}
             staffRole={staff?.role ?? null}
             onNavigate={handleNavigate}
+            onOpenFactory={project=>{setSelectedProjectForDetail(project);handleNavigate('factory');}}
           />
         )}
 

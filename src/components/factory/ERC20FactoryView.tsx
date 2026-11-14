@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { isAddress } from 'ethers';
 import FactoryDeploymentPanel from './FactoryDeploymentPanel';
 import TokenExecutionPanel from './TokenExecutionPanel';
 import FactoryJournal from './FactoryJournal';
@@ -7,6 +8,7 @@ import { FACTORY_REGISTRY } from '../../lib/tokenWorkflow';
 import { DEPLOYER } from '../../lib/factoryWallet';
 import type { TokenProject } from '../../types';
 import { prepareFactoryRequest, projectBlockers, requestJson, type FactoryInput } from '../../lib/erc20Factory';
+import { loadGovernance } from '../../lib/governance';
 
 const defaults: FactoryInput = {
   projectId: 'TOKVAN-SEPOLIA-TKN-001', factory: FACTORY_REGISTRY.address, admin: DEPLOYER, treasury: DEPLOYER, name: 'TOKVAN Test Token', symbol: 'TKN',
@@ -18,7 +20,7 @@ function restoreDraft(): FactoryInput | null {
   return null;
 }
 const fieldStyle = 'mt-1 block w-full rounded-lg border border-[#273246] bg-[#0B0D12] p-3 text-white';
-export default function ERC20FactoryView({ projects }: { projects: TokenProject[] }) {
+export default function ERC20FactoryView({ projects, staffAccount, initialProjectId }: { projects: TokenProject[]; staffAccount:string|null; initialProjectId?:string }) {
   const [savedDraft] = useState(restoreDraft);
   const [input, setInput] = useState<FactoryInput>(() => savedDraft ?? {...defaults});
   const [journalRevision, setJournalRevision] = useState(0);
@@ -26,25 +28,36 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
   const [managementMode, setManagementMode] = useState<'burn' | 'pause' | null>(null);
   const [result, setResult] = useState<ReturnType<typeof prepareFactoryRequest> | null>(() => savedDraft ? prepareFactoryRequest(savedDraft) : null);
   const [error, setError] = useState('');
+  const [authorizedId,setAuthorizedId]=useState('');
+  const [loading,setLoading]=useState(false);
   const project = projects.find(p => p.id === selectedId);
   const blockers = project ? projectBlockers(project) : [];
   const update = <K extends keyof FactoryInput>(key: K, value: FactoryInput[K]) => {
     setInput(previous => ({...previous, [key]: value})); setResult(null); setError('');
   };
   const selectProject = (value: string) => {
-    setSelectedId(value); setResult(null); setError('');
-    const p = projects.find(item => item.id === value);
-    if (!p) {
-      setInput({...defaults});
-      return;
-    }
-    setInput(previous => ({...previous, projectId: p.id, name: p.parameters.tokenName, symbol: p.parameters.tokenSymbol,
-      decimals: String(p.parameters.decimals), initialSupply: String(p.parameters.initialSupply),
-      maxSupply: String(p.parameters.maxSupply ?? p.parameters.initialSupply),
-      mintable: p.parameters.isMintable, burnable: p.parameters.isBurnable, pausable: p.parameters.isPausable}));
+    setSelectedId(value);setAuthorizedId('');setResult(null);setError('');setInput({...defaults});
+  };
+  useEffect(()=>{if(initialProjectId&&projects.some(p=>p.id===initialProjectId&&p.standard==='ERC-20'))selectProject(initialProjectId);},[initialProjectId,projects]);
+  const importProject=async()=>{
+    if(!project?.submissionId||!staffAccount){setError('Seleccioná un expediente recibido y conectá una wallet del equipo TOKVANT.');return;}
+    setLoading(true);setError('');
+    try{
+      const governance=await loadGovernance(staffAccount,project.submissionId);
+      if(!governance.authorized)throw new Error('Faltan dictámenes, pago o autorización TOKVANT vigentes. Completá esos pasos en Aprobaciones.');
+      const clientWallet=project.clientWalletNetwork==='sepolia'&&project.clientWalletAddress&&isAddress(project.clientWalletAddress)?project.clientWalletAddress:'';
+      setInput({...defaults,projectId:project.id,name:project.parameters.tokenName,symbol:project.parameters.tokenSymbol,
+        decimals:String(project.parameters.decimals),initialSupply:String(project.parameters.initialSupply),
+        maxSupply:String(project.parameters.maxSupply??project.parameters.initialSupply),
+        mintable:project.parameters.isMintable,burnable:project.parameters.isBurnable,pausable:project.parameters.isPausable,
+        admin:clientWallet,treasury:clientWallet});
+      setAuthorizedId(project.id);setResult(null);
+    }catch(e){setAuthorizedId('');setError(e instanceof Error?e.message:'No se pudo verificar el expediente.');}
+    finally{setLoading(false);}
   };
   const prepare = () => {
     try {
+      if(project&&authorizedId!==project.id)throw new Error('Primero cargá y verificá la autorización del expediente recibido.');
       if (blockers.length) throw new Error(blockers.join(' '));
       const prepared = prepareFactoryRequest(input);
       localStorage.setItem(draftKey, JSON.stringify(input));
@@ -90,6 +103,7 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
             {projects.filter(p => p.standard === 'ERC-20').map(p => <option key={p.id} value={p.id}>{p.id} · {p.title}</option>)}
           </select>
         </label>
+        {project&&<div className="rounded-lg border border-[#39547C] p-4 space-y-2 text-sm"><p>Expediente recibido: <strong>{project.title}</strong> · {project.id}</p><button type="button" disabled={loading} onClick={()=>void importProject()} className="rounded-lg bg-[#316BFA] px-4 py-2 disabled:opacity-50">{loading?'Verificando…':'Cargar datos autorizados desde Supabase'}</button><p className="text-xs text-slate-400">Después revisá nombre, supply y wallets. Si el cliente no indicó una wallet Sepolia, completá administradora y tesorería antes de preparar. La imagen adjunta al expediente no se incorpora automáticamente al ERC-20.</p>{authorizedId===project.id&&<p className="text-emerald-300">Autorización vigente. Datos precargados; revisá las dos wallets antes de firmar.</p>}</div>}
         {blockers.length > 0 && <ul className="text-amber-200 text-sm list-disc pl-5">{blockers.map(message => <li key={message}>{message}</li>)}</ul>}
         <form onSubmit={e => {e.preventDefault(); prepare();}} className="space-y-5">
           <div className="grid sm:grid-cols-2 gap-4">{textFields.map(([key, label]) => <label className="block text-sm" key={key}>{label}
@@ -100,7 +114,7 @@ export default function ERC20FactoryView({ projects }: { projects: TokenProject[
           <p className="text-xs text-slate-400">El máximo limita el supply en circulación. La administradora recibe los roles habilitados y puede delegarlos.
             La pausa bloquea transferencias, emisión y quema. Sin upgrade, whitelist ni controles KYC on-chain en v1.</p>
           <div className="flex flex-wrap gap-3">
-            <button disabled={blockers.length > 0} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold disabled:opacity-40">Preparar para revisión</button>
+            <button disabled={blockers.length > 0||Boolean(project&&authorizedId!==project.id)} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold disabled:opacity-40">Preparar para revisión</button>
             <button type="button" onClick={() => setManagementMode('burn')} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold" aria-haspopup="dialog">Quemar tokens</button>
             <button type="button" onClick={() => setManagementMode('pause')} className="rounded-lg bg-[#316BFA] px-5 py-3 font-semibold" aria-haspopup="dialog">Pausar / Reanudar</button>
           </div>
