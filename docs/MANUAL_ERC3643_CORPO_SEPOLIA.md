@@ -40,6 +40,8 @@ Con la wallet titular `0xA7Da…82F7`, importar CORPO como token personalizado s
 
 Si MetaMask rechaza o falla la estimación, no repetir firmas a ciegas: comprobar red, dirección del contrato, saldo de CORPO y ETH, pausa, acreditación vigente, país, congelamiento y cupo de la receptora. Una propuesta en el registro no sustituye la acreditación on-chain.
 
+**Resultado observado:** AE0E envió un segundo CORPO a `0xA7Da…82F7`, que mostró saldo `2.0`. Esa wallet transfirió `1 CORPO` a `0x21b4…d189` desde MetaMask, fuera de TOKVANT. Después, la consulta del registro mostró `1.0 CORPO` en A7Da y el titular confirmó `11 CORPO` en 21b4. Falta incorporar el hash de esta transferencia a la bitácora de prueba si se necesita una referencia verificable del caso.
+
 ## Controles y pruebas siguientes
 
 - **Pausa:** un agente detiene transferencias normales; la emisión por agente puede seguir disponible en este contrato. Reanudar antes de probar transferencias ordinarias.
