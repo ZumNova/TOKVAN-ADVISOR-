@@ -65,7 +65,7 @@ El orden recomendado para cerrar la prueba es: (1) transferencia A7Da → 21b4 d
 | Segunda pausa de prueba | 12136106 | [0xa9351bb8…278fb](https://sepolia.etherscan.io/tx/0xa9351bb8e3dbc4b4813aa9b694004da060a1e88ffa132277352f518ecf2278fb) |
 | Quema por agente, 1 CORPO de D189 a dirección cero | 12136124 | [0xec76827d…27f180](https://sepolia.etherscan.io/tx/0xec76827d28f5fb5682bd1d3f31ab7f33e26b356f9fa8861f2f4126c0ae27f180) |
 | Transferencia forzada D189 → A7Da, 1 CORPO | 12136160 | [0xe03110de…45db3](https://sepolia.etherscan.io/tx/0xe03110de04309c5f83db11bd420c6f1aee46c8962ac5f55a30143f8249445db3) |
-| Reanudación final; token despausado | 12136176 | Hash no incluido en el texto pegado; buscar el evento `Unpaused` de ese bloque en la bitácora o en [Etherscan](https://sepolia.etherscan.io/address/0xe038C37d78178572c81b0E1267F24e8891B42787) |
+| Reanudación final; token despausado | 12136176 | [0xd287fb74…ea8bc7](https://sepolia.etherscan.io/tx/0xd287fb74161b1e7bdf7766a008510161b9608e233828beef22c34338a8ea8bc7) |
 
 ## Privacidad y alcance
 
