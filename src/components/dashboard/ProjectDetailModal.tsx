@@ -227,7 +227,6 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
           {onNavigateToApprovals && (
             <button
               onClick={() => {
-                onClose();
                 onNavigateToApprovals(project);
               }}
               className="px-5 py-2 text-xs font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer shadow-sm"
