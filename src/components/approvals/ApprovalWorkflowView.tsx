@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -48,9 +48,11 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const [paymentReference,setPaymentReference]=useState('');
   const [paymentFile,setPaymentFile]=useState<File|null>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
+  useEffect(()=>{setGovernance(null);setActionError(null);},[activeProject?.submissionId]);
   const activeRole=reviewRoleForWallet(staffAccount);
   const handleExecuteApproval = async (status: ReviewDecision) => {
     if (!activeProject || !activeRole || !staffAccount || busy) return;
+    if(activeProject.submissionId&&!governance){setActionError('Primero pulsá «Cargar bitácora compartida» para recuperar los dictámenes ya firmados.');return;}
     const step = activeProject.approvals.find(s => s.role === activeRole);
     if (!step) return;
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
@@ -66,7 +68,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
       if(!validReview(activeProject,proof))throw new Error('La firma no corresponde al expediente o a la wallet del rol.');
       await onUpdateApproval(proof);
       setActionSuccessMessage(activeProject.submissionId?`Dictamen de ${activeRole} guardado en Supabase.`:`Dictamen de ${activeRole} firmado en esta sesión de demostración.`);
-      if(activeProject.submissionId)setGovernance(null);
+      if(activeProject.submissionId){setGovernance(null);setActionSuccessMessage('Dictamen guardado en Supabase. Pulsá «Cargar bitácora compartida» para ver el estado actualizado.');}
       setCommentsInput('');
     }catch(e){setActionError(e instanceof Error?e.message:'No se pudo firmar el dictamen.');}
     finally{setBusy(false);}
@@ -219,6 +221,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
 
             {activeProject.submissionId&&<div className="rounded-2xl border border-[#39547C] bg-[#101A2A] p-5 space-y-4 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-white">Bitácora compartida · Supabase</h3><p className="mt-1 text-xs text-[#9BA6BD]">Las firmas de este expediente recibido se verifican y conservan para todo el equipo.</p></div><button type="button" disabled={busy} onClick={()=>void refreshGovernance()} className="rounded-lg border border-[#567EFF] px-3 py-2 text-xs text-white disabled:opacity-50">{governance?'Actualizar bitácora':'Cargar bitácora compartida'}</button></div>
+              {!governance&&<p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">Estado aún sin consultar. Las tarjetas inferiores pueden mostrar «Pendiente» aunque ya haya firmas guardadas. Cargá la bitácora antes de continuar.</p>}
               {governance&&<div className="space-y-3">
                 <p className="text-xs text-[#B8C9E1]">Dictámenes aprobados: {governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length} / 3 · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'} · Autorización TOKVANT: {governance.authorized?'vigente':'pendiente'}</p>
                 {governance.authorized&&activeProject.standard==='ERC-20'&&onOpenFactory&&<button type="button" className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white" onClick={()=>onOpenFactory(activeProject)}>Continuar en Factory ERC-20</button>}
@@ -334,21 +337,21 @@ Circuito de cuatro etapas · recepción y tres dictámenes
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => void handleExecuteApproval('Corrección solicitada')} disabled={!activeRole||busy}
+                    onClick={() => void handleExecuteApproval('Corrección solicitada')} disabled={!activeRole||busy||Boolean(activeProject.submissionId&&!governance)}
                     className="px-4 py-2 text-xs font-semibold text-[#D97706] hover:bg-[#D97706]/10 border border-[#D97706]/30 rounded-lg transition-colors cursor-pointer"
                   >
                     Solicitar Corrección
                   </button>
 
                   <button
-                    onClick={() => void handleExecuteApproval('Rechazado')} disabled={!activeRole||busy}
+                    onClick={() => void handleExecuteApproval('Rechazado')} disabled={!activeRole||busy||Boolean(activeProject.submissionId&&!governance)}
                     className="px-4 py-2 text-xs font-semibold text-[#DC2626] hover:bg-[#DC2626]/10 border border-[#DC2626]/30 rounded-lg transition-colors cursor-pointer"
                   >
                     Rechazar
                   </button>
 
                   <button
-                    onClick={() => void handleExecuteApproval('Aprobado')} disabled={!activeRole||busy}
+                    onClick={() => void handleExecuteApproval('Aprobado')} disabled={!activeRole||busy||Boolean(activeProject.submissionId&&!governance)}
                     className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors cursor-pointer shadow-lg shadow-[#16A34A]/20"
                   >
                     <CheckCircle2 className="w-4 h-4" />
