@@ -19,3 +19,10 @@ test('rechaza notas inválidas o excesivas',()=>{
  assert.throws(()=>validateNotes(Array(101).fill({})),/100 notas/);
  assert.throws(()=>validateNotes([{id:'n',createdAt:'x',standard:'ERC-3643',title:'a',body:'b'}]),/inválidos/);
 });
+test('orienta la revisión de Compliance ERC-20 sin clasificar el token automáticamente',()=>{
+ const reply=answerFromJournal('¿Es utility el ERC20 de BOSQUE ENCANTADO para inversores en Uruguay?',[],[]);
+ assert.match(reply.text,/no determinan si el token es de utilidad/i);
+ assert.match(reply.text,/derechos/i);
+ assert.match(reply.text,/carbono/i);
+ assert.match(reply.text,/oferta/i);
+});

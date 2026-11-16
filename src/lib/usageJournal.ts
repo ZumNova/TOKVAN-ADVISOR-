@@ -1,4 +1,5 @@
 import type {WalletProvider} from './factoryWallet';
+import {ERC20_COMPLIANCE_BODY,ERC20_COMPLIANCE_TITLE} from './erc20ComplianceGuide';
 
 export type Standard='ERC-20'|'ERC-721'|'ERC-1155'|'ERC-3643';
 export interface UsageEvent {id:string;standard:Standard;kind:string;description:string;hash:string;block:number;address:string;search:string;}
@@ -45,6 +46,7 @@ export async function syncUsageJournal(wallet:WalletProvider){
 }
 
 const lessons=[
+ {terms:['compliance','utility','utilidad','uruguay','bosque','carbono','inversor','oferta'],text:`${ERC20_COMPLIANCE_TITLE}. ${ERC20_COMPLIANCE_BODY}`},
  {terms:['3643','tkreg','identidad','kyc','kyb','acreditacion','registro'],text:'ERC-3643 usa un registro de identidad para decidir quién puede recibir tokens. En esta prueba las acreditaciones son ficticias. Antes de transferir, consulte la wallet receptora en el panel de identidad y compruebe KYC/KYB, AML, elegibilidad, país y vencimiento. La acreditación real y la revisión legal deben gestionarse fuera de esta demo.'},
  {terms:['congelar','congelamiento','freeze','descongelar','liberar'],text:'En TKREG, un agente como A047 puede congelar toda una wallet o una cantidad de su saldo. Para probar con 1E8D: consulte esa wallet, congele 2 de sus 3 TKREG, confirme la transacción y pruebe una transferencia normal de 2 desde 1E8D; debería rechazarse. Una transferencia de 1 puede pasar si los demás controles lo permiten. Luego libere las 2 unidades desde A047. El congelamiento no impide las facultades extraordinarias del agente.'},
  {terms:['emitir','emision','mint','crear','transferir','transferencia','supply','quemar','quema','burn'],text:'Emitir crea unidades nuevas y aumenta el supply circulante; transferir mueve unidades existentes sin cambiar ese supply. En esta demo, el agente puede emitir incluso con transferencias pausadas, siempre dentro de los límites y para una identidad válida. Quemar destruye unidades y reduce el supply; la quema por agente requiere especial cuidado y queda registrada en cadena.'},
