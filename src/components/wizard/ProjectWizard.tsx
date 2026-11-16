@@ -86,7 +86,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
     initialProject?.parameters?.transferRestrictions || (initialProject?.standard==='ERC-3643'?'Permisos ERC-3643 (Identity Registry)':'Sin restricción')
   );
   const [custodyModel, setCustodyModel] = useState(
-    initialProject?.parameters?.custodyModel || 'Custodia institucional MPC'
+    initialProject?.parameters?.custodyModel || 'Por definir (revisión de custodia)'
   );
 
   const [documents, setDocuments] = useState<ProjectDocument[]>(initialProject?.documents?.filter(d=>d.storage==='browser') || []);
@@ -400,17 +400,20 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Modelo de Custodia Institucional
+                  Modelo de custodia propuesto
                 </label>
                 <select
                   value={custodyModel}
-                  onChange={(e) => setCustodyModel(e.target.value as any)}
+                  onChange={(e) => setCustodyModel(e.target.value as TokenProject['parameters']['custodyModel'])}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-[#316BFA]"
                 >
+                  <option value="Por definir (revisión de custodia)">Por definir (revisión de custodia)</option>
+                  <option value="Wallet individual de prueba">Wallet individual de prueba (MetaMask / testnet)</option>
                   <option value="Custodia institucional MPC">Custodia institucional MPC (Multi-Party Computation)</option>
                   <option value="Multi-firma institucional">Bóveda Multi-Firma (Safe 3-of-5)</option>
                   <option value="Bóveda corporativa segregada">Bóveda corporativa segregada</option>
                 </select>
+                <p className="mt-1.5 text-xs text-slate-400">Para una prueba con una wallet propia en Sepolia, elegí «Wallet individual de prueba». Este dato describe la custodia prevista; no configura MPC, Safe ni permisos del token.</p>
               </div>
             </div>
 

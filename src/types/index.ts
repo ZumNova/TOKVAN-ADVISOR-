@@ -86,7 +86,7 @@ export interface TokenParameters {
   isMintable: boolean;
   isUpgradeabilityEnabled: boolean;
   transferRestrictions: 'Sin restricción' | 'Lista blanca (Whitelist)' | 'Permisos ERC-3643 (Identity Registry)' | 'Regulada por país';
-  custodyModel: 'Custodia institucional MPC' | 'Multi-firma institucional' | 'Bóveda corporativa segregada';
+  custodyModel: 'Por definir (revisión de custodia)' | 'Wallet individual de prueba' | 'Custodia institucional MPC' | 'Multi-firma institucional' | 'Bóveda corporativa segregada';
   complianceRules: {
     requireKYC: boolean;
     requireKYB: boolean;

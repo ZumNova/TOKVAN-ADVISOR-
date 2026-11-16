@@ -94,7 +94,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
         isMintable: false,
         isUpgradeabilityEnabled: true,
         transferRestrictions: recommendedStandard === 'ERC-3643' ? 'Permisos ERC-3643 (Identity Registry)' : 'Lista blanca (Whitelist)',
-        custodyModel: 'Custodia institucional MPC',
+        custodyModel: 'Por definir (revisión de custodia)',
         complianceRules: {
           requireKYC: true,
           requireKYB: true,
