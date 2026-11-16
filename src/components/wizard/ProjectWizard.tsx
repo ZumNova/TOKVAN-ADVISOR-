@@ -7,6 +7,7 @@ import {clientCompleteness, clientProjectChecks, newClientProjectId, saveClientP
 import {getClientDocument} from '../../lib/clientDocuments';
 import ClientDocuments from './ClientDocuments';
 import {isAddress} from 'ethers';
+import {projectBlockers} from '../../lib/erc20Factory';
 
 interface ProjectWizardProps {
   initialProject?: Partial<TokenProject>;
@@ -79,10 +80,10 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
     initialProject?.parameters?.isBurnable ?? false
   );
   const [isUpgradeabilityEnabled, setIsUpgradeabilityEnabled] = useState<boolean>(
-    initialProject?.parameters?.isUpgradeabilityEnabled ?? true
+    initialProject?.parameters?.isUpgradeabilityEnabled ?? false
   );
   const [transferRestrictions, setTransferRestrictions] = useState(
-    initialProject?.parameters?.transferRestrictions || 'Permisos ERC-3643 (Identity Registry)'
+    initialProject?.parameters?.transferRestrictions || (initialProject?.standard==='ERC-3643'?'Permisos ERC-3643 (Identity Registry)':'Sin restricción')
   );
   const [custodyModel, setCustodyModel] = useState(
     initialProject?.parameters?.custodyModel || 'Custodia institucional MPC'
@@ -140,10 +141,10 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
         transferRestrictions,
         custodyModel,
         complianceRules: {
-          requireKYC: true,
-          requireKYB: true,
-          restrictSanctionedCountries: true,
-          lockupPeriodDays: 180,
+          requireKYC: standard==='ERC-3643',
+          requireKYB: standard==='ERC-3643',
+          restrictSanctionedCountries: standard==='ERC-3643',
+          lockupPeriodDays: standard==='ERC-3643'?180:0,
         },
       },
       documents,
@@ -175,6 +176,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   };
 
   const draft = buildProject();
+  const factoryWarnings=standard==='ERC-20'&&network==='sepolia'?projectBlockers(draft):[];
   const snapshot = JSON.stringify(draft);
   const checks = clientProjectChecks(draft);
   const completeness = clientCompleteness(draft);
@@ -446,7 +448,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                   <button
                     key={std}
                     type="button"
-                    onClick={() => {setStandard(std);if(std==='ERC-721'||std==='ERC-1155')setDecimals(0);}}
+                    onClick={() => {setStandard(std);setTransferRestrictions(std==='ERC-3643'?'Permisos ERC-3643 (Identity Registry)':'Sin restricción');setIsUpgradeabilityEnabled(false);if(std==='ERC-721'||std==='ERC-1155')setDecimals(0);}}
                     className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
                       standard === std
                         ? 'border-[#316BFA] bg-[#316BFA]/10 ring-1 ring-[#316BFA]'
@@ -600,6 +602,8 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
                 </option>
               </select>
             </div>
+            {standard==='ERC-20'&&<p className="rounded-lg border border-[#39547C] bg-[#101A2A] p-3 text-xs text-[#B8C9E1]">El factory ERC-20 v1 de Sepolia no aplica KYC, KYB, listas blancas, restricciones por país ni bloqueo temporal on-chain. Si el proyecto necesita esos controles, TOKVANT deberá evaluar otra implementación antes de desplegar.</p>}
+            {factoryWarnings.length>0&&<div className="rounded-lg border border-amber-500/40 p-3 text-xs text-amber-200"><strong>Esta propuesta no puede prepararse con el factory ERC-20 v1:</strong><ul className="mt-2 list-disc pl-5">{factoryWarnings.map(w=><li key={w}>{w}</li>)}</ul></div>}
 
             {/* Privileged Features Toggles */}
             <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-4 space-y-3">
@@ -678,6 +682,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <p className="text-xs text-[#9BA6BD]">Red propuesta para el token: <strong className="text-white">{SUPPORTED_NETWORKS[network]?.name}</strong>. La dirección EVM puede usarse en distintas redes; aquí registramos la red prevista para este proyecto.</p>
             {clientWalletAddress.trim() && !checks.find(c=>c.step===5)?.ok && <p role="alert" className="text-sm text-amber-200">Revisá la dirección y seleccioná la misma red propuesta para el token.</p>}
           </div>
+          {factoryWarnings.length>0&&<p className="rounded-lg border border-amber-500/40 p-3 text-sm text-amber-200">Esta solicitud requiere una implementación distinta del factory ERC-20 v1: {factoryWarnings.join(' ')} Podés enviarla para evaluación, pero no podrá prepararse en el factory actual.</p>}
           {standard==='ERC-3643'&&<div className="rounded-xl border border-[#39547C] bg-[#0B0D12] p-5 space-y-3"><h3 className="font-semibold text-white">Wallets receptoras iniciales · opcional</h3><p className="text-sm text-[#9BA6BD]">Una dirección pública EVM por línea (máximo 100). Son candidatas propuestas, no quedan habilitadas ni reciben tokens al enviar la solicitud. TOKVANT y la autoridad de acreditación revisarán cada una. No escribas nombres ni documentos personales aquí.</p><textarea rows={4} value={proposedRecipientsText} onChange={e=>setProposedRecipientsText(e.target.value)} placeholder="0x…\n0x…" spellCheck={false} className="w-full rounded-lg border border-[#39547C] bg-[#101A2A] p-3 font-mono text-sm text-white"/><p className="text-xs text-[#B8C9E1]">{proposedRecipientsText.split(/\r?\n/).filter(v=>v.trim()).length} wallet(s) propuesta(s) · Red del proyecto: {SUPPORTED_NETWORKS[network]?.name}</p></div>}
           <p className="rounded-lg border border-amber-400/40 p-4 text-sm text-amber-100">Al finalizar guardaremos una copia en este navegador e intentaremos enviar el expediente y los adjuntos al espacio privado de TOKVANT. Solo se considerará recibido cuando aparezca el comprobante. Si falla la conexión, podrás reintentar sin perder tu borrador. Los avisos por email aún no están activos.</p>
         </section>}

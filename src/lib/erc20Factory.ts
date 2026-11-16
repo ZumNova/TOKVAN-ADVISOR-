@@ -25,10 +25,8 @@ export function projectBlockers(project: TokenProject): string[] {
   if (project.standard !== 'ERC-20') errors.push('Seleccione un expediente ERC-20.');
   if (project.network !== 'sepolia') errors.push('La primera versión del preparador usa Sepolia.');
   if (p.isUpgradeabilityEnabled) errors.push('El factory v1 no admite contratos actualizables.');
-  if (p.transferRestrictions !== 'Sin restricción' || p.complianceRules.requireKYC || p.complianceRules.requireKYB ||
-      p.complianceRules.restrictSanctionedCountries || (p.complianceRules.maxHoldersLimit ?? 0) > 0 || (p.complianceRules.lockupPeriodDays ?? 0) > 0) {
-    errors.push('Este expediente requiere controles de transferencia que ERC-20 v1 no implementa.');
-  }
+  const unsupported=[p.transferRestrictions !== 'Sin restricción'?'régimen de transferencia '+p.transferRestrictions:'',p.complianceRules.requireKYC?'KYC on-chain':'',p.complianceRules.requireKYB?'KYB on-chain':'',p.complianceRules.restrictSanctionedCountries?'restricción por países sancionados':'',(p.complianceRules.maxHoldersLimit??0)>0?'límite de titulares':'',(p.complianceRules.lockupPeriodDays??0)>0?`bloqueo de ${p.complianceRules.lockupPeriodDays} días`:''].filter(Boolean);
+  if(unsupported.length)errors.push(`Este expediente requiere controles que ERC-20 v1 no implementa: ${unsupported.join(', ')}.`);
   return errors;
 }
 

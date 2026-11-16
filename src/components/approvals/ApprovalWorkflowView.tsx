@@ -15,6 +15,7 @@ import { TokenProject, ApprovalStep } from '../../types';
 import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import {projectReviewHash,reviewMessage,reviewRoleForWallet,reviewWallets,validReview,type ReviewProof,type ReviewDecision} from '../../lib/reviewSignatures';
 import {loadGovernance,verifyPayment,paymentInputError,downloadPaymentDocument,authorizePreparation,type GovernanceState,type SharedPayment,type SharedReview} from '../../lib/governance';
+import {projectBlockers} from '../../lib/erc20Factory';
 
 interface ApprovalWorkflowViewProps {
   projects: TokenProject[];
@@ -49,6 +50,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const [paymentFile,setPaymentFile]=useState<File|null>(null);
   const paymentFileInput=useRef<HTMLInputElement>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
+  const factoryWarnings=activeProject?.standard==='ERC-20'&&activeProject.network==='sepolia'?projectBlockers(activeProject):[];
   useEffect(()=>{setGovernance(null);setActionError(null);setPaymentAmount('');setPaymentReference('');setPaymentFile(null);if(paymentFileInput.current)paymentFileInput.current.value='';},[activeProject?.submissionId]);
   const activeRole=reviewRoleForWallet(staffAccount);
   const handleExecuteApproval = async (status: ReviewDecision) => {
@@ -123,6 +125,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
       </div>
 
       {actionError&&<p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-200">{actionError}</p>}
+      {factoryWarnings.length>0&&<p role="status" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">Este expediente requiere una implementación distinta del factory ERC-20 v1: {factoryWarnings.join(' ')} Revisá esta diferencia antes de emitir un dictamen o autorizar la preparación.</p>}
       {actionSuccessMessage && (
         <div className="rounded-xl bg-[#16A34A]/10 border border-[#16A34A]/30 p-4 text-xs font-semibold text-[#16A34A] flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
