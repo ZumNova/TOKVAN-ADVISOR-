@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 import {getAddress,isAddress,keccak256,toUtf8Bytes,verifyMessage} from 'ethers';
 import type {TokenProject} from '../src/types';
 
-const OWNER=getAddress('0x521125be95c5679539aB07582F55F0040975A047');
+export const OWNER=getAddress('0x521125be95c5679539aB07582F55F0040975A047');
 const REVIEWERS={
  'Technical Reviewer':OWNER,
  'Compliance Reviewer':getAddress('0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24'),
@@ -15,16 +15,16 @@ const ACTIONS=['list','review','payment-start','payment-finalize','payment-docum
 type Action=typeof ACTIONS[number];
 type ReviewRole=keyof typeof REVIEWERS;
 type ReviewProof={projectId:string;stepId:string;role:ReviewRole;decision:'Aprobado'|'Rechazado'|'Corrección solicitada';comments:string;projectHash:string;timestamp:string;nonce:string;signer:string;signature:string};
-const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
+export const reply=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 const uuid=(value:unknown)=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const sha=(value:Uint8Array)=>createHash('sha256').update(value).digest('hex');
-const db=()=>{
+export const db=()=>{
  const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
  if(!url||!key)throw new Error('Gobernanza compartida no configurada.');
  return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}});
 };
-const staffMessage=(origin:string,action:Action,time:string,nonce:string,wallet:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${time}\nNonce: ${nonce}\nWallet: ${wallet}`;
-function staff(request:Request,action:Action){
+const staffMessage=(origin:string,action:string,time:string,nonce:string,wallet:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${time}\nNonce: ${nonce}\nWallet: ${wallet}`;
+export function staff(request:Request,action:string){
  const h=request.headers,address=h.get('x-tokvant-wallet')||'';
  if(!isAddress(address))throw new Error('Firma de acceso inválida.');
  const wallet=getAddress(address),time=h.get('x-tokvant-time')||'',nonce=h.get('x-tokvant-nonce')||'',sig=h.get('x-tokvant-signature')||'',origin=new URL(request.url).origin;
@@ -41,7 +41,7 @@ export const projectHash=(p:TokenProject)=>keccak256(toUtf8Bytes(JSON.stringify(
 const reviewMessage=(p:ReviewProof,origin:string)=>`TOKVANT dictamen de expediente\nOrigen: ${origin}\nExpediente: ${p.projectId}\nPaso: ${p.stepId}\nRol: ${p.role}\nDecisión: ${p.decision}\nObservaciones: ${p.comments}\nVersión: ${p.projectHash}\nFecha: ${p.timestamp}\nNonce: ${p.nonce}\nWallet: ${p.signer}`;
 const paymentMessage=(origin:string,id:string,submissionId:string,amount:string,currency:string,reference:string,fileHash:string,wallet:string)=>`TOKVANT recibo de pago\nOrigen: ${origin}\nExpediente: ${submissionId}\nPago: ${id}\nImporte: ${amount} ${currency}\nReferencia: ${reference}\nComprobante SHA-256: ${fileHash}\nWallet: ${wallet}`;
 const authMessage=(origin:string,submissionId:string,hash:string,reviewIds:string[],paymentId:string,wallet:string)=>`TOKVANT autorización para preparar token\nOrigen: ${origin}\nExpediente: ${submissionId}\nVersión: ${hash}\nDictámenes: ${reviewIds.join(',')}\nPago: ${paymentId}\nWallet: ${wallet}`;
-async function submission(client:ReturnType<typeof db>,id:unknown){
+export async function submission(client:ReturnType<typeof db>,id:unknown){
  if(!uuid(id))throw new Error('Expediente inválido.');
  const found=await client.from('client_submissions').select('id,project,status').eq('id',id).single();
  if(found.error||!found.data||found.data.status!=='received')throw new Error('Expediente recibido no encontrado.');

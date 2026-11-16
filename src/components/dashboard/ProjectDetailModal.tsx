@@ -4,6 +4,7 @@ import { TokenProject, ProjectDocument } from '../../types';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
 import {loadGovernance,type GovernanceState} from '../../lib/governance';
 import {projectReviewHash,validReview} from '../../lib/reviewSignatures';
+import {linkIssuance,loadIssuance,type SharedIssuance} from '../../lib/issuances';
 
 interface ProjectDetailModalProps {
   project: TokenProject | null;
@@ -27,7 +28,26 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   const [sharedReviews,setSharedReviews]=React.useState<{submissionId:string;state:GovernanceState}|null>(null);
   const [reviewsLoading,setReviewsLoading]=React.useState(false);
   const [reviewsError,setReviewsError]=React.useState('');
+  const [issuance,setIssuance]=React.useState<{submissionId:string;record:SharedIssuance|null}|null>(null);
+  const [issuanceHash,setIssuanceHash]=React.useState('');
+  const [issuanceBusy,setIssuanceBusy]=React.useState(false);
+  const [issuanceError,setIssuanceError]=React.useState('');
   if (!project) return null;
+
+  const checkIssuance=async()=>{
+    if(!staffAccount||!project.submissionId)return;
+    setIssuanceBusy(true);setIssuanceError('');
+    try{const result=await loadIssuance(staffAccount,project.submissionId);setIssuance({submissionId:project.submissionId,record:result.issuance});}
+    catch(e){setIssuanceError(e instanceof Error?e.message:'No se pudo consultar la emisión.');}
+    finally{setIssuanceBusy(false);}
+  };
+  const saveIssuance=async()=>{
+    if(!staffAccount||!project.submissionId)return;
+    setIssuanceBusy(true);setIssuanceError('');
+    try{const result=await linkIssuance(staffAccount,project.submissionId,issuanceHash.trim());setIssuance({submissionId:project.submissionId,record:result.issuance});}
+    catch(e){setIssuanceError(e instanceof Error?e.message:'No se pudo vincular la emisión.');}
+    finally{setIssuanceBusy(false);}
+  };
 
   const currentReviews=sharedReviews&&sharedReviews.submissionId===project.submissionId&&sharedReviews.state.projectHash===projectReviewHash(project)?sharedReviews.state:null;
   const refreshReviews=async()=>{
@@ -76,6 +96,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         </div>
 
         {project.submissionId&&<div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3.5 text-sm text-emerald-100">Solicitud recibida por TOKVANT el {project.receivedAt?new Date(project.receivedAt).toLocaleString('es-AR'):'día de recepción'}. Los datos y adjuntos fueron aportados por el cliente; la revisión técnica, legal y de cumplimiento está pendiente.</div>}
+        {project.submissionId&&project.standard==='ERC-20'&&project.network==='sepolia'&&staffAccount&&<section className="rounded-xl border border-[#39547C] p-4 text-sm space-y-2"><h3 className="font-semibold">Emisión ERC-20 vinculada al expediente</h3><p className="text-xs text-[#9BA6BD]">La solicitud y sus firmas permanecen intactas. TOKVANT verifica la transacción en Sepolia antes de guardar el vínculo compartido.</p><button type="button" disabled={issuanceBusy} onClick={()=>void checkIssuance()} className="rounded-lg border border-[#45628B] px-3 py-2 text-[#9BBCFF] disabled:opacity-50">{issuanceBusy?'Verificando…':'Consultar emisión compartida'}</button>{issuance?.submissionId===project.submissionId&&issuance.record?<div className="space-y-1 break-all text-xs"><p><strong>{issuance.record.token_name} · {issuance.record.token_symbol}</strong> · bloque {issuance.record.block_number}</p><a className="block text-[#9BBCFF] underline" href={`https://sepolia.etherscan.io/address/${issuance.record.token_address}`} target="_blank" rel="noreferrer">Contrato: {issuance.record.token_address}</a><a className="block text-[#9BBCFF] underline" href={`https://sepolia.etherscan.io/tx/${issuance.record.transaction_hash}`} target="_blank" rel="noreferrer">Creación: {issuance.record.transaction_hash}</a></div>:<><label className="block text-xs text-slate-300">Hash de la transacción «Token · {project.parameters.tokenSymbol}»<input value={issuanceHash} onChange={e=>setIssuanceHash(e.target.value)} placeholder="0x…" className="mt-1 block w-full rounded-lg border border-[#405577] bg-[#0B0D12] p-3 text-white font-mono"/></label><button type="button" disabled={issuanceBusy||!/^0x[0-9a-f]{64}$/i.test(issuanceHash.trim())} onClick={()=>void saveIssuance()} className="rounded-lg bg-[#316BFA] px-3 py-2 disabled:opacity-40">Verificar en Sepolia y vincular</button></>}{issuanceError&&<p role="alert" className="text-red-300">{issuanceError}</p>}</section>}
         {onLoadPrivateContact&&<section className="rounded-xl border border-[#39547C] p-4 text-sm"><h3 className="font-semibold">Contacto privado del expediente · solo 047</h3><button className="mt-2 text-[#9BBCFF] underline" onClick={()=>void onLoadPrivateContact().then(data=>{setPrivateContact({projectId:project.id,...data});setPrivateError('');}).catch(e=>setPrivateError(e instanceof Error?e.message:'No se pudo consultar el contacto.'))}>Consultar contacto con firma</button>{privateContact?.projectId===project.id&&<p className="mt-2 break-words">{privateContact.contact?.fullName||'Sin nombre'} · {privateContact.contact?.email||'Sin email'} · {privateContact.contact?.phone||'Sin teléfono'}{privateContact.taxId?` · ID fiscal: ${privateContact.taxId}`:''}</p>}{privateError&&<p role="alert" className="mt-2 text-red-300">{privateError}</p>}</section>}
         {project.standard==='ERC-3643'&&!!project.proposedRecipients?.length&&<section className="rounded-xl border border-[#39547C] p-4 text-sm"><h3 className="font-semibold">Wallets receptoras propuestas · pendientes de acreditación</h3>{project.proposedRecipients.map(row=><p className="break-all font-mono text-xs mt-2" key={row.walletAddress}>{row.walletAddress}</p>)}</section>}
 
