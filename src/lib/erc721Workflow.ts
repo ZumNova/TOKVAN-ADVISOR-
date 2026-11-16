@@ -134,7 +134,7 @@ export async function reviewNFTOperation(wallet:WalletProvider,context:NFTContex
       if(!state.nft)throw new Error('Cree primero la colección aprobada.');
       to=state.collection;
       if(op.kind==='mint') {
-        if(!state.nft.canMint)throw new Error('Esta wallet no tiene permiso para emitir NFTs. Inicialmente corresponde a A047.');
+        if(!state.nft.canMint)throw new Error(`Esta wallet no tiene permiso MINTER_ROLE en la colección. La administradora configurada al crearla es ${state.config.admin}.`);
         if(state.nft.paused)throw new Error('La colección está pausada.');
         if(state.nft.minted>=state.nft.cap)throw new Error('La colección alcanzó su máximo histórico de NFTs.');
         const recipient=address(op.recipient),uri=metadataURI(op.uri);

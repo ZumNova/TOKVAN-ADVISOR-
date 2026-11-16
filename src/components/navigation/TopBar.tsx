@@ -53,9 +53,9 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
-  const canSeeDashboard = staffRole !== 'token_operator';
+  const canSeeDashboard = staffRole !== 'token_operator' && staffRole !== 'nft_operator';
   const canSeeAi = Boolean(staffRole);
-  const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
+  const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator'&&staffRole!=='nft_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
   const navigate = (view: string) => {

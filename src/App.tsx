@@ -222,7 +222,7 @@ export default function App() {
           />
           </>
         )}
-        {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory'||role === 'token_operator' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
+        {currentView === 'staff-access' && <StaffAccess account={staff?.account ?? null} role={staff?.role ?? null} onLogin={(account,role)=>{setStaff({account,role});setCurrentView(roleCanOpen(role,requestedView)?requestedView:(role === 'factory'||role === 'token_operator'||role === 'nft_operator' ? 'factory' : 'dashboard'));}} onLogout={()=>{setStaff(null);setCurrentView('landing');}}/>}
         {currentView === 'client-confirmation' && <ClientProjectHome records={clientRecords} receipt={clientReceipt} onResume={resumeClientProject} onHome={()=>handleNavigate('landing')} onSubmit={record=>void deliverProject(record)} progress={submissionProgress} submitError={submissionError}/>}
 
         {currentView === 'dashboard' && roleCanOpen(staff?.role ?? null, 'dashboard') && (
