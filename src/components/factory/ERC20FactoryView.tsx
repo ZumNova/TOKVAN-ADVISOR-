@@ -77,7 +77,7 @@ export default function ERC20FactoryView({ projects, staffAccount, initialProjec
     ['admin', 'Wallet administradora del token'], ['treasury', 'Tesorería que recibe la emisión inicial'],
   ] as const;
   return (
-    <section className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <section className="erc20-light max-w-5xl mx-auto rounded-2xl bg-slate-50 px-4 py-8 space-y-6 text-slate-900 sm:px-6">
       <div><p className="text-sm text-[#7096FF]">ERC-20 · v1 · Sepolia</p>
         <h1 className="text-3xl font-bold mt-2">Factory de tokens</h1>
         <p className="mt-3 text-slate-300">Configure la emisión, prepare la revisión y obtenga las transacciones para crear su token.</p>

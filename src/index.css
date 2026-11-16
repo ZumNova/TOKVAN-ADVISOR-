@@ -27,3 +27,18 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* The ERC-20 workflow shares the light factory surface without changing the app theme. */
+.erc20-light [class~="bg-[#141A27]"] { background-color: #fff; }
+.erc20-light [class~="bg-[#0B0D12]"] { background-color: #f8fafc; }
+.erc20-light [class~="bg-amber-950/20"] { background-color: #fffbeb; }
+.erc20-light [class~="border-[#273246]"] { border-color: #cbd5e1; }
+.erc20-light [class~="border-[#39547C]"] { border-color: #bfdbfe; }
+.erc20-light [class~="text-white"] { color: #0f172a; }
+.erc20-light [class~="text-slate-300"] { color: #475569; }
+.erc20-light [class~="text-slate-400"] { color: #64748b; }
+.erc20-light [class~="text-[#7096FF]"] { color: #1d4ed8; }
+.erc20-light [class~="text-green-300"] { color: #047857; }
+.erc20-light [class~="text-red-300"] { color: #b91c1c; }
+.erc20-light [class~="text-amber-200"] { color: #92400e; }
+.erc20-light [class~="bg-[#316BFA]"] { color: #fff; }
