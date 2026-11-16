@@ -65,7 +65,7 @@ export interface ContractTemplate {
 export interface ProjectDocument {
   id: string;
   name: string;
-  category: 'Legal' | 'Técnico' | 'Financiero' | 'Compliance';
+  category: 'Legal' | 'Técnico' | 'Financiero' | 'Compliance' | 'Imagen del token';
   fileName: string;
   fileSize: string;
   uploadDate: string;

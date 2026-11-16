@@ -42,7 +42,7 @@ export function cleanProject(input:unknown):TokenProject{
  if(typeof p.id!=='string'||!/^TOKVANT-[A-F0-9-]{36}$/.test(p.id)||!Array.isArray(p.documents)||p.documents.length<1||p.documents.length>20)throw new Error('ID o adjuntos inválidos.');
  let size=0;const ids=new Set<string>();
  for(const d of p.documents){
-  if(typeof d.id!=='string'||!/^[-a-f0-9]{36}$/i.test(d.id)||typeof d.name!=='string'||typeof d.category!=='string'||!['Legal','Técnico','Financiero','Compliance'].includes(d.category)||typeof d.fileName!=='string'||d.fileName.length>200||/[\\/\0]/.test(d.fileName)||!allowed.some(ext=>d.fileName.toLowerCase().endsWith(ext))||!Number.isSafeInteger(d.sizeBytes)||d.sizeBytes === undefined||d.sizeBytes<=0||d.sizeBytes>MAX_FILE||!/^[a-f0-9]{64}$/.test(d.sha256||''))throw new Error('Un adjunto no cumple los límites o carece de hash.');
+  if(typeof d.id!=='string'||!/^[-a-f0-9]{36}$/i.test(d.id)||typeof d.name!=='string'||typeof d.category!=='string'||!['Legal','Técnico','Financiero','Compliance','Imagen del token'].includes(d.category)||(d.category==='Imagen del token'&&!/\.(png|jpe?g|webp)$/i.test(d.fileName))||typeof d.fileName!=='string'||d.fileName.length>200||/[\\/\0]/.test(d.fileName)||!allowed.some(ext=>d.fileName.toLowerCase().endsWith(ext))||!Number.isSafeInteger(d.sizeBytes)||d.sizeBytes === undefined||d.sizeBytes<=0||d.sizeBytes>MAX_FILE||!/^[a-f0-9]{64}$/.test(d.sha256||''))throw new Error('Un adjunto no cumple los límites o carece de hash.');
   if(ids.has(d.id))throw new Error('Hay adjuntos repetidos.');ids.add(d.id);
   size+=d.sizeBytes!;
  }

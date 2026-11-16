@@ -21,6 +21,7 @@ function open():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const
 async function tx<T>(mode:IDBTransactionMode,action:(store:IDBObjectStore)=>IDBRequest<T>):Promise<T>{const db=await open();return new Promise((resolve,reject)=>{const t=db.transaction('files',mode),r=action(t.objectStore('files'));t.oncomplete=()=>{db.close();resolve(r.result);};t.onabort=t.onerror=()=>{db.close();reject(new Error('No se pudo guardar o leer el archivo. Compruebe el espacio disponible.'));};});}
 export async function addClientDocument(projectId:string,file:File,name:string,category:ProjectDocument['category'],existing:ProjectDocument[]){
  validateClientFile(file);
+ if(category==='Imagen del token'&&!/\.(png|jpe?g|webp)$/i.test(file.name))throw new Error('Para «Imagen del token», adjuntá PNG, JPG o WEBP.');
  if(existing.length>=20||existing.reduce((sum,d)=>sum+(d.sizeBytes||0),0)+file.size>100*1024*1024)throw new Error('Límite del borrador: 20 adjuntos y 100 MB en total.');
  const {blob,hash}=await readClientFile(file);
  if(existing.some(d=>d.sha256===hash))throw new Error('Este archivo ya está adjuntado.');
