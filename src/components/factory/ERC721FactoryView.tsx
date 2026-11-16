@@ -1,7 +1,11 @@
 import NFTMediaPanel from './NFTMediaPanel';
 import {useEffect, useRef, useState} from 'react';
+import {getAddress,isAddress} from 'ethers';
 import {DEPLOYER, PARTICIPANTS, SEPOLIA_HEX, injectedWallet, walletError} from '../../lib/factoryWallet';
 import {NFT_DEFAULTS, NFT_STORAGE_PREFIX as prefix, prepareCollection, readNFTState, reviewNFTOperation, sendNFTOperation, confirmNFTOperation, verifyNFTFactory, readNFTJournal, recoverNFTCollection, type CollectionInput, type NFTFactoryRecord, type NFTPending, type NFTReview, type NFTOperation, type NFTJournalEntry} from '../../lib/erc721Workflow';
+import {loadGovernance} from '../../lib/governance';
+import {listSharedSubmissions} from '../../lib/sharedSubmissions';
+import type {TokenProject} from '../../types';
 const button='rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed';
 const panel='rounded-xl border border-slate-200 bg-white p-5 space-y-4';
 function saved<T>(key:string, fallback:T):T {try{return JSON.parse(localStorage.getItem(prefix+key)||'null') ?? fallback;}catch{return fallback;}}
@@ -17,7 +21,7 @@ function FactoryHash({hash, onUse}:{hash:string;onUse:()=>void}) {
     {notice&&<p role="status">{notice}</p>}
   </div>;
 }
-export default function ERC721FactoryView() {
+export default function ERC721FactoryView({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
   const [record,setRecord]=useState<NFTFactoryRecord|undefined>(()=>saved(':factory',undefined));
   const [input,setInput]=useState<CollectionInput>(()=>{const value=saved(':draft',NFT_DEFAULTS);try{prepareCollection(value,DEPLOYER);return value;}catch{return NFT_DEFAULTS;}});
   const [pending,setPending]=useState<NFTPending|undefined>(()=>saved(':pending',undefined));
@@ -33,6 +37,20 @@ export default function ERC721FactoryView() {
   const recoveryPanel=useRef<HTMLDetailsElement>(null);
   function useRecoveryHash(hash:string){setRecovery(hash);if(recoveryPanel.current){recoveryPanel.current.open=true;recoveryPanel.current.scrollIntoView({behavior:'smooth',block:'center'});}setMessage('Hash cargado. Pulse «Verificar y recuperar» para comprobarlo en Sepolia.');}
   const [journal,setJournal]=useState<NFTJournalEntry[]>([]);
+  const [received,setReceived]=useState<TokenProject[]>(projects);
+  const [selectedProjectId,setSelectedProjectId]=useState('');
+  const [loadedProjectId,setLoadedProjectId]=useState('');
+  const selectedProject=received.find(p=>p.id===selectedProjectId);
+  const projectIssues=selectedProject ? [
+    selectedProject.network!=='sepolia'?'Este expediente no fue solicitado en Sepolia.':'',
+    selectedProject.parameters.decimals!==0?'ERC-721 requiere cero decimales.':'',
+    selectedProject.parameters.isUpgradeabilityEnabled?'El factory ERC-721 v1 no admite UUPS.':'',
+    selectedProject.parameters.transferRestrictions!=='Sin restricción'?'El factory ERC-721 v1 no aplica listas blancas ni restricciones de transferencia.':'',
+    selectedProject.parameters.complianceRules.requireKYC||selectedProject.parameters.complianceRules.requireKYB||selectedProject.parameters.complianceRules.restrictSanctionedCountries||(selectedProject.parameters.complianceRules.lockupPeriodDays??0)>0?'Este expediente solicita controles KYC, KYB, de países o bloqueo que ERC-721 v1 no implementa.':'',
+    !Number.isSafeInteger(selectedProject.parameters.initialSupply)||selectedProject.parameters.initialSupply<1?'La cantidad propuesta debe ser un entero positivo.':'',
+  ].filter(Boolean):[];
+  useEffect(()=>{setReceived(projects);},[projects]);
+  useEffect(()=>{if(initialProjectId&&projects.some(p=>p.id===initialProjectId&&p.standard==='ERC-721'))setSelectedProjectId(initialProjectId);},[initialProjectId,projects]);
   useEffect(()=>{
     let wallet;try{wallet=injectedWallet();}catch{return;}
     const reset=()=>{setReview(undefined);setState(undefined);setMessage('Cambió la wallet o la red. Actualice el estado antes de continuar.');};
@@ -48,8 +66,38 @@ export default function ERC721FactoryView() {
     setState(await readNFTState(injectedWallet(),current,input));
   }
   function change<K extends keyof CollectionInput>(key:K,value:CollectionInput[K]) {setInput({...input,[key]:value});setState(undefined);setReview(undefined);}
+  async function fetchReceived(){
+    if(!staffAccount||getAddress(staffAccount)!==getAddress(DEPLOYER))throw new Error('Conectá la wallet administrativa 047 para consultar expedientes.');
+    const items=(await listSharedSubmissions(staffAccount)).filter(p=>p.standard==='ERC-721'&&p.network==='sepolia'&&p.submissionId);
+    setReceived(items);
+    if(initialProjectId&&items.some(p=>p.id===initialProjectId))setSelectedProjectId(initialProjectId);
+    else if(items.length===1)setSelectedProjectId(items[0].id);
+    setMessage(`${items.length} expediente(s) ERC-721 de Sepolia recibido(s).`);
+  }
+  async function importReceived(){
+    if(!staffAccount||getAddress(staffAccount)!==getAddress(DEPLOYER))throw new Error('Solo la 047 puede cargar un expediente autorizado.');
+    if(pending||review||state?.nft)throw new Error('Terminá la operación anterior o prepará otra colección antes de cargar un expediente.');
+    const project=selectedProject;
+    if(!project?.submissionId||project.standard!=='ERC-721')throw new Error('Seleccioná un expediente ERC-721 recibido.');
+    if(projectIssues.length)throw new Error(projectIssues.join(' '));
+    const governance=await loadGovernance(staffAccount,project.submissionId);
+    if(!governance.authorized)throw new Error('Faltan dictámenes, pago o autorización TOKVANT vigentes para este expediente.');
+    const clientWallet=project.clientWalletNetwork==='sepolia'&&project.clientWalletAddress&&isAddress(project.clientWalletAddress)?getAddress(project.clientWalletAddress):'';
+    const next:CollectionInput={projectReference:project.id,name:project.parameters.tokenName,symbol:project.parameters.tokenSymbol,admin:clientWallet,maxSupply:String(project.parameters.initialSupply),burnable:project.parameters.isBurnable,pausable:project.parameters.isPausable};
+    setInput(next);setRecipient(clientWallet);setState(undefined);setReview(undefined);setLoadedProjectId(project.id);
+    localStorage.setItem(prefix+':draft',JSON.stringify(next));
+    setMessage('Expediente autorizado y precargado. Revisá administradora, destinataria y máximo histórico antes de preparar. La imagen adjunta no se publica automáticamente en Pinata.');
+  }
+  function checkImported(){
+    if(!selectedProject)return;
+    if(loadedProjectId!==selectedProject.id)throw new Error('Cargá primero los datos autorizados desde Supabase.');
+    const p=selectedProject.parameters;
+    if(input.projectReference!==selectedProject.id||input.name!==p.tokenName||input.symbol!==p.tokenSymbol||input.maxSupply!==String(p.initialSupply)||input.burnable!==p.isBurnable||input.pausable!==p.isPausable)throw new Error('La configuración cambió respecto del expediente autorizado. Volvé a cargarla antes de aprobar.');
+    if(selectedProject.clientWalletAddress&&selectedProject.clientWalletNetwork==='sepolia'&&isAddress(selectedProject.clientWalletAddress)&&isAddress(input.admin)&&getAddress(input.admin)!==getAddress(selectedProject.clientWalletAddress))throw new Error('La administradora debe coincidir con la wallet Sepolia declarada por el cliente.');
+  }
   async function simulate(operation:NFTOperation) {
     if(pending)throw new Error('Verifique primero la transacción pendiente.');
+    if(operation.kind==='approve'||operation.kind==='create')checkImported();
     localStorage.setItem(prefix+':draft',JSON.stringify(input));
     setReview(await reviewNFTOperation(injectedWallet(),{record,operation}));
   }
@@ -88,10 +136,18 @@ export default function ERC721FactoryView() {
       {record&&<FactoryHash hash={record.hash} onUse={()=>useRecoveryHash(record.hash)}/>}
       <details ref={recoveryPanel}><summary>Recuperar un factory ERC-721 ya desplegado</summary><p className="mt-2 text-sm">Pegue el hash de la transacción que desplegó el factory. Lo encontrará en la entrada «Factory ERC-721» de la bitácora o en su JSON descargado. La creación de colección y la emisión de un NFT tienen hashes diferentes.</p><label className="block mt-3">Hash del despliegue<input className="block border rounded p-2 w-full" value={recovery} onChange={e=>setRecovery(e.target.value)}/></label><button className={button} disabled={disabled} onClick={()=>void run(async()=>{const result=await verifyNFTFactory(injectedWallet(),recovery.trim());if(result.status!=='confirmed')throw new Error('El despliegue todavía no está confirmado o falló.');localStorage.setItem(prefix+':factory',JSON.stringify(result.record));setRecord(result.record);setJournal([]);await refresh(result.record);setMessage('Factory ERC-721 recuperado y verificado.');})}>Verificar y recuperar</button></details>
     </section>
-    <section className={panel}><h2 className="text-lg font-semibold">2. Configurar y aprobar la colección</h2>{state?.nft&&<button className={button} disabled={disabled} onClick={()=>{const next={...NFT_DEFAULTS,projectReference:''};setInput(next);setState(undefined);setReview(undefined);try{localStorage.setItem(prefix+':draft',JSON.stringify(next));}catch{/* Form remains usable. */}setMessage('Ingrese otro identificador de expediente para crear una nueva colección con este factory.');}}>Preparar otra colección</button>}<div className="grid md:grid-cols-2 gap-4">{([['projectReference','Identificador del expediente'],['name','Nombre de la colección'],['symbol','Símbolo'],['admin','Wallet administradora'],['maxSupply','Máximo histórico de NFTs']] as const).map(([key,label])=><label key={key}>{label}<input className="mt-1 block w-full border rounded-lg p-2" disabled={disabled||Boolean(state?.nft)} value={input[key]} onChange={e=>change(key,e.target.value)}/></label>)}</div>
+    <section className={panel}><h2 className="text-lg font-semibold">2. Configurar y aprobar la colección</h2>
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3 text-sm">
+        <h3 className="font-semibold">Origen de los parámetros · expediente compartido</h3>
+        <button type="button" className={button} disabled={busy} onClick={()=>void run(fetchReceived)}>Cargar expedientes recibidos de Supabase</button>
+        <label className="block">Expediente ERC-721<select className="mt-1 block w-full rounded-lg border border-blue-200 bg-white p-2" value={selectedProjectId} onChange={e=>{setSelectedProjectId(e.target.value);setLoadedProjectId('');setState(undefined);setReview(undefined);}}><option value="">Nueva colección de prueba, sin expediente recibido</option>{received.filter(p=>p.standard==='ERC-721'&&p.submissionId).map(p=><option key={p.id} value={p.id}>{p.id} · {p.title}</option>)}</select></label>
+        {selectedProject&&<><p>Solicitud: <strong>{selectedProject.title}</strong> · {selectedProject.network}</p>{projectIssues.length>0&&<ul className="list-disc pl-5 text-amber-900">{projectIssues.map(issue=><li key={issue}>{issue}</li>)}</ul>}<button type="button" className={button} disabled={disabled||projectIssues.length>0||!selectedProject.submissionId} onClick={()=>void run(importReceived)}>Cargar datos autorizados desde Supabase</button>{loadedProjectId===selectedProject.id&&<p className="text-green-800">Autorización vigente. Nombre, símbolo, máximo, administradora y controles precargados; revisalos antes de firmar.</p>}</>}
+        <p className="text-xs text-slate-600">En ERC-721, la cantidad propuesta se interpreta como máximo histórico de NFTs, no como emisión inicial. La primera obra se emite después de crear la colección. La opción «Emisión adicional» del wizard no modifica este máximo.</p>
+      </div>
+      {state?.nft&&<button className={button} disabled={disabled} onClick={()=>{const next={...NFT_DEFAULTS,projectReference:''};setInput(next);setSelectedProjectId('');setLoadedProjectId('');setState(undefined);setReview(undefined);try{localStorage.setItem(prefix+':draft',JSON.stringify(next));}catch{/* Form remains usable. */}setMessage('Ingrese otro identificador de expediente para crear una nueva colección con este factory.');}}>Preparar otra colección</button>}<div className="grid md:grid-cols-2 gap-4">{([['projectReference','Identificador del expediente'],['name','Nombre de la colección'],['symbol','Símbolo'],['admin','Wallet administradora'],['maxSupply','Máximo histórico de NFTs']] as const).map(([key,label])=><label key={key}>{label}<input className="mt-1 block w-full border rounded-lg p-2" disabled={disabled||Boolean(state?.nft)} value={input[key]} onChange={e=>change(key,e.target.value)}/></label>)}</div>
       <div className="flex flex-wrap gap-4">{(['burnable','pausable'] as const).map(key=><label key={key}><input type="checkbox" checked={input[key]} disabled={disabled||Boolean(state?.nft)} onChange={e=>change(key,e.target.checked)}/> {key==='burnable'?'Quema por titular o autorizado':'Pausa de emergencia'}</label>)}</div>
       <p className="text-sm">Cada NFT tiene un identificador único y su propia URI de metadatos. Quemar no libera cupos del máximo histórico. La pausa bloquea transferencias, emisión y quema. Sin upgrade ni controles KYC on-chain en v1.</p>
-      <div className="flex flex-wrap gap-2"><button className={button} disabled={disabled||!record} onClick={()=>void run(async()=>{localStorage.setItem(prefix+':draft',JSON.stringify(input));await refresh();setMessage('Parámetros preparados. Revise el nombre, máximo y administradora antes de aprobar.');})}>Preparar para revisión</button><button className={button} disabled={disabled||!state||Boolean(state.nft)||reviewer<0||approved} onClick={()=>void run(()=>simulate({kind:'approve',input}))}>Simular aprobación</button><button className={button} disabled={disabled||!approved||Boolean(state?.nft)} onClick={()=>void run(()=>simulate({kind:'revoke',input}))}>Simular revocación</button><button className={button} disabled={disabled||!state||Boolean(state.nft)||state.approvals!==7||state.account!==PARTICIPANTS.operator} onClick={()=>void run(()=>simulate({kind:'create',input}))}>Simular creación de colección</button></div>
+      <div className="flex flex-wrap gap-2"><button className={button} disabled={disabled||!record||Boolean(selectedProject&&loadedProjectId!==selectedProject.id)} onClick={()=>void run(async()=>{checkImported();localStorage.setItem(prefix+':draft',JSON.stringify(input));await refresh();setMessage('Parámetros preparados. Revise el nombre, máximo y administradora antes de aprobar.');})}>Preparar para revisión</button><button className={button} disabled={disabled||!state||Boolean(state.nft)||reviewer<0||approved||Boolean(selectedProject&&loadedProjectId!==selectedProject.id)} onClick={()=>void run(()=>simulate({kind:'approve',input}))}>Simular aprobación</button><button className={button} disabled={disabled||!approved||Boolean(state?.nft)} onClick={()=>void run(()=>simulate({kind:'revoke',input}))}>Simular revocación</button><button className={button} disabled={disabled||!state||Boolean(state.nft)||state.approvals!==7||state.account!==PARTICIPANTS.operator||Boolean(selectedProject&&loadedProjectId!==selectedProject.id)} onClick={()=>void run(()=>simulate({kind:'create',input}))}>Simular creación de colección</button></div>
       {state&&!state.nft&&<div className="text-sm"><p>Aprobaciones: {['Técnica','Cumplimiento','Directorio'].map((label,i)=>`${label}: ${state.approvals&(1<<i)?'aprobado':'pendiente'}`).join(' · ')}</p><p className="break-all">Hash de los parámetros: {state.digest}</p><p>Aprueban A047, FB24 y 1E8D. Después crea la colección el Operador 8A25.</p></div>}
     </section>
     {state?.nft&&<section ref={managementPanel} className={panel}><h2 className="text-lg font-semibold">3. Emitir y administrar NFTs · {state.nft.name} ({state.nft.symbol})</h2><a className="text-blue-700 break-all underline" target="_blank" rel="noreferrer" href={`${explorer}/address/${state.collection}`}>{state.collection}</a><p>{state.nft.paused?'Pausada':'Activa'} · Emitidos: {String(state.nft.minted)} / {String(state.nft.cap)} · En circulación: {String(state.nft.supply)}</p>
