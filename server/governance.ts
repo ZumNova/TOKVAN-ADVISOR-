@@ -99,8 +99,8 @@ export async function POST(request:Request){
    if(data.length!==p.file_size||sha(data)!==p.file_sha256)throw new Error('El comprobante no coincide con su hash o tamaño.');
    const message=paymentMessage(new URL(request.url).origin,p.id,p.submission_id,p.amount,p.currency,p.reference,p.file_sha256,actor.wallet);
    if(verifyMessage(message,String(body.signature||''))!==actor.wallet)throw new Error('Firma del recibo inválida.');
-   const saved=await client.from('submission_payments').update({status:'verified',signer_wallet:actor.wallet,signature:body.signature,verified_at:new Date().toISOString()}).eq('id',p.id).eq('status','uploading').select('id').single();
-   if(saved.error)throw saved.error;return reply({id:p.id,status:'verified'});
+   const saved=await client.from('submission_payments').update({status:'verified',signer_wallet:actor.wallet,signature:body.signature,verified_at:new Date().toISOString()}).eq('id',p.id).eq('status','uploading').select('id,status,amount,currency,reference,file_name,file_size,file_sha256,signer_wallet,signature,verified_at').single();
+   if(saved.error)throw saved.error;return reply(saved.data);
   }
   if(action==='payment-document'){
    if(!uuid(body.paymentId))throw new Error('Pago inválido.');

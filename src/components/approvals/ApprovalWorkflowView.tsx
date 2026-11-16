@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -14,7 +14,7 @@ import {
 import { TokenProject, ApprovalStep } from '../../types';
 import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import {projectReviewHash,reviewMessage,reviewRoleForWallet,reviewWallets,validReview,type ReviewProof,type ReviewDecision} from '../../lib/reviewSignatures';
-import {loadGovernance,verifyPayment,downloadPaymentDocument,authorizePreparation,type GovernanceState,type SharedReview} from '../../lib/governance';
+import {loadGovernance,verifyPayment,paymentInputError,downloadPaymentDocument,authorizePreparation,type GovernanceState,type SharedPayment,type SharedReview} from '../../lib/governance';
 
 interface ApprovalWorkflowViewProps {
   projects: TokenProject[];
@@ -47,8 +47,9 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const [paymentCurrency,setPaymentCurrency]=useState('USD');
   const [paymentReference,setPaymentReference]=useState('');
   const [paymentFile,setPaymentFile]=useState<File|null>(null);
+  const paymentFileInput=useRef<HTMLInputElement>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
-  useEffect(()=>{setGovernance(null);setActionError(null);},[activeProject?.submissionId]);
+  useEffect(()=>{setGovernance(null);setActionError(null);setPaymentAmount('');setPaymentReference('');setPaymentFile(null);if(paymentFileInput.current)paymentFileInput.current.value='';},[activeProject?.submissionId]);
   const activeRole=reviewRoleForWallet(staffAccount);
   const handleExecuteApproval = async (status: ReviewDecision) => {
     if (!activeProject || !activeRole || !staffAccount || busy) return;
@@ -81,16 +82,19 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
     finally{setBusy(false);}
   };
   const recordPayment=async()=>{
-    if(!activeProject?.submissionId||!staffAccount||!paymentFile)return;
+    if(!activeProject?.submissionId||!staffAccount)return;
+    const invalid=paymentInputError(paymentAmount,paymentReference,paymentFile);
+    if(invalid){setActionError(invalid);return;}
+    if(!paymentFile)return;
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
-    try{await verifyPayment(staffAccount,activeProject.submissionId,paymentAmount,paymentCurrency,paymentReference,paymentFile);setGovernance(null);setActionSuccessMessage('Pago y comprobante verificados, firmados y guardados en Supabase. Pulsá «Cargar bitácora compartida» para verlos.');}
+    try{const saved=await verifyPayment(staffAccount,activeProject.submissionId,paymentAmount,paymentCurrency,paymentReference,paymentFile) as SharedPayment;setGovernance(previous=>previous?{...previous,payments:[saved,...previous.payments.filter(row=>row.id!==saved.id)]}:previous);setActionSuccessMessage('Pago y comprobante verificados, firmados y guardados en Supabase. El estado se actualizó aquí.');setPaymentFile(null);if(paymentFileInput.current)paymentFileInput.current.value='';}
     catch(e){setActionError(e instanceof Error?e.message:'No se pudo registrar el pago.');}
     finally{setBusy(false);}
   };
   const authorize=async()=>{
     if(!activeProject?.submissionId||!staffAccount||!governance)return;
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
-    try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);setGovernance(null);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Pulsá «Cargar bitácora compartida» para verla. Aún faltan las aprobaciones on-chain del factory.');}
+    try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);setGovernance(previous=>previous?{...previous,authorized:true}:previous);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Ya podés continuar en el factory; allí faltan las aprobaciones on-chain.');}
     catch(e){setActionError(e instanceof Error?e.message:'No se pudo autorizar la preparación.');}
     finally{setBusy(false);}
   };
@@ -227,7 +231,20 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                 {governance.authorized&&activeProject.standard==='ERC-20'&&onOpenFactory&&<button type="button" className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white" onClick={()=>onOpenFactory(activeProject)}>Continuar en Factory ERC-20</button>}
                 {governance.payments.filter(row=>row.status==='verified').map(row=><div key={row.id} className="break-all rounded-lg border border-[#273246] p-3 text-xs text-[#B8C9E1]">Pago {row.amount} {row.currency} · Referencia {row.reference} · Firmado por {row.signer_wallet} · <button type="button" className="text-[#7096FF] underline" onClick={()=>{if(staffAccount)void downloadPaymentDocument(staffAccount,row).catch(e=>setActionError(e instanceof Error?e.message:'No se pudo descargar.'));}}>Descargar comprobante: {row.file_name}</button></div>)}
               </div>}
-              {(staffRole==='accounting'||staffRole==='owner')&&<div className="space-y-3 border-t border-[#39547C] pt-4"><h4 className="font-semibold text-white">Contaduría · verificar pago recibido</h4><p className="text-xs text-[#9BA6BD]">Confirmá el cobro fuera de la dapp antes de firmar. El comprobante quedará privado y vinculado a este expediente.</p><div className="grid gap-3 sm:grid-cols-3"><label className="text-xs">Importe<input value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)} inputMode="decimal" placeholder="1500.00" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label><label className="text-xs">Moneda<select value={paymentCurrency} onChange={e=>setPaymentCurrency(e.target.value)} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white"><option>USD</option><option>PYG</option><option>ARS</option><option>EUR</option></select></label><label className="text-xs">Referencia del pago<input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="Transferencia / recibo" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label></div><label className="block text-xs">Comprobante privado PDF o imagen<input type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>setPaymentFile(e.target.files?.[0]||null)} className="mt-1 block w-full text-[#B8C9E1]" /></label><button type="button" disabled={busy||!paymentFile||!paymentAmount||!paymentReference.trim()} onClick={()=>void recordPayment()} className="rounded-lg bg-[#316BFA] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar recibo de pago verificado</button></div>}
+              {(staffRole==='accounting'||staffRole==='owner')&&governance?.payments.some(row=>row.status==='verified')&&<p className="border-t border-[#39547C] pt-4 text-xs text-emerald-200">Contaduría: ya hay un pago verificado para este expediente. El recibo y su comprobante figuran arriba.</p>}
+              {(staffRole==='accounting'||staffRole==='owner')&&!governance?.payments.some(row=>row.status==='verified')&&<div className="space-y-3 border-t border-[#39547C] pt-4">
+                <h4 className="font-semibold text-white">Contaduría · verificar pago recibido</h4>
+                <p className="text-xs text-[#9BA6BD]">Confirmá el cobro fuera de la dapp antes de firmar. El comprobante quedará privado y vinculado a este expediente.</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="text-xs">Importe<input value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)} inputMode="decimal" placeholder="4000.00" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label>
+                  <label className="text-xs">Moneda<select value={paymentCurrency} onChange={e=>setPaymentCurrency(e.target.value)} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white"><option>USD</option><option>PYG</option><option>ARS</option><option>EUR</option></select></label>
+                  <label className="text-xs">Referencia del pago<input value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="Número de recibo o transferencia" className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-2 text-white" /></label>
+                </div>
+                <p className="text-xs text-[#9BA6BD]">Importe sin separadores de miles; para centavos usá punto. Referencia: 4 a 120 caracteres.</p>
+                <div><p className="mb-2 text-xs">Comprobante privado · PDF o imagen, máximo 25 MB</p><input ref={paymentFileInput} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={e=>setPaymentFile(e.target.files?.[0]||null)} className="sr-only" aria-label="Elegir comprobante de pago" /><button type="button" onClick={()=>paymentFileInput.current?.click()} className="rounded-lg border border-[#567EFF] px-4 py-2 text-xs font-semibold text-white">Cargar comprobante de pago</button><p className="mt-2 break-all text-xs text-[#B8C9E1]">{paymentFile?`Archivo seleccionado: ${paymentFile.name}`:'Todavía no seleccionaste un archivo.'}</p></div>
+                {(paymentAmount||paymentReference||paymentFile)&&paymentInputError(paymentAmount,paymentReference,paymentFile)&&<p className="text-xs text-amber-200" role="status">{paymentInputError(paymentAmount,paymentReference,paymentFile)}</p>}
+                <button type="button" disabled={busy||Boolean(paymentInputError(paymentAmount,paymentReference,paymentFile))} onClick={()=>void recordPayment()} className="rounded-lg bg-[#316BFA] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar recibo de pago verificado</button>
+              </div>}
               {staffRole==='owner'&&governance&&<div className="border-t border-[#39547C] pt-4"><button type="button" disabled={busy||governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length!==3||!governance.payments.some(row=>row.status==='verified')} onClick={()=>void authorize()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Autorizar preparación del token</button><p className="mt-2 text-xs text-[#9BA6BD]">Esta firma habilita la preparación administrativa; no despliega un token ni sustituye las firmas on-chain del factory.</p></div>}
             </div>}
 

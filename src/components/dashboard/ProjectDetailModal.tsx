@@ -2,6 +2,8 @@ import React from 'react';
 import { X, ShieldCheck, FileText, CheckCircle2, AlertTriangle, ExternalLink, Cpu, Copy } from 'lucide-react';
 import { TokenProject, ProjectDocument } from '../../types';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
+import {loadGovernance,type GovernanceState} from '../../lib/governance';
+import {projectReviewHash,validReview} from '../../lib/reviewSignatures';
 
 interface ProjectDetailModalProps {
   project: TokenProject | null;
@@ -9,6 +11,7 @@ interface ProjectDetailModalProps {
   onNavigateToApprovals?: (project: TokenProject) => void;
   onDownloadDocument?: (project:TokenProject,doc:ProjectDocument)=>void;
   onLoadPrivateContact?:()=>Promise<{contact:TokenProject['contact']|null;taxId:string|null}>;
+  staffAccount?:string|null;
 }
 
 export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
@@ -17,10 +20,23 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
   onNavigateToApprovals,
   onDownloadDocument,
   onLoadPrivateContact,
+  staffAccount,
 }) => {
   const [privateContact,setPrivateContact]=React.useState<{projectId:string;contact:TokenProject['contact']|null;taxId:string|null}|null>(null);
   const [privateError,setPrivateError]=React.useState('');
+  const [sharedReviews,setSharedReviews]=React.useState<{submissionId:string;state:GovernanceState}|null>(null);
+  const [reviewsLoading,setReviewsLoading]=React.useState(false);
+  const [reviewsError,setReviewsError]=React.useState('');
   if (!project) return null;
+
+  const currentReviews=sharedReviews&&sharedReviews.submissionId===project.submissionId&&sharedReviews.state.projectHash===projectReviewHash(project)?sharedReviews.state:null;
+  const refreshReviews=async()=>{
+    if(!staffAccount||!project.submissionId)return;
+    setReviewsLoading(true);setReviewsError('');
+    try{setSharedReviews({submissionId:project.submissionId,state:await loadGovernance(staffAccount,project.submissionId)});}
+    catch(e){setReviewsError(e instanceof Error?e.message:'No se pudieron consultar los dictámenes.');}
+    finally{setReviewsLoading(false);}
+  };
 
   const net = SUPPORTED_NETWORKS[project.network] || SUPPORTED_NETWORKS.polygon;
 
@@ -148,9 +164,13 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             </h3>
             <span className="text-[11px] font-mono text-[#7096FF]">Segregación de Roles Estricta</span>
           </div>
+          {project.submissionId&&<div className="text-xs space-y-2"><button type="button" disabled={reviewsLoading||!staffAccount} onClick={()=>void refreshReviews()} className="rounded-lg border border-[#45628B] px-3 py-2 text-[#9BBCFF] disabled:opacity-50">{reviewsLoading?'Consultando…':'Consultar firmas compartidas'}</button><p className="text-[#9BA6BD]">{currentReviews?'Estado consultado en Supabase para esta versión del expediente.':'Estado todavía sin consultar; «Pendiente» puede corresponder al formulario inicial.'}</p>{reviewsError&&<p role="alert" className="text-red-300">{reviewsError}</p>}</div>}
 
           <div className="space-y-3">
-            {project.approvals.map((app) => (
+            {project.approvals.map((initial) => {
+              const row=currentReviews?.reviews.find(item=>item.role===initial.role&&item.project_hash===currentReviews.projectHash&&validReview(project,item.proof));
+              const app=row?{...initial,status:row.decision,approverName:row.signer_wallet,signerWallet:row.signer_wallet,timestamp:row.proof.timestamp,comments:row.proof.comments}:initial;
+              return (
               <div
                 key={app.id}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-[#141A27] border border-[#273246] text-xs"
@@ -184,7 +204,7 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
                   </span>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         </div>
 

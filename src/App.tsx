@@ -320,6 +320,7 @@ export default function App() {
       {/* Project Inspector Detail Modal */}
       <ProjectDetailModal
         project={currentView==='projects'||currentView==='dashboard'?selectedProjectForDetail:null}
+        staffAccount={staff?.account ?? null}
         onLoadPrivateContact={staff?.role==='owner'&&staff.account&&selectedProjectForDetail?.submissionId?()=>loadPrivateContact(staff.account,selectedProjectForDetail.submissionId!):undefined}
         onClose={() => setSelectedProjectForDetail(null)}
         onDownloadDocument={(project,doc)=>{if(!staff)return;void downloadSharedDocument(staff.account,project,doc).catch(e=>showToast(e instanceof Error?e.message:'No se pudo descargar.'));}}

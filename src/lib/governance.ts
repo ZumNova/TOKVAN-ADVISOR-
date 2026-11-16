@@ -8,12 +8,24 @@ export type SharedReview={id:string;submission_id:string;role:ReviewProof['role'
 export type SharedPayment={id:string;status:'uploading'|'verified';amount:string;currency:string;reference:string;file_name:string;file_size:number;file_sha256:string;signer_wallet?:string;signature?:string;verified_at?:string};
 export type SharedAuthorization={id:string;project_hash:string;review_ids:string[];payment_id:string;signer_wallet:string;signature:string;created_at:string};
 export type GovernanceState={reviews:SharedReview[];payments:SharedPayment[];authorizations:SharedAuthorization[];projectHash:string;authorized:boolean};
+export function paymentInputError(amount:string,reference:string,file:File|null):string|null{
+ const value=amount.trim();
+ if(!/^\d{1,12}(\.\d{1,2})?$/.test(value)||Number(value)<=0)return 'Ingresá un importe positivo sin separadores de miles; usá punto para centavos (ejemplo: 4000.00).';
+ if(reference.trim().length<4||reference.trim().length>120)return 'La referencia del pago debe tener entre 4 y 120 caracteres.';
+ if(!file)return 'Elegí el comprobante privado antes de firmar.';
+ if(!/\.(pdf|png|jpg|jpeg|webp)$/i.test(file.name))return 'El comprobante debe ser PDF, PNG, JPG o WEBP.';
+ if(file.name.length>180||/[\\/\0]/.test(file.name))return 'El nombre del archivo es demasiado largo o contiene caracteres no permitidos.';
+ if(file.size<1||file.size>25*1024*1024)return 'El comprobante debe pesar entre 1 byte y 25 MB.';
+ return null;
+}
 const wallet=()=>{const injected=(window as Window & {ethereum?:{request:(args:{method:string;params?:unknown[]})=>Promise<unknown>}}).ethereum;if(!injected)throw new Error('Abrí la wallet del equipo.');return injected;};
 async function sign(account:string,message:string){const address=getAddress(account);return wallet().request({method:'personal_sign',params:[hexlify(toUtf8Bytes(message)),address]}) as Promise<string>;}
 export const loadGovernance=(account:string,submissionId:string)=>staffRequest('list',account,{submissionId},endpoint) as Promise<GovernanceState>;
 export const saveSharedReview=(account:string,submissionId:string,proof:ReviewProof)=>staffRequest('review',account,{submissionId,proof},endpoint);
 export const paymentMessage=(origin:string,id:string,submissionId:string,amount:string,currency:string,reference:string,fileHash:string,account:string)=>`TOKVANT recibo de pago\nOrigen: ${origin}\nExpediente: ${submissionId}\nPago: ${id}\nImporte: ${amount} ${currency}\nReferencia: ${reference}\nComprobante SHA-256: ${fileHash}\nWallet: ${getAddress(account)}`;
 export async function verifyPayment(account:string,submissionId:string,amount:string,currency:string,reference:string,file:File){
+ const invalid=paymentInputError(amount,reference,file);if(invalid)throw new Error(invalid);
+ amount=amount.trim();reference=reference.trim();
  const hash=await sha256(await file.arrayBuffer());
  const started=await staffRequest('payment-start',account,{submissionId,amount,currency,reference,fileName:file.name,fileSize:file.size,fileHash:hash},endpoint);
  const {createClient}=await import('@supabase/supabase-js');
