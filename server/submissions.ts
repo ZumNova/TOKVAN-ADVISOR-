@@ -31,7 +31,7 @@ function requireStaff(request:Request,action:Action){
  let role='owner';
  if(wallet!==owner){
   let grant;try{grant=JSON.parse(request.headers.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización del equipo inválida.');}
-  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting','multi_operator'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
+  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting','multi_operator','nft_operator'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
   const message=`TOKVANT staff access\nOrigin: ${new URL(request.url).origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
   if(verifyMessage(message,grant.signature)!==owner)throw new Error('La autorización del equipo no está firmada por la 047.');
   role=grant.role;
@@ -117,16 +117,17 @@ export async function POST(request:Request){
   }
   const actor=requireStaff(request,action);
   const staffWallet=actor.wallet;
-  if(actor.role==='multi_operator'&&action!=='media-list'&&action!=='media-document')return response({error:'Este rol solo puede consultar las imágenes de su expediente ERC-1155.'},403);
+  if(['multi_operator','nft_operator'].includes(actor.role)&&action!=='media-list'&&action!=='media-document')return response({error:'Este rol solo puede consultar las imágenes de su expediente NFT.'},403);
   if(action==='media-list'||action==='media-document'){
-   if(!['owner','multi_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);
+   if(!['owner','multi_operator','nft_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);
    const projectReference=String(payload.projectReference||'');
    if(!/^TOKVANT-[A-F0-9-]{36}$/.test(projectReference))return response({error:'Expediente inválido.'},400);
    const found=await db.from(TABLE).select('id,project').eq('request_id',projectReference).eq('status','received').maybeSingle();
    if(found.error)throw found.error;
    if(!found.data)return response({error:'Expediente no encontrado.'},404);
    const project=found.data.project as TokenProject;
-   if(project.standard!=='ERC-1155'||project.network!=='sepolia'||(actor.role==='multi_operator'&&(!project.clientWalletAddress||getAddress(project.clientWalletAddress)!==staffWallet)))return response({error:'Esta wallet no tiene acceso a las imágenes de este expediente ERC-1155.'},403);
+   const expectedStandard=actor.role==='nft_operator'?'ERC-721':actor.role==='multi_operator'?'ERC-1155':null;
+   if(!['ERC-721','ERC-1155'].includes(project.standard)||project.network!=='sepolia'||(expectedStandard&&project.standard!==expectedStandard)||(expectedStandard&&(!project.clientWalletAddress||getAddress(project.clientWalletAddress)!==staffWallet)))return response({error:'Esta wallet no tiene acceso a las imágenes de este expediente NFT.'},403);
    const images=project.documents.filter(d=>d.category==='Imagen del token'&&/\.(png|jpe?g|webp)$/i.test(d.fileName));
    if(action==='media-list')return response({images:images.map(d=>({id:d.id,name:d.name,fileName:d.fileName,sha256:d.sha256,sizeBytes:d.sizeBytes}))});
    const doc=images.find(d=>d.id===payload.documentId);

@@ -6,7 +6,7 @@ const OWNER=getAddress(participants.deployer);
 const roleInterface=new Interface(['function hasRole(bytes32 role,address account) view returns (bool)']);
 async function allowedMultiOperator(body:Record<string,unknown>,account:string,origin:string,fetcher:typeof fetch){
   const grant=body.grant as {address?:string;role?:string;expires?:number;signature?:string}|undefined;
-  if(!grant||grant.role!=='multi_operator'||getAddress(grant.address||'')!==account||!Number.isSafeInteger(grant.expires)||Number(grant.expires)<=Date.now())return false;
+  if(!grant||!['multi_operator','nft_operator'].includes(grant.role||'')||getAddress(grant.address||'')!==account||!Number.isSafeInteger(grant.expires)||Number(grant.expires)<=Date.now())return false;
   const message=`TOKVANT staff access\nOrigin: ${origin}\nWallet: ${account}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
   if(verifyMessage(message,grant.signature||'')!==OWNER)return false;
   const collection=getAddress(String(body.collection||''));
@@ -64,7 +64,7 @@ async function POST(request: Request) {
     if (!Number.isSafeInteger(body.issuedAt) || body.issuedAt > Date.now() + 30_000 || Date.now() - body.issuedAt > 180_000) throw new Error('La autorización venció. Vuelva a cargar y firmar.');
     const account = getAddress(body.account);
     if (verifyMessage(mediaMessage(payload, account, body.issuedAt), body.signature) !== account || (!accounts.includes(account) && !await allowedMultiOperator(body,account,new URL(request.url).origin,fetcher))) {
-      return json({error: 'La wallet debe ser del equipo TOKVANT o administradora autorizada de esta colección ERC-1155.'}, 403);
+      return json({error: 'La wallet debe ser del equipo TOKVANT o administradora autorizada de esta colección NFT.'}, 403);
     }
     bytes = Buffer.from(payload.imageBase64, 'base64');
     if (bytes.length > MAX_IMAGE_BYTES || bytes.toString('base64') !== payload.imageBase64 || !imageMatches(bytes, payload.mime)) throw new Error('El archivo no coincide con una imagen PNG, JPG o WebP válida de hasta 2 MB.');
