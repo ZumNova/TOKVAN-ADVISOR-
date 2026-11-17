@@ -136,7 +136,7 @@ export async function reviewMultiOperation(wallet:WalletProvider,context:MultiCo
       if(!state.multi)throw new Error('Cree primero la colección aprobada.');
       to=state.collection;
       if(op.kind==='mint') {
-        if(!state.multi.canMint)throw new Error('Esta wallet no tiene permiso para crear tipos de token.');
+        if(!state.multi.canMint)throw new Error(`Esta wallet no tiene permiso MINTER_ROLE para crear tipos. La administradora configurada al crear la colección es ${state.config.admin}.`);
         if(state.multi.paused)throw new Error('La colección está pausada.');
         if(state.multi.minted>=state.multi.cap)throw new Error('La colección alcanzó su máximo de tipos.');
         const recipient=address(op.recipient),uri=metadataURI(op.uri),amount=multiInteger(op.amount),cap=multiInteger(op.cap);
