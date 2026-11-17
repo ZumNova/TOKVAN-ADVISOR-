@@ -69,8 +69,8 @@ export async function POST(request:Request){
   const config=decoded.args.config,p=project.parameters;
   const cap=BigInt(project.standard==='ERC-721'?config.maxSupply:config.maxTypes);
   const differences=[
-   config.name!==p.tokenName?`nombre: expediente «${p.tokenName}», colección «${config.name}»`:null,
-   config.symbol!==p.tokenSymbol?`símbolo: expediente «${p.tokenSymbol}», colección «${config.symbol}»`:null,
+   config.name!==p.tokenName.trim()?`nombre: expediente «${p.tokenName}», colección «${config.name}»`:null,
+   config.symbol!==p.tokenSymbol.trim()?`símbolo: expediente «${p.tokenSymbol}», colección «${config.symbol}»`:null,
    cap!==BigInt(p.initialSupply)?`máximo: expediente ${p.initialSupply}, colección ${cap}`:null,
    config.burnable!==p.isBurnable?`quema: expediente ${p.isBurnable?'sí':'no'}, colección ${config.burnable?'sí':'no'}`:null,
    config.pausable!==p.isPausable?`pausa: expediente ${p.isPausable?'sí':'no'}, colección ${config.pausable?'sí':'no'}`:null,
