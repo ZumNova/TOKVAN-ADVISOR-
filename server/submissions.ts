@@ -145,7 +145,16 @@ export async function POST(request:Request){
   if(action==='list'){
    const found=await db.from(TABLE).select('id,request_id,project,received_at').eq('status','received').order('received_at',{ascending:false}).limit(100);
    if(found.error)throw found.error;
-   return response({items:found.data});
+   const ids=(found.data||[]).map(row=>row.id);
+   if(!ids.length)return response({items:[]});
+   const [issuances,collections]=await Promise.all([
+    db.from('submission_issuances').select('submission_id').in('submission_id',ids),
+    db.from('submission_collections').select('submission_id').in('submission_id',ids),
+   ]);
+   if(issuances.error)throw issuances.error;
+   if(collections.error)throw collections.error;
+   const deployed=new Set([...(issuances.data||[]),...(collections.data||[])].map(row=>row.submission_id));
+   return response({items:found.data.map(row=>({...row,deployed:deployed.has(row.id)}))});
   }
   const id=String(payload.id||''),documentId=String(payload.documentId||'');
   if(!/^[0-9a-f-]{36}$/i.test(id)||!/^[0-9a-f-]{36}$/i.test(documentId))return response({error:'Documento inválido.'},400);

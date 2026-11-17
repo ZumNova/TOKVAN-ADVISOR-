@@ -47,7 +47,7 @@ export async function staffRequest(action:string,account:string,body:Record<stri
 }
 export async function listSharedSubmissions(account:string):Promise<TokenProject[]>{
  const result=await staffRequest('list',account);
- return (result.items as {id:string;project:TokenProject;received_at:string}[]).map(row=>({...row.project,submissionId:row.id,receivedAt:row.received_at}));
+ return (result.items as {id:string;project:TokenProject;received_at:string;deployed:boolean}[]).map(row=>({...row.project,submissionId:row.id,receivedAt:row.received_at,...(row.deployed?{status:'Desplegado' as const,progressPercent:100}:{})}));
 }
 export async function downloadSharedDocument(account:string,project:TokenProject,doc:ProjectDocument){
  if(!project.submissionId||!doc.sha256)throw new Error('Documento remoto inválido.');
