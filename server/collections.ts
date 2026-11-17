@@ -68,7 +68,14 @@ export async function POST(request:Request){
   if(decoded?.name!=='createCollection'||decoded.args.projectId!==projectId)throw new Error('La transacción corresponde a otro expediente.');
   const config=decoded.args.config,p=project.parameters;
   const cap=BigInt(project.standard==='ERC-721'?config.maxSupply:config.maxTypes);
-  if(config.name!==p.tokenName||config.symbol!==p.tokenSymbol||cap!==BigInt(p.initialSupply)||config.burnable!==p.isBurnable||config.pausable!==p.isPausable)throw new Error('La colección no coincide con los parámetros aprobados.');
+  const differences=[
+   config.name!==p.tokenName?`nombre: expediente «${p.tokenName}», colección «${config.name}»`:null,
+   config.symbol!==p.tokenSymbol?`símbolo: expediente «${p.tokenSymbol}», colección «${config.symbol}»`:null,
+   cap!==BigInt(p.initialSupply)?`máximo: expediente ${p.initialSupply}, colección ${cap}`:null,
+   config.burnable!==p.isBurnable?`quema: expediente ${p.isBurnable?'sí':'no'}, colección ${config.burnable?'sí':'no'}`:null,
+   config.pausable!==p.isPausable?`pausa: expediente ${p.isPausable?'sí':'no'}, colección ${config.pausable?'sí':'no'}`:null,
+  ].filter(Boolean);
+  if(differences.length)throw new Error(`La colección no coincide con los parámetros aprobados: ${differences.join('; ')}. Revisá la solicitud y el despliegue antes de vincularlos.`);
   if(project.clientWalletAddress&&project.clientWalletNetwork==='sepolia'&&isAddress(project.clientWalletAddress)&&getAddress(config.admin)!==getAddress(project.clientWalletAddress))throw new Error('La administradora no coincide con la wallet del expediente.');
   const [technical,compliance,board,operator,version,linkedAddress,code]=await Promise.all([
    call(factoryAddress,iface,'technicalReviewer'),call(factoryAddress,iface,'complianceReviewer'),call(factoryAddress,iface,'boardReviewer'),call(factoryAddress,iface,'operator'),call(factoryAddress,iface,'VERSION'),call(factoryAddress,iface,'collectionByProject',[projectId]),rpc('eth_getCode',[factoryAddress,'latest']),
