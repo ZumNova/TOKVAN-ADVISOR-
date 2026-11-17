@@ -21,20 +21,22 @@ const config=()=>{
  if(!url||!key||!publishable)throw new Error('La recepción privada aún no está configurada en Vercel.');
  return {db:createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}}),url,publishable};
 };
-type Action='start'|'finalize'|'list'|'document'|'contact';
+type Action='start'|'finalize'|'list'|'document'|'contact'|'media-list'|'media-document';
 const authMessage=(origin:string,action:Action,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
 function requireStaff(request:Request,action:Action){
  const address=request.headers.get('x-tokvant-wallet')||'',timestamp=request.headers.get('x-tokvant-time')||'',nonce=request.headers.get('x-tokvant-nonce')||'',signature=request.headers.get('x-tokvant-signature')||'';
  if(!/^[-0-9T:.Z]{20,30}$/.test(timestamp)||Math.abs(Date.now()-Date.parse(timestamp))>120000||!/^[-0-9a-f]{36}$/i.test(nonce))throw new Error('Firma de acceso vencida o inválida.');
  const wallet=getAddress(address);
  if(verifyMessage(authMessage(new URL(request.url).origin,action,timestamp,nonce,wallet),signature)!==wallet)throw new Error('La wallet no está autorizada para consultar expedientes.');
+ let role='owner';
  if(wallet!==owner){
   let grant;try{grant=JSON.parse(request.headers.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización del equipo inválida.');}
-  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
+  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting','multi_operator'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
   const message=`TOKVANT staff access\nOrigin: ${new URL(request.url).origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
   if(verifyMessage(message,grant.signature)!==owner)throw new Error('La autorización del equipo no está firmada por la 047.');
+  role=grant.role;
  }
- return wallet;
+ return {wallet,role};
 }
 export function cleanProject(input:unknown):TokenProject{
  if(!input||typeof input!=='object')throw new Error('Expediente inválido.');
@@ -64,7 +66,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>160000)return response({error:'Solicitud demasiado grande.'},413);
   const payload=await request.json();
   const action=payload?.action as Action;
-  if(!['start','finalize','list','document','contact'].includes(action))return response({error:'Operación desconocida.'},400);
+  if(!['start','finalize','list','document','contact','media-list','media-document'].includes(action))return response({error:'Operación desconocida.'},400);
   const {db,url,publishable}=config();
   if(action==='start'){
    const project=cleanProject(payload.project);
@@ -113,7 +115,26 @@ export async function POST(request:Request){
    if(saved.error)throw saved.error;
    return response({id,requestId:row.request_id,receivedAt});
   }
-  const staffWallet=requireStaff(request,action);
+  const actor=requireStaff(request,action);
+  const staffWallet=actor.wallet;
+  if(actor.role==='multi_operator'&&action!=='media-list'&&action!=='media-document')return response({error:'Este rol solo puede consultar las imágenes de su expediente ERC-1155.'},403);
+  if(action==='media-list'||action==='media-document'){
+   if(!['owner','multi_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);
+   const projectReference=String(payload.projectReference||'');
+   if(!/^TOKVANT-[A-F0-9-]{36}$/.test(projectReference))return response({error:'Expediente inválido.'},400);
+   const found=await db.from(TABLE).select('id,project').eq('request_id',projectReference).eq('status','received').maybeSingle();
+   if(found.error)throw found.error;
+   if(!found.data)return response({error:'Expediente no encontrado.'},404);
+   const project=found.data.project as TokenProject;
+   if(project.standard!=='ERC-1155'||project.network!=='sepolia'||(actor.role==='multi_operator'&&(!project.clientWalletAddress||getAddress(project.clientWalletAddress)!==staffWallet)))return response({error:'Esta wallet no tiene acceso a las imágenes de este expediente ERC-1155.'},403);
+   const images=project.documents.filter(d=>d.category==='Imagen del token'&&/\.(png|jpe?g|webp)$/i.test(d.fileName));
+   if(action==='media-list')return response({images:images.map(d=>({id:d.id,name:d.name,fileName:d.fileName,sha256:d.sha256,sizeBytes:d.sizeBytes}))});
+   const doc=images.find(d=>d.id===payload.documentId);
+   if(!doc)return response({error:'Imagen no encontrada.'},404);
+   const signed=await db.storage.from(BUCKET).createSignedUrl(`${found.data.id}/${doc.id}`,60);
+   if(signed.error)throw signed.error;
+   return response({url:signed.data.signedUrl,sha256:doc.sha256,fileName:doc.fileName});
+  }
   if(action==='contact'){
    if(staffWallet!==owner)return response({error:'Solo la administración 047 puede consultar el contacto privado.'},403);
    const id=String(payload.id||'');if(!/^[0-9a-f-]{36}$/i.test(id))return response({error:'Expediente inválido.'},400);

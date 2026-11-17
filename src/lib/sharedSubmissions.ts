@@ -41,7 +41,7 @@ export async function staffRequest(action:string,account:string,body:Record<stri
  if(!accounts?.[0]||getAddress(accounts[0])!==address)throw new Error('Seleccioná la wallet con la que ingresaste al equipo.');
  const timestamp=new Date().toISOString(),nonce=crypto.randomUUID();
  const signature=await wallet.request({method:'personal_sign',params:[hexlify(toUtf8Bytes(staffMessage(location.origin,action,timestamp,nonce,address))),address]}) as string;
- const grant=address===getAddress(OWNER)?null:readGrants().find(g=>getAddress(g.address)===address);
+ const grant=address===getAddress(OWNER)?null:readGrants().filter(g=>getAddress(g.address)===address).at(-1);
  if(address!==getAddress(OWNER)&&!grant)throw new Error('Importá primero la autorización firmada por la 047.');
  return parse(await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-tokvant-wallet':address,'x-tokvant-time':timestamp,'x-tokvant-nonce':nonce,'x-tokvant-signature':signature,...(grant?{'x-tokvant-grant':JSON.stringify(grant)}:{})},body:JSON.stringify({action,...body})}));
 }
@@ -59,3 +59,16 @@ export async function downloadSharedDocument(account:string,project:TokenProject
  downloadClientFile(blob,doc.fileName);
 }
 export async function loadPrivateContact(account:string,submissionId:string){return staffRequest('contact',account,{id:submissionId}) as Promise<{contact:TokenProject['contact']|null;taxId:string|null}>;}
+export type SharedImage={id:string;name:string;fileName:string;sha256:string;sizeBytes:number};
+export async function listSharedImages(account:string,projectReference:string):Promise<SharedImage[]>{
+ const result=await staffRequest('media-list',account,{projectReference}) as {images:SharedImage[]};
+ return result.images;
+}
+export async function fetchSharedImage(account:string,projectReference:string,doc:SharedImage):Promise<File>{
+ const result=await staffRequest('media-document',account,{projectReference,documentId:doc.id}) as {url:string;sha256:string;fileName:string};
+ const response=await fetch(result.url);
+ if(!response.ok)throw new Error('El enlace privado venció. Volvé a elegir la imagen.');
+ const blob=await response.blob();
+ if(blob.size!==doc.sizeBytes||await sha256(await blob.arrayBuffer())!==doc.sha256||result.sha256!==doc.sha256)throw new Error('La imagen privada no coincide con el hash del expediente.');
+ return new File([blob],doc.fileName,{type:doc.fileName.toLowerCase().endsWith('.png')?'image/png':doc.fileName.toLowerCase().endsWith('.webp')?'image/webp':'image/jpeg'});
+}

@@ -1,6 +1,21 @@
-import {getAddress, verifyMessage} from 'ethers';
+import {getAddress, verifyMessage, Interface, id} from 'ethers';
 import participants from '../deployment/sepolia-participants.json' with {type: 'json'};
 import {MAX_IMAGE_BYTES, mediaMessage, validateMediaPayload, isIPFSUri} from '../src/lib/nftMedia.js';
+
+const OWNER=getAddress(participants.deployer);
+const roleInterface=new Interface(['function hasRole(bytes32 role,address account) view returns (bool)']);
+async function allowedMultiOperator(body:Record<string,unknown>,account:string,origin:string,fetcher:typeof fetch){
+  const grant=body.grant as {address?:string;role?:string;expires?:number;signature?:string}|undefined;
+  if(!grant||grant.role!=='multi_operator'||getAddress(grant.address||'')!==account||!Number.isSafeInteger(grant.expires)||Number(grant.expires)<=Date.now())return false;
+  const message=`TOKVANT staff access\nOrigin: ${origin}\nWallet: ${account}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
+  if(verifyMessage(message,grant.signature||'')!==OWNER)return false;
+  const collection=getAddress(String(body.collection||''));
+  const data=roleInterface.encodeFunctionData('hasRole',[id('MINTER_ROLE'),account]);
+  const rpc=await fetcher(process.env.SEPOLIA_RPC_URL||'https://ethereum-sepolia-rpc.publicnode.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_call',params:[{to:collection,data},'latest']}),signal:AbortSignal.timeout(12000)});
+  if(!rpc.ok)return false;
+  const result=await rpc.json();
+  return !result.error && roleInterface.decodeFunctionResult('hasRole',result.result)[0]===true;
+}
 
 const headers = {'Cache-Control': 'no-store'};
 function json(value: unknown, status = 200) {return Response.json(value, {status, headers});}
@@ -48,8 +63,8 @@ async function POST(request: Request) {
     payload = validateMediaPayload(body.payload);
     if (!Number.isSafeInteger(body.issuedAt) || body.issuedAt > Date.now() + 30_000 || Date.now() - body.issuedAt > 180_000) throw new Error('La autorización venció. Vuelva a cargar y firmar.');
     const account = getAddress(body.account);
-    if (!accounts.includes(account) || verifyMessage(mediaMessage(payload, account, body.issuedAt), body.signature) !== account) {
-      return json({error: 'Autorice la carga con una de las cuatro wallets de TOKVAN.'}, 403);
+    if (verifyMessage(mediaMessage(payload, account, body.issuedAt), body.signature) !== account || (!accounts.includes(account) && !await allowedMultiOperator(body,account,new URL(request.url).origin,fetcher))) {
+      return json({error: 'La wallet debe ser del equipo TOKVANT o administradora autorizada de esta colección ERC-1155.'}, 403);
     }
     bytes = Buffer.from(payload.imageBase64, 'base64');
     if (bytes.length > MAX_IMAGE_BYTES || bytes.toString('base64') !== payload.imageBase64 || !imageMatches(bytes, payload.mime)) throw new Error('El archivo no coincide con una imagen PNG, JPG o WebP válida de hasta 2 MB.');

@@ -3,10 +3,12 @@ import {hexlify, toUtf8Bytes, getAddress} from 'ethers';
 import {injectedWallet, PARTICIPANTS, walletError} from '../../lib/factoryWallet';
 import {requireNFTChain} from '../../lib/erc721Workflow';
 import {IMAGE_TYPES, MAX_IMAGE_BYTES, mediaMessage, isIPFSUri, type MediaResult} from '../../lib/nftMedia';
+import {fetchSharedImage,listSharedImages,type SharedImage} from '../../lib/sharedSubmissions';
+import {OWNER,readGrants} from '../../lib/staffAccess';
 
 const button = 'rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed';
-interface Props {standard?:'ERC721'|'ERC1155';collection: string; disabled: boolean; disabledReason?: string; onURI: (uri: string) => void; onBusy: (busy: boolean) => void;}
-export default function NFTMediaPanel({standard='ERC721', collection, disabled, disabledReason, onURI, onBusy}: Props) {
+interface Props {standard?:'ERC721'|'ERC1155';collection: string; projectReference?:string; account?:string|null; disabled: boolean; disabledReason?: string; onURI: (uri: string) => void; onBusy: (busy: boolean) => void;}
+export default function NFTMediaPanel({standard='ERC721', collection, projectReference, account, disabled, disabledReason, onURI, onBusy}: Props) {
   const storageKey = `tokvan:${standard.toLowerCase()}:media:v1:${collection.toLowerCase()}`;
   const [result, setResult] = useState<MediaResult | undefined>(() => {
     try {const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
@@ -16,6 +18,8 @@ export default function NFTMediaPanel({standard='ERC721', collection, disabled, 
   const [name, setName] = useState(result?.metadata.name || (standard==='ERC1155'?'TOKVAN Tipo #1':'TOKVAN NFT #1'));
   const [description, setDescription] = useState(result?.metadata.description || 'NFT de prueba de TOKVAN en Sepolia.');
   const [file, setFile] = useState<File>(); const [preview, setPreview] = useState('');
+  const [sharedImages,setSharedImages]=useState<SharedImage[]>([]);
+  const [selectedSharedImage,setSelectedSharedImage]=useState('');
   const [configured, setConfigured] = useState<boolean>();
   const [busy, setBusy] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(''); const [message, setMessage] = useState('');
@@ -27,13 +31,29 @@ export default function NFTMediaPanel({standard='ERC721', collection, disabled, 
   }
   useEffect(() => {void check();}, []);
   function invalidate() {setResult(undefined);onURI('');setMessage('');try {localStorage.removeItem(storageKey);} catch {/* In-memory form still works. */}}
+  async function loadImages(){
+    if(!account||!projectReference)return;
+    setBusy(true);setError('');
+    try{const images=await listSharedImages(account,projectReference);setSharedImages(images);setMessage(images.length?`${images.length} imagen(es) privadas del expediente. Elegí una para ver la vista previa.`:'Este expediente no tiene imágenes en la categoría «Imagen del token».');}
+    catch(e){setError(walletError(e));}
+    finally{setBusy(false);}
+  }
+  async function chooseSharedImage(doc:SharedImage){
+    if(!account||!projectReference)return;
+    setBusy(true);setError('');
+    try{const selected=await fetchSharedImage(account,projectReference,doc);
+      if(!IMAGE_TYPES.includes(selected.type)||selected.size>MAX_IMAGE_BYTES)throw new Error('La imagen del expediente supera 2 MB o no es PNG, JPG o WebP. Usá una versión reducida desde tu equipo.');
+      invalidate();setFile(selected);setSelectedSharedImage(doc.id);setMessage('Imagen privada cargada para vista previa. Revisala y luego publicala en IPFS con el botón inferior.');
+    }catch(e){setError(walletError(e));}finally{setBusy(false);}
+  }
   async function upload() {
     if (lock.current || !file) return;lock.current = true;setBusy(true);onBusy(true);setError('');
     try {
       const wallet = injectedWallet();await requireNFTChain(wallet);
       const accounts = await wallet.request({method: 'eth_accounts'}) as string[];
       const account = getAddress(accounts[0]);
-      if (!Object.values(PARTICIPANTS).includes(account)) throw new Error('Conecte una de las cuatro wallets de TOKVAN para cargar la imagen.');
+      const grant=readGrants().filter(g=>getAddress(g.address)===account).at(-1);
+      if (!Object.values(PARTICIPANTS).includes(account) && !(standard==='ERC1155'&&grant?.role==='multi_operator')) throw new Error('Esta wallet no puede publicar imágenes de NFT.');
       const imageBase64 = await new Promise<string>((resolve, reject) => {const reader = new FileReader();reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));reader.onload = () => resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});
       const payload = {name: name.trim(), description: description.trim(), mime: file.type, imageBase64};
       const issuedAt = Date.now();
@@ -43,7 +63,7 @@ export default function NFTMediaPanel({standard='ERC721', collection, disabled, 
       const current = await wallet.request({method: 'eth_accounts'}) as string[];
       if (getAddress(current[0]) !== account) throw new Error('Cambió la wallet. Vuelva a cargar.');
       setMessage('Subiendo imagen y creando el JSON en Pinata…');
-      const response = await fetch('/api/nft-media', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({payload, account, issuedAt, signature}), signal: AbortSignal.timeout(65000)});
+      const response = await fetch('/api/nft-media', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({payload, account, issuedAt, signature, collection, grant:account===getAddress(OWNER)?null:grant}), signal: AbortSignal.timeout(65000)});
       const data = await response.json();
       if (!response.ok) throw new Error(`${data.error || 'No se pudo cargar el NFT.'}${data.imageUploaded ? ' La imagen ya se subió; falta completar el JSON. Puede reintentar.' : ''}`);
       if (!isIPFSUri(data.metadataUri) || !isIPFSUri(data.imageUri) || data.metadata?.name !== payload.name || data.metadata?.image !== data.imageUri) throw new Error('La respuesta de carga no contiene metadatos válidos.');
@@ -67,9 +87,11 @@ export default function NFTMediaPanel({standard='ERC721', collection, disabled, 
     <button type="button" className={button} disabled={blocked} onClick={() => void check()}>Comprobar conexión con Pinata</button>
     <label className="block">Nombre del NFT<input maxLength={100} className="block w-full border rounded p-2" disabled={blocked} value={name} onChange={e => {invalidate();setName(e.target.value);}}/></label>
     <label className="block">Descripción<textarea maxLength={2000} className="block w-full border rounded p-2" disabled={blocked} value={description} onChange={e => {invalidate();setDescription(e.target.value);}}/></label>
-    <label className="block">Elegir imagen · PNG, JPG o WebP · Hasta 2 MB<input type="file" accept="image/png,image/jpeg,image/webp" className="block mt-2 w-full file:mr-3 file:rounded-lg file:border file:border-blue-300 file:bg-blue-50 file:px-4 file:py-2 file:text-blue-900 file:cursor-pointer" disabled={blocked} onChange={e => {invalidate();setError('');const selected = e.target.files?.[0];setFile(undefined);if (!selected) return;if (!IMAGE_TYPES.includes(selected.type) || selected.size > MAX_IMAGE_BYTES || !selected.size) {setError('Seleccione una imagen PNG, JPG o WebP de hasta 2 MB.');e.target.value = '';return;}setFile(selected);}}/></label>
+    {standard==='ERC1155'&&projectReference&&account&&<div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-sm"><p className="font-semibold">Imágenes del expediente {projectReference}</p><button type="button" className={button} disabled={blocked} onClick={()=>void loadImages()}>Ver imágenes cargadas en Supabase</button>{sharedImages.map(doc=><button key={doc.id} type="button" className={`${button} block w-full text-left ${selectedSharedImage===doc.id?'ring-2 ring-blue-500':''}`} disabled={blocked} onClick={()=>void chooseSharedImage(doc)}>{doc.name} · {doc.fileName} · {Math.ceil(doc.sizeBytes/1024)} KB</button>)}<p>Son archivos privados. Al elegir uno se verifica su hash; solo se publica en IPFS cuando pulses «Subir imagen y preparar NFT».</p></div>}
+    <label className="block">Elegir imagen de tu equipo · PNG, JPG o WebP · Hasta 2 MB<input type="file" accept="image/png,image/jpeg,image/webp" className="block mt-2 w-full file:mr-3 file:rounded-lg file:border file:border-blue-300 file:bg-blue-50 file:px-4 file:py-2 file:text-blue-900 file:cursor-pointer" disabled={blocked} onChange={e => {invalidate();setSelectedSharedImage('');setError('');const selected = e.target.files?.[0];setFile(undefined);if (!selected) return;if (!IMAGE_TYPES.includes(selected.type) || selected.size > MAX_IMAGE_BYTES || !selected.size) {setError('Seleccione una imagen PNG, JPG o WebP de hasta 2 MB.');e.target.value = '';return;}setFile(selected);}}/></label>
     {file && <p className="text-sm">Imagen seleccionada: {file.name} · {Math.ceil(file.size / 1024)} KB</p>}
     {preview && <img src={preview} alt="Vista previa de la imagen elegida para el NFT" className="h-48 max-w-full rounded-lg object-contain"/>}
+    {file&&<p className="text-sm font-semibold text-amber-800">Confirmá que esta es la imagen correcta antes de publicarla. Después de crear el ID, sus metadatos quedan fijados en este factory.</p>}
     <button type="button" className={button} disabled={blocked || configured !== true || !file || !name.trim() || Boolean(result)} onClick={() => void upload()}>{busy ? 'Preparando NFT…' : 'Subir imagen y preparar NFT'}</button>
     {uploadReason && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{uploadReason}</p>}
     <p className="text-sm">La wallet autoriza la carga con un mensaje sin gas. Después firmarás la emisión del NFT por separado.</p>
