@@ -1,17 +1,22 @@
 import {useState} from 'react';
 import {loadAdminDossier,type AdminDossier} from '../../lib/dossiers';
+import {linkCollection} from '../../lib/collections';
 
 const date=(value:string|null|undefined)=>value?new Date(value).toLocaleString('es-AR'):'Sin fecha';
 const explorer='https://sepolia.etherscan.io';
 
 export default function AdminClientDossier({account,submissionId}:{account:string;submissionId:string}){
  const [data,setData]=useState<AdminDossier>();
+ const [closed,setClosed]=useState(false);
+ const [creationHash,setCreationHash]=useState('');
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const load=async()=>{setBusy(true);setError('');try{setData(await loadAdminDossier(account,submissionId));}catch(e){setError(e instanceof Error?e.message:'No se pudo consultar la ficha.');}finally{setBusy(false);}};
+ const link=async()=>{setBusy(true);setError('');try{await linkCollection(account,submissionId,creationHash.trim());setData(await loadAdminDossier(account,submissionId));setCreationHash('');}catch(e){setError(e instanceof Error?e.message:'No se pudo vincular la colección.');}finally{setBusy(false);}};
  const project=data?.submission.project;
  return <section className="rounded-xl border border-blue-500/40 bg-blue-500/5 p-4 text-sm space-y-3">
-  <h3 className="font-semibold text-white">Ficha integral del expediente · solo wallet 047</h3>
+  <div className="flex items-center justify-between gap-3"><h3 className="font-semibold text-white">Ficha integral del expediente · solo wallet 047</h3><button type="button" onClick={()=>{setClosed(!closed);if(!closed)setData(undefined);}} className="rounded-lg border border-blue-400 px-3 py-1 text-blue-200">{closed?'Abrir ficha':'Cerrar ficha'}</button></div>
+  {!closed&&<>
   <p className="text-[#B8C9E1]">Consulta de lectura de Supabase. Cada dato conserva su origen: solicitud, contacto privado, documentos, dictámenes, pago, autorización y emisión vinculada.</p>
   <button type="button" disabled={busy} onClick={()=>void load()} className="rounded-lg border border-blue-400 px-3 py-2 text-blue-200 disabled:opacity-50">{busy?'Consultando…':data?'Actualizar ficha integral':'Cargar ficha integral'}</button>
   {error&&<p role="alert" className="text-red-300">{error}</p>}
@@ -23,7 +28,10 @@ export default function AdminClientDossier({account,submissionId}:{account:strin
    <div><h4 className="font-semibold">Dictámenes · {data.reviews.length}</h4>{data.reviews.length?data.reviews.map(review=><p key={review.id}>{review.role}: {review.decision} · {review.signer_wallet} · {date(review.created_at)}{review.proof?.comments?` · ${review.proof.comments}`:''}</p>):<p>Sin dictámenes guardados.</p>}</div>
    <div><h4 className="font-semibold">Pagos · {data.payments.length}</h4>{data.payments.length?data.payments.map(payment=><p key={payment.id}>{payment.amount} {payment.currency} · referencia {payment.reference} · {payment.status==='verified'?'Verificado':'Pendiente'} · {payment.file_name} · firma {payment.signer_wallet||'Sin firmar'}</p>):<p>Sin pagos guardados.</p>}</div>
    <div><h4 className="font-semibold">Autorizaciones TOKVANT · {data.authorizations.length}</h4>{data.authorizations.length?data.authorizations.map(auth=><p key={auth.id}>{date(auth.created_at)} · {auth.signer_wallet} · pago {auth.payment_id}</p>):<p>Sin autorización guardada.</p>}</div>
-   <div><h4 className="font-semibold">Despliegue vinculado</h4>{data.issuance?<p>{data.issuance.standard} · {data.issuance.token_name} ({data.issuance.token_symbol}) · bloque {data.issuance.block_number} · <a className="text-blue-300 underline" href={`${explorer}/address/${data.issuance.token_address}`} target="_blank" rel="noreferrer">contrato</a> · <a className="text-blue-300 underline" href={`${explorer}/tx/${data.issuance.transaction_hash}`} target="_blank" rel="noreferrer">transacción</a></p>:<p>Sin despliegue vinculado en Supabase. La bitácora de Sepolia puede mostrar operaciones; ERC-721 y ERC-1155 aún requieren vincular su colección al expediente.</p>}</div>
+   <div className="space-y-2"><h4 className="font-semibold">Despliegue vinculado</h4>{data.issuance?<p>{data.issuance.standard} · {data.issuance.token_name} ({data.issuance.token_symbol}) · bloque {data.issuance.block_number} · <a className="text-blue-300 underline" href={`${explorer}/address/${data.issuance.token_address}`} target="_blank" rel="noreferrer">contrato</a> · <a className="text-blue-300 underline" href={`${explorer}/tx/${data.issuance.transaction_hash}`} target="_blank" rel="noreferrer">transacción</a></p>:data.collection?<p>{data.collection.standard} · {data.collection.collection_name} ({data.collection.collection_symbol}) · bloque {data.collection.block_number} · máximo {data.collection.max_items} · <a className="text-blue-300 underline" href={`${explorer}/address/${data.collection.collection_address}`} target="_blank" rel="noreferrer">colección</a> · <a className="text-blue-300 underline" href={`${explorer}/tx/${data.collection.transaction_hash}`} target="_blank" rel="noreferrer">creación</a></p>:<p>Sin despliegue vinculado en Supabase. Consultá la bitácora de Sepolia para encontrar la transacción de creación.</p>}
+    {!data.collection&&['ERC-721','ERC-1155'].includes(project.standard)&&<div className="rounded-lg border border-blue-400/40 p-3 space-y-2"><p>Pegá el hash de <strong>creación de la colección</strong> que figura en su bitácora. El servidor comprobará expediente, parámetros, factory y evento en Sepolia antes de guardarlo.</p>{!data.collectionStorageReady&&<p className="text-amber-300">Primero hay que aplicar la migración «20261117_submission_collections.sql» en Supabase.</p>}<label className="block">Hash de creación de la colección<input value={creationHash} onChange={e=>setCreationHash(e.target.value)} placeholder="0x…" className="mt-1 block w-full rounded-lg border border-blue-400/50 bg-[#0B0D12] p-2 font-mono text-xs"/></label><button type="button" disabled={busy||!data.collectionStorageReady||!/^0x[0-9a-f]{64}$/i.test(creationHash.trim())} onClick={()=>void link()} className="rounded-lg border border-blue-400 px-3 py-2 text-blue-200 disabled:opacity-50">Verificar en Sepolia y vincular colección</button></div>}
+   </div>
   </div>}
+  </>}
  </section>;
 }
