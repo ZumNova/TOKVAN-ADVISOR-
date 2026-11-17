@@ -557,14 +557,17 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Cantidad propuesta de unidades
+                  {standard==='ERC-1155'?'Máximo de tipos o IDs de producto':'Cantidad propuesta de unidades'}
                 </label>
                 <input
                   type="number"
+                  min={1}
+                  step={1}
                   value={initialSupply}
                   onChange={(e) => setInitialSupply(Number(e.target.value))}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-[#316BFA]"
                 />
+                {standard==='ERC-1155'&&<p className="mt-2 text-xs text-[#9BA6BD]">Ejemplo: 3 tipos para plantines, bolsas y polvo de cacao. Las unidades de cada ID se definen al emitirlo en el panel ERC-1155.</p>}
               </div>
 
               <div>

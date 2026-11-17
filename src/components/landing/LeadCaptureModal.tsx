@@ -48,7 +48,9 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
 
     // Recommendation logic based on objective & asset
     let standard: StandardType = 'ERC-3643';
-    if (sector.includes('Factoring') || assetType.includes('Facturas') || assetType.includes('Deuda')) {
+    if (objective === 'Mercado de productos por lotes con varios tipos y cantidades') {
+      standard = 'ERC-1155';
+    } else if (sector.includes('Factoring') || assetType.includes('Facturas') || assetType.includes('Deuda')) {
       standard = 'ERC-1155';
     } else if (assetType.includes('Único') || assetType.includes('Maquinaria') || assetType.includes('Inmueble Individual')) {
       standard = 'ERC-721';
@@ -65,6 +67,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   };
 
   const handleStartProjectDraft = () => {
+    const isMultiToken = recommendedStandard === 'ERC-1155';
     const draftProject: TokenProject = {
       id: generatedDraftId || newClientProjectId(),
       title: `${companyName || 'Proyecto'} — Tokenización ${assetType}`,
@@ -76,29 +79,29 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       assetType: sector.includes('Agro') ? 'Agropecuario' : sector.includes('Inmobiliario') ? 'Inmobiliario' : 'Deuda / Factoring',
       jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : country === 'Argentina' ? 'Argentina' : country === 'Estados Unidos' ? 'Estados Unidos (Reg D / Reg S)' : 'Por definir (revisión del expediente)',
       standard: recommendedStandard,
-      network: 'polygon',
+      network: isMultiToken ? 'sepolia' : 'polygon',
       status: 'Preliminar',
       progressPercent: 15,
-      targetValuationUsd: estimatedVolume.includes('50M') ? 50000000 : 7500000,
+      targetValuationUsd: estimatedVolume.includes('50M') ? 50000000 : estimatedVolume.includes('25M') ? 17500000 : estimatedVolume.includes('10M') ? 7500000 : 3000000,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       isSimulationOnly: true,
       parameters: {
         tokenName: `${companyName || 'Activo'} Digital Token`,
         tokenSymbol: 'TK-DIGITAL',
-        decimals: 2,
-        initialSupply: 750000,
-        maxSupply: 750000,
+        decimals: isMultiToken ? 0 : 2,
+        initialSupply: isMultiToken ? 3 : 750000,
+        maxSupply: isMultiToken ? 3 : 750000,
         isPausable: true,
         isBurnable: false,
-        isMintable: false,
-        isUpgradeabilityEnabled: true,
-        transferRestrictions: recommendedStandard === 'ERC-3643' ? 'Permisos ERC-3643 (Identity Registry)' : 'Lista blanca (Whitelist)',
+        isMintable: isMultiToken,
+        isUpgradeabilityEnabled: !isMultiToken,
+        transferRestrictions: recommendedStandard === 'ERC-3643' ? 'Permisos ERC-3643 (Identity Registry)' : isMultiToken ? 'Sin restricción' : 'Lista blanca (Whitelist)',
         custodyModel: 'Por definir (revisión de custodia)',
         complianceRules: {
-          requireKYC: true,
-          requireKYB: true,
-          restrictSanctionedCountries: true,
+          requireKYC: !isMultiToken,
+          requireKYB: !isMultiToken,
+          restrictSanctionedCountries: !isMultiToken,
         },
       },
       documents: [],
@@ -268,7 +271,11 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <option value="Certificados de impacto ambiental y trazabilidad en cadena">
                   Certificación ambiental y trazabilidad en cadena
                 </option>
+                <option value="Mercado de productos por lotes con varios tipos y cantidades">
+                  Mercado de productos por lotes (varios tipos y cantidades)
+                </option>
               </select>
+              <p className="mt-2 text-xs text-[#9BA6BD]">Para plantines, bolsas y polvo de cacao en una misma colección, elegí «Mercado de productos por lotes». El diagnóstico sugerirá ERC-1155; cada producto o lote puede tener un ID y varias unidades.</p>
             </div>
 
             <div className="pt-4 flex justify-end">
@@ -499,7 +506,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 </div>
                 <div>
                   <span className="text-[#9BA6BD] block">Jurisdicción Base:</span>
-                  <span className="text-white font-medium">{country} (BCP / CNV / DLT)</span>
+                  <span className="text-white font-medium">{country} · revisión local pendiente</span>
                 </div>
                 <div>
                   <span className="text-[#9BA6BD] block">Activo Subyacente:</span>
@@ -519,9 +526,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <span>Orientación técnica preliminar de TOKVANT</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se recomienda estructurar bajo la norma <strong className="text-white">{recommendedStandard}</strong>. Este estándar puede incorporar mecanismos de identidad y
-elegibilidad, según la implementación y configuración.
-Su utilización no garantiza automáticamente cumplimiento regulatorio.
+                Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se sugiere explorar <strong className="text-white">{recommendedStandard}</strong>. {recommendedStandard==='ERC-1155'?'Permite varios IDs en una colección y múltiples unidades por ID. El borrador de prueba se abrirá en Sepolia con un máximo inicial de tres tipos, editable en el asistente.':'Las funciones disponibles dependen de la implementación y de la configuración.'} El estándar no determina por sí solo los derechos del titular ni el cumplimiento aplicable.
               </p>
               <div className="text-[11px] text-[#9BA6BD] pt-1">
                 * Nota institucional: Este diagnóstico es de carácter orientativo preliminar y no constituye asesoría legal ni financiera vinculante. Requiere validación por la mesa técnica y de compliance de TOKVANT.
