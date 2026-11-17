@@ -30,12 +30,22 @@ export default function App() {
   const [staff, setStaff] = useState<{account:string;role:StaffRole|'owner'} | null>(null);
   const [requestedView, setRequestedView] = useState<string>('dashboard');
   React.useEffect(() => {
-    const ethereum = (window as Window & {ethereum?:{on?:(event:string, fn:()=>void)=>void;removeListener?:(event:string, fn:()=>void)=>void}}).ethereum;
+    const ethereum = (window as Window & {ethereum?:{on?:(event:string, fn:()=>void)=>void;removeListener?:(event:string, fn:()=>void)=>void;request?:(args:{method:string})=>Promise<unknown>}}).ethereum;
     const clear = () => { setStaff(null); setCurrentView('landing'); };
     ethereum?.on?.('accountsChanged', clear);
     ethereum?.on?.('chainChanged', clear);
-    return () => { ethereum?.removeListener?.('accountsChanged', clear); ethereum?.removeListener?.('chainChanged', clear); };
-  }, []);
+    const checkAccount = async () => {
+      if (!staff || !ethereum?.request) return;
+      try {
+        const accounts = await ethereum.request({method:'eth_accounts'}) as string[];
+        if (!accounts?.[0] || accounts[0].toLowerCase() !== staff.account.toLowerCase()) clear();
+      } catch { clear(); }
+    };
+    const interval = window.setInterval(() => { void checkAccount(); }, 2000);
+    window.addEventListener('focus', checkAccount);
+    void checkAccount();
+    return () => { ethereum?.removeListener?.('accountsChanged', clear); ethereum?.removeListener?.('chainChanged', clear); window.clearInterval(interval); window.removeEventListener('focus', checkAccount); };
+  }, [staff]);
   const [projects, setProjects] = useState<TokenProject[]>([]);
 
   // Modals & Drawers state

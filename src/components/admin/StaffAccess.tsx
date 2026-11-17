@@ -27,7 +27,9 @@ export default function StaffAccess({ account, role, onLogin, onLogout }: Props)
     const message = `TOKVANT acceso administrativo\nOrigen: ${location.origin}\nWallet: ${address}\nSesión: ${nonce}`;
     const signature = await injected.request({ method: 'personal_sign', params: [hexlify(toUtf8Bytes(message)), address] }) as string;
     if (verifyMessage(message, signature) !== address) throw new Error('Firma inválida.');
-    const assigned = address === getAddress(OWNER) ? 'owner' : readGrants().find(g => getAddress(g.address) === address)?.role;
+    const currentAccounts = await injected.request({ method: 'eth_accounts' }) as string[];
+    if (!currentAccounts?.[0] || getAddress(currentAccounts[0]) !== address) throw new Error('La cuenta cambió durante la firma. Volvé a conectar la wallet correcta.');
+    const assigned = address === getAddress(OWNER) ? 'owner' : readGrants().filter(g => getAddress(g.address) === address).at(-1)?.role;
     if (!assigned) throw new Error('Esta wallet no tiene un rol TOKVANT asignado en este navegador.');
     onLogin(address, assigned);
   });
@@ -43,7 +45,7 @@ export default function StaffAccess({ account, role, onLogin, onLogout }: Props)
     const grant: Grant = { address, role: targetRole, expires, signature };
     saveGrant(grant);
     setDraft(JSON.stringify(grant));
-    setNotice('Rol firmado y guardado en este navegador. Compartí la autorización con esa persona para que pueda importarla en su navegador.');
+    setNotice('Rol firmado y guardado en este navegador. Reemplaza cualquier rol web anterior de esa wallet. Compartí la autorización con esa persona para que pueda importarla en su navegador.');
   });
   const importGrant = () => run(async () => {
     const value = JSON.parse(importText);

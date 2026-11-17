@@ -18,7 +18,7 @@ export const readGrants = (): Grant[] => {
 };
 export const saveGrant = (grant: Grant) => {
   if (!validGrant(grant)) throw new Error('La autorización no está firmada por la cuenta propietaria o está vencida.');
-  const current = readGrants().filter(g => !(g.address.toLowerCase() === grant.address.toLowerCase() && g.role === grant.role));
+  const current = readGrants().filter(g => g.address.toLowerCase() !== grant.address.toLowerCase());
   localStorage.setItem(KEY, JSON.stringify([...current, grant]));
 };
 export const roleCanOpen = (role: StaffRole | 'owner' | null, view: string) => {
