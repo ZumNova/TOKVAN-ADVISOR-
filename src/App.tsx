@@ -51,6 +51,7 @@ export default function App() {
 
   // Modals & Drawers state
   const [isLeadModalOpen, setIsLeadModalOpen] = useState<boolean>(false);
+  const [leadStep, setLeadStep] = useState<1 | 2 | 3>(1);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
   const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<TokenProject | null>(null);
   const [wizardSeedProject, setWizardSeedProject] = useState<Partial<TokenProject> | undefined>(undefined);
@@ -322,6 +323,7 @@ export default function App() {
       {/* Interactive Commercial Capture Modal "¿Qué desea tokenizar?" */}
       <LeadCaptureModal
         isOpen={isLeadModalOpen}
+        onStepChange={setLeadStep}
         onClose={() => setIsLeadModalOpen(false)}
         onProjectCreatedFromLead={handleProjectCreatedFromLead}
       />
@@ -345,6 +347,7 @@ export default function App() {
         onClose={() => setIsAiDrawerOpen(false)}
         currentView={currentView}
         leadOpen={isLeadModalOpen}
+        leadStep={leadStep}
       />
 
     </div>

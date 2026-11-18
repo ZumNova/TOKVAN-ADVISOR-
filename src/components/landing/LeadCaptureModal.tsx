@@ -6,15 +6,18 @@ import {newClientProjectId} from '../../lib/clientProjects';
 interface LeadCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onStepChange?: (step: 1 | 2 | 3) => void;
   onProjectCreatedFromLead?: (newProject: TokenProject) => void;
 }
 
 export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   isOpen,
   onClose,
+  onStepChange,
   onProjectCreatedFromLead,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  React.useEffect(() => { if (isOpen) onStepChange?.(step); }, [isOpen, step, onStepChange]);
 
   // Form state
   const [sector, setSector] = useState('');
