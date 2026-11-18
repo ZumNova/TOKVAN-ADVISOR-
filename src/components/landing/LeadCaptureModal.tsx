@@ -161,7 +161,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
             ¿Qué desea tokenizar en su organización?
           </h2>
           <p className="text-sm text-[#9BA6BD] mt-1">
-            Complete los parámetros de su activo. Recibirá una orientación técnica preliminar y podrá explorar un borrador de proyecto en el entorno de demostración.
+            Esta es una evaluación breve de tres etapas. Al terminar, podrá abrir la solicitud completa de cinco pasos. También puede iniciar esa solicitud directamente desde el simulador.
           </p>
         </div>
 

@@ -225,7 +225,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <span className="font-mono text-white">{projectId}</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white font-display mt-0.5">
-            Asistente Guiado de Estructuración y Tokenización
+            Solicitud completa de tokenización · 5 pasos
           </h1>
         </div>
 
@@ -243,7 +243,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
         </div>
       </div>
 
-      <p className="text-xs text-[#9BA6BD]">Borrador guardado en este equipo y navegador. Podrá retomarlo desde el inicio. La recepción central de TOKVANT se habilitará en la siguiente etapa.</p>
+      <p className="text-xs text-[#9BA6BD]">Esta solicitud reúne los datos y documentos para enviar el proyecto a TOKVANT. El diagnóstico breve es opcional. El borrador queda guardado en este equipo y navegador hasta que lo envíe.</p>
       {formError&&<p role="alert" className="rounded-lg border border-red-400/50 p-3 text-sm text-red-200">{formError}</p>}
       {/* Progress Stepper Bar */}
       <div className="rounded-xl bg-[#141A27] border border-[#273246] p-4">

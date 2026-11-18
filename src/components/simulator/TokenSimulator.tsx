@@ -482,7 +482,7 @@ export const TokenSimulator: React.FC<TokenSimulatorProps> = ({
             <div>
               <div className="text-xs font-semibold text-white">¿Satisfecho con la simulación?</div>
               <div className="text-[11px] text-[#9BA6BD]">
-                Traslade estos parámetros ({standard} en {selectedNet.name}) directamente al Asistente de Creación de Proyecto.
+                Traslade estos parámetros ({standard} en {selectedNet.name}) a la solicitud completa de cinco pasos. El diagnóstico breve previo es opcional.
               </div>
             </div>
 
@@ -490,7 +490,7 @@ export const TokenSimulator: React.FC<TokenSimulatorProps> = ({
               onClick={handleLaunchProjectFromSimulation}
               className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer shrink-0 shadow-sm"
             >
-              <span>Aplicar al Wizard de Proyecto</span>
+              <span>Abrir solicitud completa · 5 pasos</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

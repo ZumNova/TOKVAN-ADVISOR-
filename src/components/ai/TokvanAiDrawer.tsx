@@ -52,7 +52,7 @@ function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:Commer
  if(accessStage==='usage')return 'Caso: pases de acceso al club. Definamos primero si sirven una vez o varias veces.';
  if(accessStage==='individual')return 'Caso: pases de acceso al club. Ahora definamos si cada pase es individual o intercambiable.';
  if(leadOpen){const next=nextDiagnosticField({leadOpen,leadStep,commercialStage,diagnosticStage});return next?`Sigamos el diagnóstico, un campo por vez. Ahora: «${next.label}». ${next.guidance}`:'Sigamos el diagnóstico, un campo por vez.';}
- if(view==='wizard')return 'Estás cargando una solicitud. Preguntame qué significa cualquier campo.';
+ if(view==='wizard')return 'Estás en la solicitud completa de cinco pasos. El diagnóstico breve de tres etapas era opcional. Preguntame por el campo que estés completando.';
  if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
  if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
  if(view==='simulator')return 'Estás en el simulador. Preguntame por los cuatro estándares.';
@@ -120,8 +120,10 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
   }else if(intent==='tokvant_start'){
    setGuidedSector(null);setDiagnosticStage(null);setAccessStage(null);setSowingStage(false);setCaseStage(null);
    answer=leadOpen
-    ?{short:'Ya estás en el diagnóstico de TOKVANT. Empezá por «Sector Económico»: ¿qué activo o servicio querés representar?',more:'Después completás país, volumen estimado, descripción y objetivo. Si un dato aún no está definido, decilo; no hace falta inventarlo.'}
-    :{short:'En la página inicial pulsá «Empezar con un diagnóstico». El primer paso es contar qué activo o servicio querés representar. ¿Cuál es tu idea?',more:'El diagnóstico es orientativo. Luego podrás abrir un borrador, completar la solicitud y enviarla a TOKVANT para revisión.'};
+    ?{short:'Estás en el diagnóstico breve de tres etapas. Empezá por «Sector Económico»: ¿qué activo o servicio querés representar?',more:'Después verás una orientación preliminar y podrás abrir la solicitud completa de cinco pasos. Si un dato aún no está definido, no hace falta inventarlo.'}
+    :currentView==='wizard'
+    ?{short:'Ya estás en la solicitud completa de cinco pasos. El diagnóstico breve era opcional. Completá el campo que tenés delante; si alguno te genera dudas, decime su nombre.',more:'Al terminar esta solicitud podrás enviarla a TOKVANT para revisión. El simulador también puede traer parámetros directamente a este formulario.'}
+    :{short:'En la página inicial pulsá «Empezar con un diagnóstico» para una orientación breve de tres etapas. Después podrás abrir la solicitud completa de cinco pasos. ¿Qué activo o servicio querés representar?',more:'También podés entrar al simulador y pasar directamente a la solicitud completa. Ambos caminos llegan al mismo formulario final.'};
   }else if(intent==='trust'){
    setGuidedSector(null);setDiagnosticStage(null);setAccessStage(null);setSowingStage(false);setCaseStage(null);
    answer={short:'Un fideicomiso es una estructura en la que se destinan bienes a una finalidad y una persona o entidad los administra para beneficiarios definidos. ¿Querés entender el concepto o usarlo en un proyecto?',more:'Los roles, efectos y requisitos dependen del país y del contrato. En Argentina, el Código Civil y Comercial describe el contrato de fideicomiso en su artículo 1666; para un caso concreto hace falta revisión profesional.'};
