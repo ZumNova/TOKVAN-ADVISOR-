@@ -1,6 +1,13 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {explicitStandardQuestion,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('las cuatro burbujas identifican su estándar exacto',()=>{
+ assert.equal(explicitStandardQuestion('¿Qué es ERC-20?'),'erc20');
+ assert.equal(explicitStandardQuestion('¿Qué es un NFT?'),'erc721');
+ assert.equal(explicitStandardQuestion('¿Qué es ERC-1155?'),'erc1155');
+ assert.equal(explicitStandardQuestion('¿Qué es ERC-3643?'),'erc3643');
+});
 
 test('hotel en expediente: aclara el derecho antes de elegir estándar',()=>{
  const answer=wizardGuide('yo quiero tokenizar un hotel 5 estrellas',1,[]);

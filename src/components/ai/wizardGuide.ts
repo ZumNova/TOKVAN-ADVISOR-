@@ -2,6 +2,15 @@ export type WizardGuideAnswer={short:string;more:string};
 const norm=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const stepNames=['','organización y activo','estándar y red','parámetros del token','documentación','revisión y envío'];
 
+export function explicitStandardQuestion(question:string):'erc20'|'erc721'|'erc1155'|'erc3643'|null{
+ const q=norm(question).replace(/[¿?¡!.,]/g,'').trim();
+ if(!/^(que es|explicame|que significa)\s+(un\s+)?(erc[ -]?(20|721|1155|3643)|nft)$/.test(q))return null;
+ if(/3643$/.test(q))return 'erc3643';
+ if(/1155$/.test(q))return 'erc1155';
+ if(/721$|nft$/.test(q))return 'erc721';
+ return 'erc20';
+}
+
 export function wizardFallback(step:number):WizardGuideAnswer{
  const name=stepNames[step]||'solicitud';
  return {short:`Estás en el paso ${step} de la solicitud completa: ${name}. Decime el nombre del campo que te genera dudas o qué querés representar; seguimos desde acá.`,more:'Si todavía no podés definir una respuesta, dejala indicada para revisión de TOKVANT y avanzá con los demás campos. No hace falta volver al diagnóstico breve.'};
