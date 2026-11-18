@@ -46,8 +46,8 @@ function topicFor(question:string):Topic{
  if(/despleg|factory|contrato|gas/.test(q))return 'despliegue';
  return 'inicio';
 }
-function hint(view:string,leadOpen:boolean,leadStep:1|2|3){
- if(leadOpen&&leadStep===2)return 'Estás en «Entidad & Contacto». ¿A quién estaría dirigido el token? Después veremos tus canales comerciales.';
+function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:'audience'|'channels'|'contact'){
+ if(leadOpen&&leadStep===2)return commercialStage==='audience'?'Estás en «Entidad & Contacto». ¿A quién estaría dirigido el token?':commercialStage==='channels'?'Ahora completá «¿Qué canales comerciales tiene actualmente?» con los que ya usás.':'Si completaste estrategia comercial y contacto en el formulario, pulsá «Generar Diagnóstico Institucional».';
  if(leadOpen&&leadStep===3)return 'Este es el diagnóstico preliminar. Revisá la orientación y abrí el borrador para continuar.';
  if(leadOpen)return 'Sigamos los campos de «Activo & Objetivo» de TOKVANT, uno por vez. ¿Qué activo o proyecto tenés?';
  if(view==='wizard')return 'Estás cargando una solicitud. Preguntame qué significa cualquier campo.';
@@ -69,7 +69,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
  const [messages,setMessages]=useState<Message[]>([]);
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
  const [diagnosticStage,setDiagnosticStage]=useState<DiagnosticStage>(null);
-  const [commercialStage,setCommercialStage]=useState<'audience'|'channels'|'contact'>('audience');
+ const [commercialStage,setCommercialStage]=useState<'audience'|'channels'|'contact'>('audience');
  if(!isOpen)return null;
  async function ask(question:string){
   const sector=suggestSector(question);
@@ -78,10 +78,13 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
   }else if(leadOpen&&leadStep===2){
    const normalized=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-   if(/que (significa|es)|como (completo|funciona)/.test(normalized)){
+   if(/(complete|llene|cargue|termine|listo|finalice).*(campo|dato|formulario)|^listo[.! ]*$/.test(normalized)){
+    answer={short:'Si ya completaste los campos de «Entidad & Contacto», pulsá «Generar Diagnóstico Institucional» para ver la orientación de TOKVANT.',more:'Antes de continuar, revisá los datos obligatorios y el consentimiento en el formulario. Los dos campos de estrategia comercial son opcionales.'};
+    setCommercialStage('contact');
+   }else if(/que (significa|es|son)|como (completo|funciona)/.test(normalized)){
     answer={short:'«Estrategia comercial» pregunta a quién querés llegar y por qué canales. Son dos campos opcionales.',more:'Por ejemplo: clientes actuales y nuevos clientes; canales: equipo comercial o redes sociales, si realmente los usás.'};
    }else if(/canal|redes|instagram|whatsapp|equipo comercial|aliad|distribuid|vendedor/.test(normalized)||commercialStage==='channels'){
-    answer={short:'En «¿Qué canales comerciales tiene actualmente?» escribí solo los canales que ya usás. Si todavía no tenés, podés dejarlo vacío. Después completá los datos de contacto en el formulario.',more:'Nombre, organización y correo van directamente en el formulario; no los escribas en este chat.'};
+    answer={short:/equipo comercial/.test(normalized)?'Perfecto: en «¿Qué canales comerciales tiene actualmente?» escribí «Equipo comercial ya definido». Después completá los datos de contacto directamente en el formulario.':'Entendido. Anotá en «¿Qué canales comerciales tiene actualmente?» los canales que acabás de indicar. Después completá los datos de contacto directamente en el formulario.',more:'Nombre, organización y correo van en el formulario, no en este chat. Cuando termines, pulsá «Generar Diagnóstico Institucional».'};
     setCommercialStage('contact');
    }else if(/client|usuario|inversor|empresa|publico|comprador|destinad|dirigid/.test(normalized)){
     answer={short:'En «¿A quién estaría dirigido el token?» podés escribir «Clientes actuales y nuevos clientes». Ahora, ¿qué canales comerciales usás para llegar a ellos?',more:'Si todavía no tenés canales definidos, el segundo campo es opcional. Luego completá los datos de contacto directamente en el formulario.'};
@@ -130,7 +133,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
  return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
    {messages.map(message=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
