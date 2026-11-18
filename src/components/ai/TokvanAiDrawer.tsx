@@ -1,64 +1,69 @@
 import {useState,type FormEvent} from 'react';
-import {X,BookOpen,Compass,Send,RefreshCw,Download,Plus} from 'lucide-react';
-import type {TokenProject} from '../../types';
-import {injectedWallet} from '../../lib/factoryWallet';
-import {answerFromJournal,loadNotes,saveNotes,syncUsageJournal,type UsageEvent,type UsageNote,type Standard} from '../../lib/usageJournal';
-import {listKnowledge,createKnowledge,approveKnowledge,type SharedKnowledgeNote} from '../../lib/sharedKnowledge';
-import {getAddress} from 'ethers';
-import {OWNER} from '../../lib/staffAccess';
-import {ERC20_COMPLIANCE_BODY,ERC20_COMPLIANCE_SOURCE,ERC20_COMPLIANCE_TITLE} from '../../lib/erc20ComplianceGuide';
-import {SECTOR_GUIDE_BODY,SECTOR_GUIDE_SOURCE,SECTOR_GUIDE_TITLE} from '../../lib/sectorDiagnosticGuide';
+import {X,Send} from 'lucide-react';
+import {TokvanLogo} from '../brand/TokvanLogo';
 
-interface Props {isOpen:boolean;onClose:()=>void;activeProject?:TokenProject|null;staffAccount?:string|null;onApplyAdvisorSuggestion?:(suggestion:string)=>void;}
-type Reply=ReturnType<typeof answerFromJournal>;
-type Message={id:string;question:string;reply:Reply};
-const standards:Standard[]=['ERC-20','ERC-721','ERC-1155','ERC-3643'];
-const button='rounded-lg border border-[#405577] px-3 py-2 text-xs text-white hover:bg-[#273246] disabled:opacity-40';
-function exportNotes(notes:UsageNote[]){const url=URL.createObjectURL(new Blob([JSON.stringify({schema:'tokvan-usage-notes-v1',notes},null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='tokvan-bitacora-notas.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-export const TokvanAiDrawer=({isOpen,onClose,activeProject,staffAccount}:Props)=>{
- const [layer,setLayer]=useState<'educativo'|'advisor'>('educativo');
+type Mode='educativo'|'operativo';
+type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
+type Answer={short:string;more:string};
+type Message={id:string;question:string;answer:Answer;expanded:boolean};
+interface Props {isOpen:boolean;onClose:()=>void;currentView:string;}
+
+const educational:Record<Topic,Answer>={
+ erc20:{short:'ERC-20 crea unidades iguales entre sí. Sirve, por ejemplo, para puntos digitales de una comunidad ficticia.',more:'Primero se definen nombre, cantidad y administración. Después se revisan sus reglas y se crea el contrato. El estándar por sí solo no determina derechos económicos ni habilitaciones legales.'},
+ erc721:{short:'ERC-721 crea piezas únicas. Una obra digital ficticia puede tener un NFT con imagen y número propios.',more:'La colección es el contrato; cada pieza emitida tiene un ID y una URI de metadatos. Crear la colección y emitir una pieza son pasos distintos.'},
+ erc1155:{short:'ERC-1155 reúne varios tipos en una colección. Cada tipo puede tener muchas unidades, como lotes ficticios de productos.',more:'Cada tipo usa un ID, una cantidad y sus metadatos. Se puede emitir, transferir o quemar unidades según las reglas configuradas.'},
+ erc3643:{short:'ERC-3643 incorpora controles de identidad y elegibilidad para recibir o transferir tokens.',more:'Antes de mover unidades, el sistema consulta acreditaciones, país y otras reglas. La prueba de TOKVANT en Sepolia usa identidades ficticias y no habilita una oferta real.'},
+ wallet:{short:'Una wallet es la cuenta que firma y recibe activos. Su dirección pública se puede compartir; su clave privada, nunca.',more:'Antes de firmar, comprobá la red, la dirección receptora y la acción mostrada en la wallet.'},
+ revision:{short:'La revisión comprueba que la solicitud y sus documentos estén completos antes de preparar un token.',more:'Cada rol registra su conclusión. Una aprobación de prueba no reemplaza una revisión profesional para un caso real.'},
+ pago:{short:'El pago del servicio se registra contra el expediente antes de autorizar la preparación.',more:'Contaduría verifica el cobro fuera de la dapp, adjunta el comprobante privado y firma el recibo. Esa firma no crea tokens.'},
+ despliegue:{short:'Desplegar es crear un contrato en la red. La wallet muestra la operación y el gas antes de firmar.',more:'Después se confirma la transacción y se vincula el resultado al expediente para consultarlo.'},
+ imagen:{short:'La imagen de un NFT se carga junto con sus metadatos antes de emitir la pieza o el tipo.',more:'El JSON contiene el enlace a la imagen. Revisá ambos enlaces antes de emitir, porque la URI puede quedar fija en el token.'},
+ inicio:{short:'Contame qué querés crear o en qué paso estás. Te doy una orientación breve y podés pedirme más detalle.',more:'Podés preguntar por ERC-20, ERC-721, ERC-1155, ERC-3643, wallets, revisión, pagos, imágenes o despliegue.'},
+};
+const operational:Record<Topic,Answer>={
+ ...educational,
+ erc20:{short:'Para ERC-20, revisá supply, administradora, tesorería y controles antes de preparar la emisión.',more:'Comprobá que el estándar solicitado coincide con el factory. Después verificá aprobaciones y wallet operadora antes de crear el token.'},
+ erc721:{short:'En ERC-721, crear la colección y emitir el NFT son operaciones separadas.',more:'Verificá máximo histórico, administradora y aprobaciones. Para emitir, revisá destinataria y URI del JSON antes de firmar.'},
+ erc1155:{short:'En ERC-1155, verificá el máximo de tipos y luego cada ID, su imagen y sus unidades.',more:'Cada tipo nuevo consume un cupo. La emisión adicional de un ID conserva sus metadatos y respeta su límite histórico.'},
+ erc3643:{short:'En ERC-3643, consultá identidad, país, cupo y congelamiento antes de emitir o transferir.',more:'La receptora necesita acreditación vigente. La transferencia ordinaria aplica las reglas del contrato; las acciones extraordinarias requieren revisión específica.'},
+ revision:{short:'Antes de firmar, comprobá expediente, versión, observaciones y rol activo.',more:'Cada revisor firma su parte. Si algo no coincide, solicitá corrección. La autorización administrativa viene después de dictámenes y pago.'},
+ pago:{short:'Contaduría firma el recibo tras verificar el cobro y adjuntar el comprobante privado.',more:'Comprobá importe, moneda, referencia y expediente. Luego actualizá la bitácora compartida para ver el pago verificado.'},
+ despliegue:{short:'Antes del despliegue, compará los parámetros autorizados con la transacción de la wallet.',more:'Tras la confirmación, guardá el hash de creación y vinculá el contrato al expediente. El hash del factory y el del token son distintos.'},
+};
+function topicFor(question:string):Topic{
+ const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(/3643|identidad|kyc|kyb|acreditacion|congel/.test(q))return 'erc3643';
+ if(/1155|multitoken|varios tipos|lotes/.test(q))return 'erc1155';
+ if(/721|nft|coleccion|obra unica/.test(q))return 'erc721';
+ if(/erc.?20|fungible|supply/.test(q))return 'erc20';
+ if(/imagen|ipfs|uri|metadato|pinata/.test(q))return 'imagen';
+ if(/wallet|red|sepolia|firma|direccion/.test(q))return 'wallet';
+ if(/pago|comprobante|contadur/.test(q))return 'pago';
+ if(/revision|aproba|compliance|dictamen/.test(q))return 'revision';
+ if(/despleg|factory|contrato|gas/.test(q))return 'despliegue';
+ return 'inicio';
+}
+function hint(view:string){
+ if(view==='wizard')return 'Estás cargando una solicitud. Preguntame qué significa cualquier campo.';
+ if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
+ if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
+ if(view==='simulator')return 'Estás en el simulador. Preguntame por los cuatro estándares.';
+ return '¿Qué querés tokenizar o qué término te gustaría entender?';
+}
+export const TokvanAiDrawer=({isOpen,onClose,currentView}:Props)=>{
+ const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
- const [events,setEvents]=useState<UsageEvent[]>([]);
- const [notes,setNotes]=useState<UsageNote[]>(loadNotes);
- const [syncedAt,setSyncedAt]=useState<string>();
- const [status,setStatus]=useState<Record<Standard,string>>();
- const [busy,setBusy]=useState(false);
- const [error,setError]=useState('');
- const [noteOpen,setNoteOpen]=useState(false);
- const [noteStandard,setNoteStandard]=useState<Standard>('ERC-3643');
- const [noteTitle,setNoteTitle]=useState('');
- const [noteBody,setNoteBody]=useState('');
- const [sharedNotes,setSharedNotes]=useState<SharedKnowledgeNote[]>([]);
- const [sourceReference,setSourceReference]=useState('');
- const canCurate=Boolean(staffAccount&&getAddress(staffAccount)===getAddress(OWNER));
  if(!isOpen)return null;
- async function sync(){setBusy(true);setError('');try{const result=await syncUsageJournal(injectedWallet());setEvents(result.events);setStatus(result.status);setSyncedAt(result.syncedAt);}catch(e){setError(e instanceof Error?e.message:'No se pudo sincronizar Sepolia.');}finally{setBusy(false);}}
- function send(e:FormEvent){e.preventDefault();const q=query.trim();if(!q)return;const approved=sharedNotes.filter(n=>n.status==='approved'&&standards.includes(n.standard as Standard)).map(n=>({id:n.id,createdAt:n.created_at,standard:n.standard as Standard,title:n.title,body:n.body}));const reply=answerFromJournal(q,events,[...approved,...notes],syncedAt);setMessages(prev=>[...prev,{id:crypto.randomUUID(),question:q,reply}]);setQuery('');}
- async function loadShared(){if(!staffAccount)return;setBusy(true);setError('');try{const result=await listKnowledge(staffAccount);setSharedNotes(result.items);}catch(e){setError(e instanceof Error?e.message:'No se pudo cargar la biblioteca.');}finally{setBusy(false);}}
- async function publishNote(){if(!staffAccount||!canCurate)return;setBusy(true);setError('');try{await createKnowledge(staffAccount,noteTitle.trim(),noteBody.trim(),sourceReference.trim(),noteStandard);setSourceReference('');setNoteTitle('');setNoteBody('');setNoteOpen(false);await loadShared();}catch(e){setError(e instanceof Error?e.message:'No se pudo guardar la nota compartida.');}finally{setBusy(false);}}
- async function approveShared(id:string){if(!staffAccount||!canCurate)return;setBusy(true);setError('');try{await approveKnowledge(staffAccount,id);await loadShared();}catch(e){setError(e instanceof Error?e.message:'No se pudo aprobar la nota.');}finally{setBusy(false);}}
- function addNote(e:FormEvent){e.preventDefault();if(!noteTitle.trim()||!noteBody.trim())return;try{const next=[{id:crypto.randomUUID(),createdAt:new Date().toISOString(),standard:noteStandard,title:noteTitle.trim(),body:noteBody.trim()},...notes];saveNotes(next);setNotes(next);setNoteTitle('');setNoteBody('');setNoteOpen(false);setError('');}catch(e){setError(e instanceof Error?e.message:'No se pudo guardar la nota.');}}
- return <div role="dialog" aria-label="TOKVANT IA y bitácora de uso" className="fixed inset-y-0 right-0 z-50 w-full sm:w-[540px] bg-[#141A27] border-l border-[#273246] shadow-2xl flex flex-col text-white">
-  <div className="p-4 border-b border-[#273246] flex justify-between items-center"><div><h2 className="font-bold">TOKVANT IA · Bitácora de uso</h2><p className="text-xs text-[#9BA6BD]">Aprendizaje guiado con eventos de Sepolia y notas</p></div><button onClick={onClose} aria-label="Cerrar TOKVANT IA"><X size={19}/></button></div>
-  <div className="grid grid-cols-2 gap-2 p-2 border-b border-[#273246] text-xs"><button className={`${button} ${layer==='educativo'?'bg-[#316BFA]':''}`} onClick={()=>setLayer('educativo')}><BookOpen className="inline mr-1" size={14}/>Bot educativo</button><button className={`${button} ${layer==='advisor'?'bg-[#316BFA]':''}`} onClick={()=>setLayer('advisor')}><Compass className="inline mr-1" size={14}/>Advisor</button></div>
-  <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
-   <p className="text-[#BDCAE0] text-xs">{layer==='advisor'&&activeProject?`Expediente abierto: ${activeProject.title}. `:''}Consultas en modo lectura. Las notas son testimonios del administrador; los hechos confirmados incluyen enlace a Etherscan. La demo ERC-3643 usa identidades ficticias.</p>
-   <section className="rounded-xl border border-[#405577] p-3 space-y-2"><div className="flex items-center justify-between"><h3 className="font-semibold">Eventos verificados · Sepolia</h3><button className={button} disabled={busy} onClick={()=>void sync()}><RefreshCw className="inline mr-1" size={13}/>{busy?'Consultando…':'Actualizar bitácora'}</button></div>
-    <p className="text-xs text-[#9BA6BD]">{syncedAt?`${events.length} eventos consultados. Última lectura: ${new Date(syncedAt).toLocaleString('es-AR')}.`:'Pulse «Actualizar bitácora» para leer las transacciones confirmadas.'}</p>
-    {status&&<div className="grid grid-cols-2 gap-1 text-xs">{standards.map(s=><p key={s}><strong>{s}:</strong> {status[s]}</p>)}</div>}
-    {events.length>0&&<details><summary className="cursor-pointer text-xs text-[#9BBCFF]">Ver eventos recientes</summary><ul className="mt-2 space-y-2 max-h-52 overflow-y-auto">{events.slice(0,15).map(e=><li key={e.id} className="border-t border-[#273246] pt-2 text-xs"><span>{e.standard} · {e.kind} · bloque {e.block}</span><span className="block text-[#9BA6BD] break-all">{e.description.slice(0,180)}</span><a className="text-[#9BBCFF] underline" href={`https://sepolia.etherscan.io/tx/${e.hash}`} target="_blank" rel="noreferrer">Ver transacción</a></li>)}</ul></details>}
-   </section>
-   <section className="rounded-xl border border-[#405577] p-3 space-y-2"><div className="flex items-center justify-between"><h3 className="font-semibold">Notas de administradores</h3><div className="flex gap-2"><button className={button} onClick={()=>setNoteOpen(v=>!v)}><Plus className="inline" size={13}/> Añadir</button><button className={button} disabled={!notes.length} onClick={()=>exportNotes(notes)} aria-label="Descargar notas"><Download size={13}/></button></div></div><p className="text-xs text-[#9BA6BD]">Se guardan en este navegador; no verifican hechos on-chain ni contienen KYC real. Puede descargar el JSON para conservarlas.</p>
-    {noteOpen&&<form onSubmit={addNote} className="space-y-2"><select aria-label="Estándar de la nota" value={noteStandard} onChange={e=>setNoteStandard(e.target.value as Standard)} className="w-full bg-[#0B0D12] border border-[#405577] rounded p-2">{standards.map(s=><option key={s}>{s}</option>)}</select><input aria-label="Título de la nota" className="w-full bg-[#0B0D12] border border-[#405577] rounded p-2" maxLength={120} placeholder="Ejemplo: Prueba de congelamiento de 1E8D" value={noteTitle} onChange={e=>setNoteTitle(e.target.value)}/><textarea aria-label="Contenido de la nota" className="w-full bg-[#0B0D12] border border-[#405577] rounded p-2" maxLength={2000} rows={3} placeholder="Qué se intentó, resultado y hash si lo conoce. No incluya datos personales." value={noteBody} onChange={e=>setNoteBody(e.target.value)}/><button className={button} disabled={!noteTitle.trim()||!noteBody.trim()}>Guardar nota local</button></form>}
-    {notes.length>0&&<details><summary className="cursor-pointer text-xs text-[#9BBCFF]">Ver {notes.length} notas</summary><ul className="mt-2 space-y-2">{notes.slice(0,15).map(n=><li key={n.id} className="text-xs border-t border-[#273246] pt-2"><strong>{n.standard} · {n.title}</strong><p className="text-[#BDCAE0] whitespace-pre-wrap">{n.body}</p><small className="text-[#9BA6BD]">Nota local · {new Date(n.createdAt).toLocaleString('es-AR')}</small></li>)}</ul></details>}
-   </section>
-   <section className="rounded-xl border border-[#405577] p-3 space-y-2"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Biblioteca compartida · Supabase</h3><button className={button} disabled={busy||!staffAccount} onClick={()=>void loadShared()}>Cargar notas</button></div><p className="text-xs text-[#9BA6BD]">Solo las notas aprobadas alimentan las respuestas educativas. No cargues datos personales, comprobantes, claves ni afirmaciones sin fuente.</p>{canCurate&&<div className="space-y-2"><input className="w-full bg-[#0B0D12] border border-[#405577] rounded p-2 text-xs" placeholder="Fuente: hash, URL o referencia documental" value={sourceReference} onChange={e=>setSourceReference(e.target.value)}/><button className={button} disabled={busy||noteTitle.trim().length<4||noteBody.trim().length<20||sourceReference.trim().length<4} onClick={()=>void publishNote()}>Guardar formulario de nota como borrador compartido</button><p className="text-xs text-[#9BA6BD]">Usa el título, estándar y contenido del formulario «Añadir» de arriba; primero completalo sin pulsar «Guardar nota local».</p></div>}{sharedNotes.map(n=><article className="border-t border-[#273246] pt-2 text-xs" key={n.id}><strong>{n.standard} · {n.title}</strong><p className="text-[#B8C9E1] whitespace-pre-wrap">{n.body}</p><p className="text-[#9BA6BD]">{n.status==='approved'?'Aprobada':'Borrador'} · Fuente: {n.source_reference}</p>{canCurate&&n.status==='draft'&&<button className={button} disabled={busy} onClick={()=>void approveShared(n.id)}>Aprobar para ayuda interna</button>}</article>)}</section>
-   <details className="rounded-xl border border-[#405577] p-3 text-xs"><summary className="cursor-pointer font-semibold">Guía educativa ERC-20 · preguntas de Compliance</summary><p className="mt-2 whitespace-pre-wrap text-[#B8C9E1]">{ERC20_COMPLIANCE_BODY}</p><p className="mt-2 text-[#9BA6BD]">Fuentes: <a className="underline" href="https://usuariofinanciero.bcu.gub.uy/mercado-de-valores/la-oferta-de-valores/" target="_blank" rel="noreferrer">BCU · oferta de valores</a> · <a className="underline" href="https://www.impo.com.uy/bases/leyes/20345-2024/3" target="_blank" rel="noreferrer">Ley 20.345</a></p>{canCurate&&<button type="button" className={`${button} mt-2`} onClick={()=>{setNoteStandard('ERC-20');setNoteTitle(ERC20_COMPLIANCE_TITLE);setNoteBody(ERC20_COMPLIANCE_BODY);setSourceReference(ERC20_COMPLIANCE_SOURCE);setNoteOpen(true);}}>Preparar nota para Supabase · 047</button>}</details>
-   <details className="rounded-xl border border-[#405577] p-3 text-xs"><summary className="cursor-pointer font-semibold">Guía del diagnóstico · seis sectores y ejemplo ERC-1155</summary><p className="mt-2 whitespace-pre-wrap text-[#B8C9E1]">{SECTOR_GUIDE_BODY}</p>{canCurate&&<button type="button" className={`${button} mt-2`} onClick={()=>{setNoteStandard('ERC-1155');setNoteTitle(SECTOR_GUIDE_TITLE);setNoteBody(SECTOR_GUIDE_BODY);setSourceReference(SECTOR_GUIDE_SOURCE);setNoteOpen(true);}}>Preparar nota para Supabase · 047</button>}</details>
-   {messages.map(m=><section key={m.id} className="space-y-2"><p className="ml-8 bg-[#316BFA] rounded-lg p-3 text-xs">{m.question}</p><div className="mr-8 bg-[#0B0D12] border border-[#273246] rounded-lg p-3 text-xs space-y-2"><p>{m.reply.text}</p><p className="text-[#9BA6BD]">{m.reply.notice}</p>{m.reply.events.length>0&&<div><strong>Operaciones relacionadas:</strong>{m.reply.events.map(e=><p key={e.id} className="mt-1">{e.standard} · {e.kind} · bloque {e.block} · <a className="text-[#9BBCFF] underline" href={`https://sepolia.etherscan.io/tx/${e.hash}`} target="_blank" rel="noreferrer">transacción</a></p>)}</div>}{m.reply.notes.length>0&&<div><strong>Notas del administrador, sin verificar:</strong>{m.reply.notes.map(n=><p key={n.id}>{n.title}: {n.body.slice(0,200)}</p>)}</div>}</div></section>)}
-   {error&&<p role="alert" className="text-red-300 text-xs">{error}</p>}
+ function ask(question:string){const topic=topicFor(question);setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer:(mode==='educativo'?educational:operational)[topic],expanded:false}]);}
+ function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;ask(question);setQuery('');}
+ return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
+  <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></header>
+  <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?'].map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+   {messages.map(message=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
-  <form onSubmit={send} className="p-3 border-t border-[#273246] flex gap-2"><input className="flex-1 min-w-0 bg-[#0B0D12] border border-[#405577] rounded-lg p-2 text-xs" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Ej.: ¿qué cambia si congelo 2 TKREG de 1E8D?"/><button className={button} disabled={!query.trim()} aria-label="Preguntar"><Send size={15}/></button></form>
+  <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
+  <p className="px-4 pb-3 text-[11px] text-[#8FA6C8]">Guía educativa. No consulta expedientes ni datos de clientes.</p>
  </div>;
 };

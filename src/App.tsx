@@ -13,6 +13,7 @@ import { ApprovalWorkflowView } from './components/approvals/ApprovalWorkflowVie
 import { AdminPortal } from './components/admin/AdminPortal';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
 import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
+import {TokvanLogo} from './components/brand/TokvanLogo';
 import ClientProjectHome from './components/wizard/ClientProjectHome';
 import StaffAccess from './components/admin/StaffAccess';
 import { roleCanOpen, type StaffRole } from './lib/staffAccess';
@@ -167,8 +168,6 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         staffRole={staff?.role ?? null}
-        onToggleAiDrawer={() => setIsAiDrawerOpen(!isAiDrawerOpen)}
-        isAiDrawerOpen={isAiDrawerOpen}
       />
 
       {/* Floating Notification Toast */}
@@ -340,12 +339,11 @@ export default function App() {
         }}
       />
 
-      {/* TOKVANT IA drawer */}
+      {!isAiDrawerOpen&&<button type="button" onClick={()=>setIsAiDrawerOpen(true)} aria-label="Abrir TOKVANT AI" className="fixed bottom-5 right-5 z-40 flex items-center gap-1.5 rounded-full border border-[#7EA5FF] bg-[#172F64] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><TokvanLogo variant="mark-only" size="sm"/><span>AI</span></button>}
       <TokvanAiDrawer
-        staffAccount={staff?.account ?? null}
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}
-        activeProject={selectedProjectForDetail || projects[0]}
+        currentView={currentView}
       />
 
     </div>

@@ -5,7 +5,6 @@ import {
   X,
   ChevronDown,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 
 import { TokvanLogo } from '../brand/TokvanLogo';
@@ -15,8 +14,6 @@ interface TopBarProps {
   currentView: string;
   onNavigate: (view: string) => void;
   staffRole: string | null;
-  onToggleAiDrawer: () => void;
-  isAiDrawerOpen: boolean;
 }
 
 const publicLinks = [
@@ -45,8 +42,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentView,
   onNavigate,
   staffRole,
-  onToggleAiDrawer,
-  isAiDrawerOpen,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [modulesOpen, setModulesOpen] = useState(false);
@@ -54,7 +49,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   const isPublic = currentView === 'landing';
   const hasStaff = Boolean(staffRole);
   const canSeeDashboard = staffRole !== 'token_operator' && staffRole !== 'nft_operator' && staffRole !== 'multi_operator';
-  const canSeeAi = Boolean(staffRole);
   const allowedLinks = internalLinks.filter(link => staffRole && (link.view==='wizard'?staffRole!=='token_operator'&&staffRole!=='nft_operator'&&staffRole!=='multi_operator':roleCanOpen(staffRole as StaffRole|'owner',link.view)));
   const isClientFlow = currentView === 'wizard' || currentView === 'client-confirmation';
 
@@ -202,16 +196,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             </>
           ) : isClientFlow ? <span className="text-xs text-[#B8C9E1]">Tu proyecto · TOKVANT</span> : (
             <>
-              {canSeeAi && <button
-                type="button"
-                onClick={onToggleAiDrawer}
-                aria-pressed={isAiDrawerOpen}
-                className="hidden items-center gap-2 rounded-lg border border-[#39547C] px-3 py-2 text-xs text-[#D1E2FC] hover:bg-[#203A69] lg:inline-flex"
-              >
-                <Sparkles size={14} />
-                TOKVANT IA
-              </button>}
-
               {canSeeDashboard && <button
                 type="button"
                 onClick={() => navigate('wizard')}
@@ -286,16 +270,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </button>
               ))}
 
-              {canSeeAi && <button
-                type="button"
-                onClick={() => {
-                  setMobileOpen(false);
-                  onToggleAiDrawer();
-                }}
-                className="mt-4 w-full rounded-lg border border-[#45628B] px-4 py-3 text-sm text-white"
-              >
-                TOKVANT IA
-              </button>}
             </>
           )}
         </nav>
