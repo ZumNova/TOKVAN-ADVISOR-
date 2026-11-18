@@ -78,7 +78,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
    answer={short:`${sector.short} ¿Qué querés representar o comercializar con el token?`,more:'El sector describe tu actividad o activo. El objetivo describe qué recibiría el titular del token. Elegir el sector todavía no determina el estándar.'};
    setGuidedSector(sector.sector);
    const detail=await publicAnswer(question);
-   if(detail)answer.more=`${detail.short} ${detail.more}`.trim();
+   if(detail?.more)answer.more=detail.more;
   }else{
    const topic=topicFor(question);
    answer=(mode==='educativo'?educational:operational)[topic];
