@@ -53,6 +53,13 @@ function hint(view:string,leadOpen:boolean){
  if(view==='simulator')return 'Estás en el simulador. Preguntame por los cuatro estándares.';
  return '¿Qué querés tokenizar o qué término te gustaría entender?';
 }
+async function publicAnswer(question:string):Promise<Answer|null>{
+ try{
+  const response=await fetch('/api/public-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
+  if(response.ok){const result=await response.json() as {answer?:Answer|null};return result.answer?.short?result.answer:null;}
+ }catch{/* La guía local sigue disponible si la biblioteca no responde. */}
+ return null;
+}
 export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
@@ -70,13 +77,12 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
   }else if(sector){
    answer={short:`${sector.short} ¿Qué querés representar o comercializar con el token?`,more:'El sector describe tu actividad o activo. El objetivo describe qué recibiría el titular del token. Elegir el sector todavía no determina el estándar.'};
    setGuidedSector(sector.sector);
+   const detail=await publicAnswer(question);
+   if(detail)answer.more=`${detail.short} ${detail.more}`.trim();
   }else{
    const topic=topicFor(question);
    answer=(mode==='educativo'?educational:operational)[topic];
-   try{
-    const response=await fetch('/api/public-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
-    if(response.ok){const result=await response.json() as {answer?:Answer|null};if(result.answer?.short)answer=result.answer;}
-   }catch{/* La guía local sigue disponible si la biblioteca no responde. */}
+   answer=await publicAnswer(question)||answer;
   }
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
  }
