@@ -1,6 +1,14 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {countryFromLocation,isAccessPassProposal,isLocationReply,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+import {basicIntent,countryFromLocation,isAccessPassProposal,isLocationReply,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+
+test('resuelve preguntas básicas y distingue un lote de siembra de una solicitud genérica',()=>{
+ assert.equal(basicIntent('que es un token'),'token');
+ assert.equal(basicIntent('qué es un token ERC-20'),null);
+ assert.equal(basicIntent('como empiezo a tokenizar'),'start');
+ assert.equal(basicIntent('tokenizar un lote de siembra'),'sowing_lot');
+ assert.equal(basicIntent('el inmueble está en Buenos Aires'),null);
+});
 
 test('distingue un pase de acceso de un inmueble aunque la conversación anterior fuera inmobiliaria',()=>{
  assert.equal(isAccessPassProposal('Quiero tokenizar un club: usuarios pagan antes y presentan desde el celular un QR en la entrada'),true);

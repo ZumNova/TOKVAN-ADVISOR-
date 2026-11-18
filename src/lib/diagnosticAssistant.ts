@@ -2,6 +2,15 @@ export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo 
 export type SectorHint={sector:SuggestedSector;short:string};
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
+export type BasicIntent='token'|'start'|'sowing_lot';
+export function basicIntent(question:string):BasicIntent|null{
+ const q=normalize(question).trim();
+ if(/\b(lote|parcela)\b.{0,35}\b(siembra|cultivo|cosecha)\b|\b(siembra|cultivo|cosecha)\b.{0,35}\b(lote|parcela)\b/.test(q))return 'sowing_lot';
+ if(!/\b(?:erc.?20|erc.?721|erc.?1155|erc.?3643)\b/.test(q)&&/\b(que es|que significa|explicame)\b.{0,20}\b(un |el )?token\b/.test(q))return 'token';
+ if(/\b(como|por donde|donde)\b.{0,25}\b(empiezo|empezar|comienzo|comenzar|inicio)\b.{0,20}\b(a )?tokeniz|\b(primeros pasos|por donde empezar)\b.{0,20}\b(tokeniz|proyecto)\b/.test(q))return 'start';
+ return null;
+}
+
 export function isAccessPassProposal(question:string):boolean{
  const q=normalize(question);
  const venue=/\b(club|evento|recital|estadio|gimnasio|socio|socios)\b/.test(q);
@@ -46,7 +55,7 @@ export function volumeBandFromText(question:string):string|null{
 
 export function suggestSector(question:string):SectorHint|null{
  const q=normalize(question);
- if(/vaca|ganado|bovino|hacienda|agro|cultivo|cosecha|granja|plantin/.test(q))return {sector:'Agropecuario / Forestal',short:'Tu caso parece agropecuario. En «Sector Económico» elegí «Agropecuario / Silvopastoril / Forestal».'};
+ if(/vaca|ganado|bovino|hacienda|agro|cultivo|cosecha|siembra|granja|plantin/.test(q))return {sector:'Agropecuario / Forestal',short:'Tu caso parece agropecuario. En «Sector Económico» elegí «Agropecuario / Silvopastoril / Forestal».'};
  if(/camion|flota|transporte|logistica|energia|puerto|infraestructura/.test(q))return {sector:'Infraestructura & Logística Hidroviaria',short:'Tu caso parece de infraestructura o logística. En «Sector Económico» elegí «Infraestructura, Energía & Logística».'};
  if(/terreno|edificio|departamento|inmueble|vivienda|local comercial|propiedad/.test(q))return {sector:'Inmobiliario Corporativo & Residencial',short:'Tu caso parece inmobiliario. En «Sector Económico» elegí «Inmobiliario Corporativo & Residencial».'};
  if(/factura|factoring|pagare|deuda|derecho de cobro|prestamo/.test(q))return {sector:'Deuda Privada & Factoring Ganadero/Comercial',short:'Tu caso parece de deuda o derechos de cobro. En «Sector Económico» elegí «Deuda Privada & Factoring Comercial».'};
