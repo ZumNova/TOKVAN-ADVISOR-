@@ -170,7 +170,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                   </div>
                   <div className="text-xs font-semibold text-white mt-1 truncate">{p.title}</div>
                   <div className="text-[11px] text-[#9BA6BD] mt-0.5 font-mono">
-                    {p.standard} · ${p.targetValuationUsd.toLocaleString()} USD
+                    {p.standard} · {p.targetValuationUsd>0?`$${p.targetValuationUsd.toLocaleString()} USD`:'Por definir'}
                   </div>
                 </button>
               );
@@ -218,9 +218,9 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                   <span className="text-[#7096FF] font-mono font-bold">{activeProject.standard}</span>
                 </div>
                 <div>
-                  <span className="text-[#9BA6BD] block">Valuación Auditada:</span>
+                  <span className="text-[#9BA6BD] block">Valuación objetivo declarada:</span>
                   <span className="text-white font-mono tabular-nums font-bold">
-                    ${activeProject.targetValuationUsd.toLocaleString()} USD
+                    {activeProject.targetValuationUsd>0?`$${activeProject.targetValuationUsd.toLocaleString()} USD`:'Por definir'}
                   </span>
                 </div>
               </div>

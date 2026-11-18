@@ -8,6 +8,34 @@ export function isLocationReply(question:string):boolean{
  return /\b(esta|queda|ubicado|ubicada|situado|situada|se encuentra)\b.{0,55}\ben\b/.test(q);
 }
 
+export function countryFromLocation(question:string):string|null{
+ const q=normalize(question);
+ if(/\b(argentina|buenos aires|cordoba|rosario|mendoza|la plata)\b/.test(q))return 'Argentina';
+ if(/\b(paraguay|asuncion|encarnacion|ciudad del este)\b/.test(q))return 'Paraguay';
+ if(/\b(uruguay|montevideo)\b/.test(q))return 'Uruguay';
+ if(/\b(brasil|brazil|sao paulo|rio de janeiro)\b/.test(q))return 'Brasil';
+ if(/\b(estados unidos|united states|usa|new york)\b/.test(q))return 'Estados Unidos';
+ if(/\b(suiza|switzerland|zurich|union europea)\b/.test(q))return 'Suiza / UE';
+ return null;
+}
+
+export function volumeBandFromText(question:string):string|null{
+ const q=normalize(question).replace(/\b(?:usd|dolares|dolares estadounidenses)\b/g,'');
+ const million=q.match(/\b(\d+(?:[.,]\d+)?)\s*(?:millones?|m)\b/);
+ let amount:number;
+ if(million)amount=Number(million[1].replace(',','.'))*1_000_000;
+ else{
+  const raw=q.match(/(?:\$|u\$s)?\s*(\d{1,3}(?:[.,]\d{3})+|\d{6,})\b/);
+  if(!raw)return null;
+  amount=Number(raw[1].replace(/[.,]/g,''));
+ }
+ if(!Number.isFinite(amount)||amount<1_000_000)return null;
+ if(amount<5_000_000)return '$1M - $5M USD';
+ if(amount<10_000_000)return '$5M - $10M USD';
+ if(amount<25_000_000)return '$10M - $25M USD';
+ return '$25M - $50M+ USD';
+}
+
 export function suggestSector(question:string):SectorHint|null{
  const q=normalize(question);
  if(/vaca|ganado|bovino|hacienda|agro|cultivo|cosecha|granja|plantin/.test(q))return {sector:'Agropecuario / Forestal',short:'Tu caso parece agropecuario. En «Sector Económico» elegí «Agropecuario / Silvopastoril / Forestal».'};
@@ -25,7 +53,7 @@ export function suggestObjective(question:string,sector:SuggestedSector):string{
  if(/lote|bolsa|tipo de producto|varios productos|distintos productos/.test(q))return 'Si querés comercializar productos por lotes, explorá «Mercado de productos por lotes». Indicá qué representa cada lote y cuántas unidades tendría.';
  if(/certific|trazab|ambiental|carbono/.test(q))return 'Si buscás certificar un resultado o seguir su trazabilidad, explorá «Certificación ambiental y trazabilidad en cadena». Indicá qué evidencia lo respaldaría.';
  if(/inversor|capital|participacion|cuotaparte|rendimiento|ganancia/.test(q))return 'Si el token daría participación económica a inversores, explorá «Levantamiento de capital privado». Luego habrá que revisar los derechos ofrecidos y las reglas aplicables.';
- if(sector==='Inmobiliario Corporativo & Residencial'&&/fraccion|parte de|porcentaje|liquidez|vender/.test(q))return 'Si querés fraccionar derechos sobre un inmueble, explorá «Fraccionamiento de activo inmobiliario». Aclarás qué derecho concreto recibiría cada titular.';
+ if(sector==='Inmobiliario Corporativo & Residencial'&&/fraccion|parte de|porcentaje|liquidez/.test(q))return 'Si querés fraccionar derechos sobre un inmueble, explorá «Fraccionamiento de activo inmobiliario». Aclarás qué derecho concreto recibiría cada titular.';
  if(/cada vaca|cada camion|cada inmueble|cada edificio|cada activo|uno por/.test(q))return 'Si querés representar cada activo por separado, describilo así en el formulario. La elección técnica se revisará después; el sector por sí solo no decide el estándar.';
  return 'Para elegir «Objetivo Principal», contame qué recibiría quien tenga el token: ¿un activo individual, unidades de un lote, un derecho de cobro o una participación económica?';
 }

@@ -17,11 +17,11 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // Form state
-  const [sector, setSector] = useState('Agropecuario / Forestal');
-  const [assetType, setAssetType] = useState('Fideicomiso de Tierras & Reforestación');
-  const [country, setCountry] = useState('Paraguay');
-  const [objective, setObjective] = useState('Levantamiento de capital privado mediante cuotapartes reguladas');
-  const [estimatedVolume, setEstimatedVolume] = useState('$5M - $10M USD');
+  const [sector, setSector] = useState('');
+  const [assetType, setAssetType] = useState('');
+  const [country, setCountry] = useState('Por definir');
+  const [objective, setObjective] = useState('');
+  const [estimatedVolume, setEstimatedVolume] = useState('Por definir');
   const [experienceLevel, setExperienceLevel] = useState('Intermedio (conocemos el concepto de tokenización)');
 
   // Contact info
@@ -82,7 +82,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       network: isMultiToken ? 'sepolia' : 'polygon',
       status: 'Preliminar',
       progressPercent: 15,
-      targetValuationUsd: estimatedVolume.includes('50M') ? 50000000 : estimatedVolume.includes('25M') ? 17500000 : estimatedVolume.includes('10M') ? 7500000 : 3000000,
+      targetValuationUsd: estimatedVolume==='Por definir' ? 0 : estimatedVolume.includes('50M') ? 50000000 : estimatedVolume.includes('25M') ? 17500000 : estimatedVolume.includes('10M') ? 7500000 : 3000000,
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       isSimulationOnly: true,
@@ -192,6 +192,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 onChange={(e) => setSector(e.target.value)}
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
               >
+                <option value="" disabled>Seleccioná un sector</option>
                 <option value="Agropecuario / Forestal">Agropecuario / Silvopastoril / Forestal</option>
                 <option value="Inmobiliario Corporativo & Residencial">Inmobiliario Corporativo & Residencial</option>
                 <option value="Deuda Privada & Factoring Ganadero/Comercial">Deuda Privada & Factoring Comercial</option>
@@ -211,6 +212,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                   onChange={(e) => setCountry(e.target.value)}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
                 >
+                  <option value="Por definir">Por definir con TOKVANT</option>
                   <option value="Paraguay">Paraguay (BCP / CNV)</option>
                   <option value="Uruguay">Uruguay</option>
                   <option value="Argentina">Argentina</option>
@@ -229,11 +231,13 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                   onChange={(e) => setEstimatedVolume(e.target.value)}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
                 >
+                  <option value="Por definir">Por definir con TOKVANT</option>
                   <option value="$1M - $5M USD">$1M a $5M USD</option>
                   <option value="$5M - $10M USD">$5M a $10M USD</option>
                   <option value="$10M - $25M USD">$10M a $25M USD</option>
                   <option value="$25M - $50M+ USD">$25M a $50M+ USD</option>
                 </select>
+                <p className="mt-2 text-xs text-[#9BA6BD]">Estimá el valor en USD de lo que querés tokenizar. Si todavía no lo sabés, dejá «Por definir».</p>
               </div>
             </div>
 
@@ -245,7 +249,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 type="text"
                 value={assetType}
                 onChange={(e) => setAssetType(e.target.value)}
-                placeholder="Ej. Fideicomiso ganadero de 4.000 cabezas en Boquerón"
+                placeholder="Ej. terreno para construir un edificio, flota de camiones o ganado"
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white placeholder-[#9BA6BD]/60 focus:outline-none focus:border-[#316BFA]"
               />
             </div>
@@ -259,6 +263,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 onChange={(e) => setObjective(e.target.value)}
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
               >
+                <option value="" disabled>Seleccioná un objetivo</option>
                 <option value="Levantamiento de capital privado mediante cuotapartes reguladas">
                   Levantamiento de capital privado mediante cuotapartes reguladas
                 </option>
@@ -275,14 +280,15 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                   Mercado de productos por lotes (varios tipos y cantidades)
                 </option>
               </select>
-              <p className="mt-2 text-xs text-[#9BA6BD]">Para plantines, bolsas y polvo de cacao en una misma colección, elegí «Mercado de productos por lotes». El diagnóstico sugerirá ERC-1155; cada producto o lote puede tener un ID y varias unidades.</p>
+              {objective==='Mercado de productos por lotes con varios tipos y cantidades'&&<p className="mt-2 text-xs text-[#9BA6BD]">Si hay varios tipos de productos o lotes, describí qué representa cada uno y cuántas unidades tendrá. El diagnóstico sugerirá ERC-1155 de forma preliminar.</p>}
             </div>
 
             <div className="pt-4 flex justify-end">
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer"
+                disabled={!sector||!assetType.trim()||!objective}
+                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>Continuar a Datos de Contacto</span>
                 <ArrowRight className="w-4 h-4" />

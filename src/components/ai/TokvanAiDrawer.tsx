@@ -1,13 +1,14 @@
 import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
-import {isLocationReply,suggestObjective,suggestSector,type SuggestedSector} from '../../lib/diagnosticAssistant';
+import {countryFromLocation,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
 type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
+type DiagnosticStage='country'|'volume'|'description'|'objective'|null;
 interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;}
 
 const educational:Record<Topic,Answer>={
@@ -46,7 +47,7 @@ function topicFor(question:string):Topic{
  return 'inicio';
 }
 function hint(view:string,leadOpen:boolean){
- if(leadOpen)return 'Contame qué activo o proyecto tenés. Te ayudo a elegir el sector y después el objetivo, de a un paso.';
+ if(leadOpen)return 'Sigamos los campos de «Activo & Objetivo» de TOKVANT, uno por vez. ¿Qué activo o proyecto tenés?';
  if(view==='wizard')return 'Estás cargando una solicitud. Preguntame qué significa cualquier campo.';
  if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
  if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
@@ -65,22 +66,43 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
  const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
+ const [diagnosticStage,setDiagnosticStage]=useState<DiagnosticStage>(null);
  if(!isOpen)return null;
  async function ask(question:string){
   const sector=suggestSector(question);
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
-  }else if(guidedSector&&isLocationReply(question)){
-   answer={short:'Entiendo: esa es la ubicación del activo. Podés indicarla en la descripción del proyecto. ¿Qué recibiría quien tenga el token?',more:'Por ejemplo, podría tratarse de un acceso, un derecho de cobro o una participación. El equipo TOKVANT revisará cómo describirlo y qué reglas aplicar.'};
-  }else if(guidedSector&&/quiero|represent|comercial|vender|token|parte|lote|derecho|particip/i.test(question)&&!/^tengo\b/i.test(question)){
-   answer={short:suggestObjective(question,guidedSector),more:'Es una orientación preliminar para completar «Objetivo Principal». Describí el derecho o producto concreto; TOKVANT revisará después el estándar y las reglas aplicables.'};
-   setGuidedSector(null);
+  }else if(guidedSector&&diagnosticStage==='country'){
+   const country=countryFromLocation(question);
+   if(country){
+    answer={short:`En «País de Radicación del Activo» elegí «${country}». Ahora, ¿cuál es el valor aproximado en USD de lo que querés tokenizar?`,more:'Ese valor sirve para elegir una franja en «Volumen Estimado de Emisión». Si todavía no tenés una estimación, podés dejarlo «Por definir con TOKVANT».'};
+    setDiagnosticStage('volume');
+   }else if(/no s[eé]|por definir|todav[ií]a no/i.test(question)){
+    answer={short:'En «País de Radicación del Activo» dejá «Por definir con TOKVANT». ¿Cuál es el valor aproximado en USD de lo que querés tokenizar?',more:'El país del activo se revisará más adelante; no hace falta adivinarlo para seguir con el diagnóstico.'};
+    setDiagnosticStage('volume');
+   }else answer={short:'¿En qué país está el activo? Si todavía no lo sabés, elegí «Por definir con TOKVANT» en «País de Radicación del Activo».',more:'Indicá el país donde se encuentra el activo. La revisión de países de oferta y residencia de inversores viene después.'};
+  }else if(guidedSector&&diagnosticStage==='volume'){
+   const band=volumeBandFromText(question);
+   answer=band
+    ?{short:`En «Volumen Estimado de Emisión» elegí «${band.replace(' - ',' a ')}». Ahora describí el activo en una frase en «Descripción Específica del Activo».`,more:'Usá una estimación de lo que pensás tokenizar, no una cifra inventada por el bot. El equipo podrá revisar la valuación y el alcance más adelante.'}
+    :{short:'Si no tenés una estimación confiable, elegí «Por definir con TOKVANT» en «Volumen Estimado de Emisión». Ahora describí el activo en una frase.',more:'Las franjas del diagnóstico comienzan en USD 1 millón. Si tu proyecto vale menos o todavía no tiene valuación, dejá el dato por definir para revisión.'};
+   setDiagnosticStage('description');
+  }else if(guidedSector&&diagnosticStage==='description'){
+   answer={short:'En «Descripción Específica del Activo» escribí con tus palabras lo que acabás de contar. Ahora, ¿qué querés que reciba quien tenga el token?',more:'Ese dato ayuda a elegir «Objetivo Principal de la Tokenización». Puede ser un servicio, un derecho de cobro, unidades de un lote o una participación; el equipo revisará el alcance concreto.'};
+   setDiagnosticStage('objective');
+  }else if(guidedSector&&diagnosticStage==='objective'){
+   const objective=suggestObjective(question,guidedSector),needsMore=objective.startsWith('Para elegir');
+   answer={short:needsMore?objective:`${objective} Después pulsá «Continuar a Datos de Contacto».`,more:'Esta orientación ayuda a completar el diagnóstico preliminar; TOKVANT revisará los derechos, el estándar y las reglas antes de preparar un proyecto.'};
+   if(!needsMore){setGuidedSector(null);setDiagnosticStage(null);}
   }else if(sector){
-   answer={short:`${sector.short} ¿Qué querés representar o comercializar con el token?`,more:'El sector describe tu actividad o activo. El objetivo describe qué recibiría el titular del token. Elegir el sector todavía no determina el estándar.'};
+   const country=countryFromLocation(question);
+   answer=country
+    ?{short:`${sector.short} En «País de Radicación del Activo» elegí «${country}». ¿Cuál es el valor aproximado en USD de lo que querés tokenizar?`,more:'El volumen es una estimación del valor que pensás representar. Si no la tenés, elegí «Por definir con TOKVANT».'}
+    :{short:`${sector.short} ¿En qué país está el activo?`,more:'Ese dato va en «País de Radicación del Activo». Después veremos el volumen, la descripción y el objetivo, uno por vez.'};
    setGuidedSector(sector.sector);
-   const detail=await publicAnswer(question);
-   if(detail?.more)answer.more=detail.more;
+   setDiagnosticStage(country?'volume':'country');
+   // En el diagnóstico, el orden del formulario tiene prioridad sobre las FAQ generales.
   }else{
    const topic=topicFor(question);
    answer=(mode==='educativo'?educational:operational)[topic];

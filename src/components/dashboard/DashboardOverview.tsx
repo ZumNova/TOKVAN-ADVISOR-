@@ -191,7 +191,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <div>
                       <span className="text-[11px] text-[#9BA6BD] block">Valuación:</span>
                       <span className="text-white font-mono tabular-nums font-medium">
-                        ${project.targetValuationUsd.toLocaleString()} USD
+                        {project.targetValuationUsd>0?`$${project.targetValuationUsd.toLocaleString()} USD`:'Por definir'}
                       </span>
                     </div>
 

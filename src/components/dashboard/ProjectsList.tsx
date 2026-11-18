@@ -202,7 +202,7 @@ export const ProjectsList: React.FC<ProjectsListProps> = ({
                       <td className="py-4 px-4 whitespace-nowrap">
                         <div className="font-medium text-white">{p.assetType === 'Otro' ? p.assetTypeOther || 'Otro' : p.assetType}</div>
                         <div className="text-[11px] text-[#9BA6BD] font-mono tabular-nums mt-0.5">
-                          ${p.targetValuationUsd.toLocaleString()} USD
+                          {p.targetValuationUsd>0?`$${p.targetValuationUsd.toLocaleString()} USD`:'Por definir'}
                         </div>
                       </td>
 
