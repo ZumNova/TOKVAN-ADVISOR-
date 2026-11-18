@@ -2,6 +2,7 @@ import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
 import {suggestObjective,suggestSector,type SuggestedSector} from '../../lib/diagnosticAssistant';
+import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
@@ -58,10 +59,12 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
  const [messages,setMessages]=useState<Message[]>([]);
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
  if(!isOpen)return null;
- function ask(question:string){
+ async function ask(question:string){
   const sector=suggestSector(question);
   let answer:Answer;
-  if(guidedSector&&/quiero|represent|comercial|vender|token|parte|lote|derecho|particip/i.test(question)&&!/^tengo\b/i.test(question)){
+  if(containsPrivateData(question)){
+   answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
+  }else if(guidedSector&&/quiero|represent|comercial|vender|token|parte|lote|derecho|particip/i.test(question)&&!/^tengo\b/i.test(question)){
    answer={short:suggestObjective(question,guidedSector),more:'Es una orientación preliminar para completar «Objetivo Principal». Describí el derecho o producto concreto; TOKVANT revisará después el estándar y las reglas aplicables.'};
    setGuidedSector(null);
   }else if(sector){
@@ -70,10 +73,14 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
   }else{
    const topic=topicFor(question);
    answer=(mode==='educativo'?educational:operational)[topic];
+   try{
+    const response=await fetch('/api/public-knowledge',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
+    if(response.ok){const result=await response.json() as {answer?:Answer|null};if(result.answer?.short)answer=result.answer;}
+   }catch{/* La guía local sigue disponible si la biblioteca no responde. */}
   }
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
  }
- function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;ask(question);setQuery('');}
+ function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;void ask(question);setQuery('');}
  return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
@@ -81,6 +88,6 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
    {messages.map(message=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
-  <p className="px-4 pb-3 text-[11px] text-[#8FA6C8]">Guía educativa. No consulta expedientes ni datos de clientes.</p>
+  <p className="px-4 pb-3 text-[11px] text-[#8FA6C8]">Guía educativa. Consulta solo respuestas públicas revisadas; no accede a expedientes ni datos de clientes.</p>
  </div>;
 };

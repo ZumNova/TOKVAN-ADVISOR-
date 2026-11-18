@@ -6,7 +6,7 @@
 
 La 047 vincula cada token al registro desde su panel ERC-3643. Si el expediente recibido incluye `proposedRecipients`, el registro incorpora esas direcciones como propuestas `INITIAL_001`, etcétera. La wallet propietaria del token puede agregar propuestas con código interno, sin nombres, email, documentos ni datos KYC. FB24 lee la lista y usa cada wallet en la acreditación ficticia de la sección 4. El panel consulta el contrato de Sepolia al actualizar: identidad vigente, país, saldo, cupo y congelamiento. Una propuesta no es una autorización ni una transferencia. El contrato sigue decidiendo si la operación es válida; no se añade firma por transferencia.
 
-La biblioteca `educational_notes` acepta borradores con fuente. La 047 los aprueba; las notas aprobadas se pueden consultar desde TOKVANT IA y entrar en su búsqueda educativa. No se indexan contactos privados ni adjuntos. Esta búsqueda sigue siendo determinista; no se invoca un modelo generativo ni se afirma que una nota prueba un hecho on-chain.
+La biblioteca `educational_notes` acepta borradores internos con fuente. La 047 los aprueba; estas notas no se ofrecen al asistente público. Las respuestas para clientes se publican en la tabla separada `public_educational_answers`, documentada en `public-educational-knowledge.md`, después de revisar que no incluyan información de personas, empresas o expedientes. No se indexan contactos privados ni adjuntos.
 
 ## Alternativa futura: custodia de identidades fuera del stack operativo
 
