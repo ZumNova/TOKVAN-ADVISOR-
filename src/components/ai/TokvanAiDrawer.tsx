@@ -20,7 +20,7 @@ const educational:Record<Topic,Answer>={
  pago:{short:'El pago del servicio se registra contra el expediente antes de autorizar la preparación.',more:'Contaduría verifica el cobro fuera de la dapp, adjunta el comprobante privado y firma el recibo. Esa firma no crea tokens.'},
  despliegue:{short:'Desplegar es crear un contrato en la red. La wallet muestra la operación y el gas antes de firmar.',more:'Después se confirma la transacción y se vincula el resultado al expediente para consultarlo.'},
  imagen:{short:'La imagen de un NFT se carga junto con sus metadatos antes de emitir la pieza o el tipo.',more:'El JSON contiene el enlace a la imagen. Revisá ambos enlaces antes de emitir, porque la URI puede quedar fija en el token.'},
- inicio:{short:'Contame qué querés crear o en qué paso estás. Te doy una orientación breve y podés pedirme más detalle.',more:'Podés preguntar por ERC-20, ERC-721, ERC-1155, ERC-3643, wallets, revisión, pagos, imágenes o despliegue.'},
+ inicio:{short:'No tengo información suficiente para responderte con certeza. Esta pregunta necesita que la revise una persona del equipo TOKVANT.',more:'Seguí completando tu solicitud con lo que sabés y señalá esta duda en la descripción. Cuando la envíes, el equipo podrá revisarla y responderte por el contacto que indiques.'},
 };
 const operational:Record<Topic,Answer>={
  ...educational,
