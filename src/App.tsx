@@ -13,6 +13,7 @@ import { ApprovalWorkflowView } from './components/approvals/ApprovalWorkflowVie
 import { AdminPortal } from './components/admin/AdminPortal';
 import { ArchitectureDocsView } from './components/docs/ArchitectureDocsView';
 import { TokvanAiDrawer } from './components/ai/TokvanAiDrawer';
+import type {LeadField} from './components/ai/diagnosticFlow';
 import {TokvanLogo} from './components/brand/TokvanLogo';
 import ClientProjectHome from './components/wizard/ClientProjectHome';
 import StaffAccess from './components/admin/StaffAccess';
@@ -52,6 +53,7 @@ export default function App() {
   // Modals & Drawers state
   const [isLeadModalOpen, setIsLeadModalOpen] = useState<boolean>(false);
   const [leadStep, setLeadStep] = useState<1 | 2 | 3>(1);
+  const [leadField,setLeadField]=useState<LeadField>('sector');
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState<boolean>(false);
   const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<TokenProject | null>(null);
   const [wizardSeedProject, setWizardSeedProject] = useState<Partial<TokenProject> | undefined>(undefined);
@@ -324,6 +326,7 @@ export default function App() {
       <LeadCaptureModal
         isOpen={isLeadModalOpen}
         onStepChange={setLeadStep}
+        onFieldFocus={setLeadField}
         onClose={() => setIsLeadModalOpen(false)}
         onProjectCreatedFromLead={handleProjectCreatedFromLead}
       />
@@ -348,6 +351,7 @@ export default function App() {
         currentView={currentView}
         leadOpen={isLeadModalOpen}
         leadStep={leadStep}
+        leadField={leadField}
       />
 
     </div>

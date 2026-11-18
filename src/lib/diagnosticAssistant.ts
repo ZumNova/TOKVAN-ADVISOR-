@@ -31,7 +31,7 @@ export function isTaxIdQuestion(question:string):boolean{
 
 export function isMiningProposal(question:string):boolean{
  const q=normalize(question);
- return /\b(miner[ioa]|mineria|extraccion minera|explotacion minera|yacimiento|mina de|mineral(?:es)?)\b/.test(q);
+ return /\b(miner[ioa]|mineria|yacimiento|mina|mineral(?:es)?|oro)\b/.test(q)||/\b(?:extr|extar)[a-z]*cion\b/.test(q)&&/\b(oro|mina|mineral(?:es)?)\b/.test(q);
 }
 
 export function isLocationReply(question:string):boolean{

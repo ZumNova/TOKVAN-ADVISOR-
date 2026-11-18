@@ -441,6 +441,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
               <p className="text-xs text-[#9BA6BD] mt-1">
                 Elija la norma técnica EVM y la red de liquidación. Son parámetros propuestos para revisión por TOKVANT.
               </p>
+              {initialProject?.commercialContext?.objective==='Por definir con TOKVANT'&&<p role="note" className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-100">El diagnóstico no definió el objetivo ni recomendó un estándar. ERC-3643 aparece como valor provisional del borrador: revisá esta selección con TOKVANT antes de enviar la solicitud.</p>}
             </div>
 
             {/* Standard Cards */}

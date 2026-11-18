@@ -27,6 +27,8 @@ test('reconoce preguntas del campo fiscal y proyectos mineros sin confundirlos c
  assert.equal(isMiningProposal('Somos una empresa minera; queremos tokenizar participación en ganancias'),true);
  assert.equal(isMiningProposal('minería de alta montaña'),true);
  assert.equal(isMiningProposal('extracción minera'),true);
+ assert.equal(isMiningProposal('sector econmico mina y extarcion de oro elegi'),true);
+ assert.equal(isMiningProposal('extracion de oro'),true);
  assert.equal(suggestSector('extracción minera'),null);
 });
 

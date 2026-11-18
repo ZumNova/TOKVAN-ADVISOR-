@@ -3,11 +3,13 @@ import { X, Sparkles, ArrowRight, CheckCircle2, ShieldCheck, FileText, ChevronRi
 import { LeadSubmission, StandardType, TokenProject } from '../../types';
 import {newClientProjectId} from '../../lib/clientProjects';
 import {assetTypeFromLeadSector} from '../../lib/leadAssetType';
+import type {LeadField} from '../ai/diagnosticFlow';
 
 interface LeadCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
   onStepChange?: (step: 1 | 2 | 3) => void;
+  onFieldFocus?: (field:LeadField) => void;
   onProjectCreatedFromLead?: (newProject: TokenProject) => void;
 }
 
@@ -15,6 +17,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   isOpen,
   onClose,
   onStepChange,
+  onFieldFocus,
   onProjectCreatedFromLead,
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -42,6 +45,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   // Diagnostic result
   const [generatedDraftId, setGeneratedDraftId] = useState('');
   const [recommendedStandard, setRecommendedStandard] = useState<StandardType>('ERC-3643');
+  const [standardPending,setStandardPending]=useState(false);
 
   if (!isOpen) return null;
 
@@ -66,6 +70,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
     }
 
     const draftId = newClientProjectId();
+    setStandardPending(objective==='Por definir con TOKVANT');
     setGeneratedDraftId(draftId);
     setRecommendedStandard(standard);
     setStep(3);
@@ -195,6 +200,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
               </label>
               <select
                 value={sector}
+                onFocus={()=>onFieldFocus?.('sector')}
                 onChange={(e) => setSector(e.target.value)}
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
               >
@@ -207,7 +213,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <option value="Fondo de Inversión Cerrado / Participaciones">Fondo de Inversión / Equity Privado</option>
                 <option value="Otro">Otro sector</option>
               </select>
-              {sector==='Otro'&&<div className="mt-3"><label htmlFor="lead-sector-other" className="mb-1 block text-xs font-semibold text-slate-300">Especificá el sector *</label><input id="lead-sector-other" type="text" maxLength={200} value={sectorOther} onChange={e=>setSectorOther(e.target.value)} placeholder="Ej. Minería / extracción de oro" className="w-full rounded-lg border border-[#273246] bg-[#0B0D12] px-3.5 py-2.5 text-sm text-white focus:border-[#316BFA] focus:outline-none"/></div>}
+              {sector==='Otro'&&<div className="mt-3"><label htmlFor="lead-sector-other" className="mb-1 block text-xs font-semibold text-slate-300">Especificá el sector *</label><input id="lead-sector-other" type="text" maxLength={200} value={sectorOther} onFocus={()=>onFieldFocus?.('sectorOther')} onChange={e=>setSectorOther(e.target.value)} placeholder="Ej. Minería / extracción de oro" className="w-full rounded-lg border border-[#273246] bg-[#0B0D12] px-3.5 py-2.5 text-sm text-white focus:border-[#316BFA] focus:outline-none"/></div>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -217,6 +223,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 </label>
                 <select
                   value={country}
+                onFocus={()=>onFieldFocus?.('country')}
                   onChange={(e) => setCountry(e.target.value)}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
                 >
@@ -236,6 +243,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 </label>
                 <select
                   value={estimatedVolume}
+                onFocus={()=>onFieldFocus?.('volume')}
                   onChange={(e) => setEstimatedVolume(e.target.value)}
                   className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
                 >
@@ -256,6 +264,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
               <input
                 type="text"
                 value={assetType}
+                onFocus={()=>onFieldFocus?.('description')}
                 onChange={(e) => setAssetType(e.target.value)}
                 placeholder="Ej. terreno para construir un edificio, flota de camiones o ganado"
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white placeholder-[#9BA6BD]/60 focus:outline-none focus:border-[#316BFA]"
@@ -268,6 +277,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
               </label>
               <select
                 value={objective}
+                onFocus={()=>onFieldFocus?.('objective')}
                 onChange={(e) => setObjective(e.target.value)}
                 className="w-full rounded-lg bg-[#0B0D12] border border-[#273246] px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#316BFA]"
               >
@@ -287,6 +297,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <option value="Mercado de productos por lotes con varios tipos y cantidades">
                   Mercado de productos por lotes (varios tipos y cantidades)
                 </option>
+                <option value="Por definir con TOKVANT">Por definir con TOKVANT</option>
               </select>
               {objective==='Mercado de productos por lotes con varios tipos y cantidades'&&<p className="mt-2 text-xs text-[#9BA6BD]">Si hay varios tipos de productos o lotes, describí qué representa cada uno y cuántas unidades tendrá. El diagnóstico sugerirá ERC-1155 de forma preliminar.</p>}
             </div>
@@ -528,7 +539,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 </div>
                 <div>
                   <span className="text-[#9BA6BD] block">Estándar EVM Recomendado:</span>
-                  <span className="text-[#7096FF] font-bold font-mono text-sm">{recommendedStandard}</span>
+                  <span className="text-[#7096FF] font-bold font-mono text-sm">{standardPending?'Por definir con TOKVANT':recommendedStandard}</span>
                 </div>
               </div>
             </div>
@@ -540,7 +551,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <span>Orientación técnica preliminar de TOKVANT</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se sugiere explorar <strong className="text-white">{recommendedStandard}</strong>. {recommendedStandard==='ERC-1155'?'Permite varios IDs en una colección y múltiples unidades por ID. El borrador de prueba se abrirá en Sepolia con un máximo inicial de tres tipos, editable en el asistente.':'Las funciones disponibles dependen de la implementación y de la configuración.'} El estándar no determina por sí solo los derechos del titular ni el cumplimiento aplicable.
+                {standardPending?<>El objetivo quedó «Por definir con TOKVANT». No se recomienda un estándar todavía. En el borrador aparecerá ERC-3643 como valor técnico provisional; revisá la selección en el paso 2 de la solicitud completa antes de enviarla.</>:<>Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se sugiere explorar <strong className="text-white">{recommendedStandard}</strong>. {recommendedStandard==='ERC-1155'?'Permite varios IDs en una colección y múltiples unidades por ID. El borrador de prueba se abrirá en Sepolia con un máximo inicial de tres tipos, editable en el asistente.':'Las funciones disponibles dependen de la implementación y de la configuración.'} El estándar no determina por sí solo los derechos del titular ni el cumplimiento aplicable.</>}
               </p>
               <div className="text-[11px] text-[#9BA6BD] pt-1">
                 * Nota institucional: Este diagnóstico es de carácter orientativo preliminar y no constituye asesoría legal ni financiera vinculante. Requiere validación por la mesa técnica y de compliance de TOKVANT.

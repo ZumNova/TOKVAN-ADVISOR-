@@ -3,13 +3,13 @@ import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
 import {basicIntent,countryFromLocation,isAccessPassProposal,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
-import {nextDiagnosticField,unresolvedDiagnosticAnswer,type CommercialStage,type DiagnosticStage} from './diagnosticFlow';
+import {mentionedDiagnosticField,nextDiagnosticField,unresolvedDiagnosticAnswer,type CommercialStage,type DiagnosticStage,type LeadField} from './diagnosticFlow';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
 type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
-interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;}
+interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;leadField:LeadField;}
 
 const educational:Record<Topic,Answer>={
  erc20:{short:'ERC-20 crea unidades iguales entre sí. Sirve, por ejemplo, para puntos digitales de una comunidad ficticia.',more:'Primero se definen nombre, cantidad y administración. Después se revisan sus reglas y se crea el contrato. El estándar por sí solo no determina derechos económicos ni habilitaciones legales.'},
@@ -46,12 +46,12 @@ function topicFor(question:string):Topic{
  if(/despleg|factory|contrato|gas/.test(q))return 'despliegue';
  return 'inicio';
 }
-function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:CommercialStage,diagnosticStage:DiagnosticStage,accessStage:'usage'|'individual'|null,sowingStage:boolean,caseStage:'bees'|'wine'|'farm_stay'|null){
+function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:CommercialStage,diagnosticStage:DiagnosticStage,activeField:LeadField,accessStage:'usage'|'individual'|null,sowingStage:boolean,caseStage:'bees'|'wine'|'farm_stay'|null){
  if(caseStage)return 'Caso nuevo: aclaremos qué recibiría quien tenga el token antes de sugerir un estándar.';
  if(sowingStage)return 'Caso: lote de siembra. Aclaremos qué representa el token antes de elegir un estándar.';
  if(accessStage==='usage')return 'Caso: pases de acceso al club. Definamos primero si sirven una vez o varias veces.';
  if(accessStage==='individual')return 'Caso: pases de acceso al club. Ahora definamos si cada pase es individual o intercambiable.';
- if(leadOpen){const next=nextDiagnosticField({leadOpen,leadStep,commercialStage,diagnosticStage});return next?`Sigamos el diagnóstico, un campo por vez. Ahora: «${next.label}». ${next.guidance}`:'Sigamos el diagnóstico, un campo por vez.';}
+ if(leadOpen){const next=nextDiagnosticField({leadOpen,leadStep,commercialStage,diagnosticStage,activeField});return next?`Estás en el diagnóstico breve. Campo actual: «${next.label}». ${next.guidance}`:'Sigamos el diagnóstico, un campo por vez.';}
  if(view==='wizard')return 'Estás en la solicitud completa de cinco pasos. El diagnóstico breve de tres etapas era opcional. Preguntame por el campo que estés completando.';
  if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
  if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
@@ -65,7 +65,7 @@ async function publicAnswer(question:string):Promise<Answer|null>{
  }catch{/* La guía local sigue disponible si la biblioteca no responde. */}
  return null;
 }
-export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Props)=>{
+export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadField}:Props)=>{
  const drawerRef=useRef<HTMLDivElement>(null);
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
@@ -76,6 +76,8 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
  const [accessStage,setAccessStage]=useState<'usage'|'individual'|null>(null);
  const [sowingStage,setSowingStage]=useState(false);
  const [caseStage,setCaseStage]=useState<'bees'|'wine'|'farm_stay'|null>(null);
+ const [mentionedField,setMentionedField]=useState<LeadField|null>(null);
+ useEffect(()=>setMentionedField(null),[leadField]);
  useEffect(()=>{
   if(!isOpen)return;
   const closeOutside=(event:PointerEvent)=>{
@@ -93,11 +95,15 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
   setAccessStage(null);
   setSowingStage(false);
   setCaseStage(null);
+  setMentionedField(null);
  }
  if(!isOpen)return null;
  async function ask(question:string){
   const sector=suggestSector(question);
   const intent=basicIntent(question);
+  const fieldAsked=leadOpen&&leadStep===1?mentionedDiagnosticField(question):null;
+  if(fieldAsked)setMentionedField(fieldAsked);
+  const activeField=fieldAsked||mentionedField||leadField;
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
@@ -107,7 +113,9 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
    const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
    const profits=/ganancia|utilidad|rendimiento|ingreso|particip|inversor/.test(q);
    const location=countryFromLocation(question);
-   if(leadOpen&&leadStep===1){
+   if(leadOpen&&leadStep===1&&activeField==='objective'){
+    answer={short:'Si el token daría participación en ganancias de la mina, la opción más cercana es «Levantamiento de capital privado mediante cuotapartes reguladas». Si todavía no está definido qué derecho recibiría el titular, elegí «Por definir con TOKVANT».',more:'Esta elección solo completa el diagnóstico preliminar. TOKVANT revisará la estructura y los derechos antes de definir un estándar o una oferta.'};
+   }else if(leadOpen&&leadStep===1){
     answer={short:`En este diagnóstico elegí «Otro sector» en «Sector Económico» y escribí «Minería / extracción de oro» si corresponde. En «Descripción Específica del Activo» describí la explotación${profits?' y que querés proponer una participación en ganancias':''}. ${location?`En «País de Radicación del Activo» elegí «${location}». ¿Qué volumen aproximado querés representar?`:'¿En qué país está el yacimiento?'}`,more:'La orientación técnica y los derechos económicos se revisarán después. No elijas «Agropecuario» ni «Infraestructura» solo para poder avanzar.'};
     setGuidedSector('Otro');setDiagnosticStage(location?'volume':'country');
    }else answer=profits
@@ -212,8 +220,13 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
    }else{
     answer={short:'En «¿A quién estaría dirigido el token?» describí el público previsto con tus palabras. Si aún no lo sabés, podés dejarlo vacío.',more:'Después indicá tus canales comerciales actuales, si los hay. Ambos campos son opcionales.'};
    }
-  }else if(leadOpen&&guidedSector==='Otro'&&/sector econ[oó]mico|cu[aá]l elijo|qu[eé] elijo/i.test(question)){
-   answer={short:'En este diagnóstico seleccioná «Otro sector» y, en «Especificá el sector», escribí «Minería / extracción de oro». Después indicá el país del yacimiento.',more:'El campo «Otro tipo de activo» aparece más adelante, en la solicitud completa de cinco pasos. Allí se conservará el sector que escribas ahora.'};
+  }else if(leadOpen&&leadStep===1&&fieldAsked){
+   const field=nextDiagnosticField({leadOpen,leadStep,diagnosticStage,commercialStage,activeField:fieldAsked});
+   answer=fieldAsked==='sector'||fieldAsked==='sectorOther'
+    ?{short:'«Sector Económico» está al comienzo del diagnóstico. Para una mina elegí «Otro sector» y en «Especificá el sector» escribí «Minería / extracción de oro».',more:'Después completá país, volumen estimado y descripción. El sector escrito se conservará al abrir la solicitud completa.'}
+    :fieldAsked==='objective'
+    ?{short:'En «Objetivo Principal de la Tokenización», si el token daría participación en ganancias, la opción más cercana es «Levantamiento de capital privado mediante cuotapartes reguladas». Si todavía no podés definir el derecho, elegí «Por definir con TOKVANT».',more:'«Titularización de cartera de crédito / factoring» corresponde a derechos de cobro de una cartera; no se elige solo porque el proyecto espera ganancias. La selección queda sujeta a revisión.'}
+    :{short:`Estás en «${field?.label}». ${field?.guidance}`,more:'Si necesitás revisar una opción concreta, escribime el nombre del campo y lo que querés representar.'};
   }else if(guidedSector&&diagnosticStage==='country'){
    const country=countryFromLocation(question);
    if(country){
@@ -247,18 +260,18 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
   }else{
    const topic=topicFor(question);
    const libraryAnswer=await publicAnswer(question);
-   answer=libraryAnswer||(topic==='inicio'?unresolvedDiagnosticAnswer({leadOpen,leadStep,diagnosticStage,commercialStage}):(mode==='educativo'?educational:operational)[topic]);
+   answer=libraryAnswer||(topic==='inicio'?unresolvedDiagnosticAnswer({leadOpen,leadStep,diagnosticStage,commercialStage,activeField}):(mode==='educativo'?educational:operational)[topic]);
   }
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
  }
  function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;void ask(question);setQuery('');}
- const nextField=nextDiagnosticField({leadOpen,leadStep,diagnosticStage,commercialStage});
+ const nextField=nextDiagnosticField({leadOpen,leadStep,diagnosticStage,commercialStage,activeField:mentionedField||leadField});
  const showNextField=Boolean(nextField&&!accessStage&&!sowingStage&&!caseStage);
  return <div ref={drawerRef} role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Nueva conversación</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,accessStage,sowingStage,caseStage)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
-   {messages.map((message,index)=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}{index===messages.length-1&&showNextField&&nextField&&<p className="mt-3 rounded-lg border border-[#45628B] bg-[#1D2A40] p-2 text-xs text-[#D9E6FA]"><strong>Siguiente campo: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+   {messages.map((message,index)=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}{index===messages.length-1&&showNextField&&nextField&&<p className="mt-3 rounded-lg border border-[#45628B] bg-[#1D2A40] p-2 text-xs text-[#D9E6FA]"><strong>Campo actual: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
   <p className="px-4 pb-3 text-[11px] text-[#8FA6C8]">Guía educativa. Consulta solo respuestas públicas revisadas; no accede a expedientes ni datos de clientes.</p>
