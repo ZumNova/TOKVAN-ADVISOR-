@@ -1,12 +1,13 @@
 import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
+import {suggestObjective,suggestSector,type SuggestedSector} from '../../lib/diagnosticAssistant';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
 type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
-interface Props {isOpen:boolean;onClose:()=>void;currentView:string;}
+interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;}
 
 const educational:Record<Topic,Answer>={
  erc20:{short:'ERC-20 crea unidades iguales entre sí. Sirve, por ejemplo, para puntos digitales de una comunidad ficticia.',more:'Primero se definen nombre, cantidad y administración. Después se revisan sus reglas y se crea el contrato. El estándar por sí solo no determina derechos económicos ni habilitaciones legales.'},
@@ -43,24 +44,40 @@ function topicFor(question:string):Topic{
  if(/despleg|factory|contrato|gas/.test(q))return 'despliegue';
  return 'inicio';
 }
-function hint(view:string){
+function hint(view:string,leadOpen:boolean){
+ if(leadOpen)return 'Contame qué activo o proyecto tenés. Te ayudo a elegir el sector y después el objetivo, de a un paso.';
  if(view==='wizard')return 'Estás cargando una solicitud. Preguntame qué significa cualquier campo.';
  if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
  if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
  if(view==='simulator')return 'Estás en el simulador. Preguntame por los cuatro estándares.';
  return '¿Qué querés tokenizar o qué término te gustaría entender?';
 }
-export const TokvanAiDrawer=({isOpen,onClose,currentView}:Props)=>{
+export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
+ const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
  if(!isOpen)return null;
- function ask(question:string){const topic=topicFor(question);setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer:(mode==='educativo'?educational:operational)[topic],expanded:false}]);}
+ function ask(question:string){
+  const sector=suggestSector(question);
+  let answer:Answer;
+  if(guidedSector&&/quiero|represent|comercial|vender|token|parte|lote|derecho|particip/i.test(question)&&!/^tengo\b/i.test(question)){
+   answer={short:suggestObjective(question,guidedSector),more:'Es una orientación preliminar para completar «Objetivo Principal». Describí el derecho o producto concreto; TOKVANT revisará después el estándar y las reglas aplicables.'};
+   setGuidedSector(null);
+  }else if(sector){
+   answer={short:`${sector.short} ¿Qué querés representar o comercializar con el token?`,more:'El sector describe tu actividad o activo. El objetivo describe qué recibiría el titular del token. Elegir el sector todavía no determina el estándar.'};
+   setGuidedSector(sector.sector);
+  }else{
+   const topic=topicFor(question);
+   answer=(mode==='educativo'?educational:operational)[topic];
+  }
+  setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
+ }
  function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;ask(question);setQuery('');}
- return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
+ return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?'].map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
    {messages.map(message=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>

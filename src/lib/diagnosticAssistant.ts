@@ -1,0 +1,25 @@
+export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo & Residencial'|'Deuda Privada & Factoring Ganadero/Comercial'|'Infraestructura & Logística Hidroviaria'|'Créditos de Carbono & Activos Ambientales'|'Fondo de Inversión Cerrado / Participaciones';
+export type SectorHint={sector:SuggestedSector;short:string};
+const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+export function suggestSector(question:string):SectorHint|null{
+ const q=normalize(question);
+ if(/vaca|ganado|bovino|hacienda|agro|cultivo|cosecha|granja|plantin/.test(q))return {sector:'Agropecuario / Forestal',short:'Tu caso parece agropecuario. En «Sector Económico» elegí «Agropecuario / Silvopastoril / Forestal».'};
+ if(/camion|flota|transporte|logistica|energia|puerto|infraestructura/.test(q))return {sector:'Infraestructura & Logística Hidroviaria',short:'Tu caso parece de infraestructura o logística. En «Sector Económico» elegí «Infraestructura, Energía & Logística».'};
+ if(/terreno|edificio|departamento|inmueble|vivienda|local comercial|propiedad/.test(q))return {sector:'Inmobiliario Corporativo & Residencial',short:'Tu caso parece inmobiliario. En «Sector Económico» elegí «Inmobiliario Corporativo & Residencial».'};
+ if(/factura|factoring|pagare|deuda|derecho de cobro|prestamo/.test(q))return {sector:'Deuda Privada & Factoring Ganadero/Comercial',short:'Tu caso parece de deuda o derechos de cobro. En «Sector Económico» elegí «Deuda Privada & Factoring Comercial».'};
+ if(/carbono|credito ambiental|impacto ambiental|reforestacion/.test(q))return {sector:'Créditos de Carbono & Activos Ambientales',short:'Tu caso parece ambiental. En «Sector Económico» elegí «Créditos de Carbono & Activos Ambientales».'};
+ if(/fondo de inversion|equity|participacion societaria/.test(q))return {sector:'Fondo de Inversión Cerrado / Participaciones',short:'Tu caso parece un fondo o participación. En «Sector Económico» elegí «Fondo de Inversión / Equity Privado».'};
+ return null;
+}
+
+export function suggestObjective(question:string,sector:SuggestedSector):string{
+ const q=normalize(question);
+ if(/prestamo|pagare|factura|deuda|derecho de cobro|cobrar/.test(q))return 'Si el token representa una deuda o un derecho de cobro, explorá «Titularización de cartera de crédito / factoring». Describí quién debe pagar y qué derecho recibiría el titular.';
+ if(/lote|bolsa|tipo de producto|varios productos|distintos productos/.test(q))return 'Si querés comercializar productos por lotes, explorá «Mercado de productos por lotes». Indicá qué representa cada lote y cuántas unidades tendría.';
+ if(/certific|trazab|ambiental|carbono/.test(q))return 'Si buscás certificar un resultado o seguir su trazabilidad, explorá «Certificación ambiental y trazabilidad en cadena». Indicá qué evidencia lo respaldaría.';
+ if(/inversor|capital|participacion|cuotaparte|rendimiento|ganancia/.test(q))return 'Si el token daría participación económica a inversores, explorá «Levantamiento de capital privado». Luego habrá que revisar los derechos ofrecidos y las reglas aplicables.';
+ if(sector==='Inmobiliario Corporativo & Residencial'&&/fraccion|parte de|porcentaje|liquidez|vender/.test(q))return 'Si querés fraccionar derechos sobre un inmueble, explorá «Fraccionamiento de activo inmobiliario». Aclarás qué derecho concreto recibiría cada titular.';
+ if(/cada vaca|cada camion|cada inmueble|cada edificio|cada activo|uno por/.test(q))return 'Si querés representar cada activo por separado, describilo así en el formulario. La elección técnica se revisará después; el sector por sí solo no decide el estándar.';
+ return 'Para elegir «Objetivo Principal», contame qué recibiría quien tenga el token: ¿un activo individual, unidades de un lote, un derecho de cobro o una participación económica?';
+}

@@ -339,11 +339,12 @@ export default function App() {
         }}
       />
 
-      {!isAiDrawerOpen&&<button type="button" onClick={()=>setIsAiDrawerOpen(true)} aria-label="Abrir TOKVANT AI" className="fixed bottom-5 right-5 z-40 flex items-center gap-1.5 rounded-full border border-[#7EA5FF] bg-[#172F64] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><TokvanLogo variant="mark-only" size="sm"/><span>AI</span></button>}
+      {!isAiDrawerOpen&&<button type="button" onClick={()=>setIsAiDrawerOpen(true)} aria-label="Abrir TOKVANT AI" className="fixed bottom-5 right-5 z-[60] flex items-center gap-1.5 rounded-full border border-[#7EA5FF] bg-[#172F64] px-4 py-3 text-sm font-bold text-white shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><TokvanLogo variant="mark-only" size="sm"/><span>AI</span></button>}
       <TokvanAiDrawer
         isOpen={isAiDrawerOpen}
         onClose={() => setIsAiDrawerOpen(false)}
         currentView={currentView}
+        leadOpen={isLeadModalOpen}
       />
 
     </div>
