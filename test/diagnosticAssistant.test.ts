@@ -7,6 +7,12 @@ test('resuelve preguntas básicas y distingue un lote de siembra de una solicitu
  assert.equal(basicIntent('qué es un token ERC-20'),null);
  assert.equal(basicIntent('como empiezo a tokenizar'),'start');
  assert.equal(basicIntent('tokenizar un lote de siembra'),'sowing_lot');
+ assert.equal(basicIntent('como empiezo a usar tokvant'),'tokvant_start');
+ assert.equal(basicIntent('como empiezo mi diagnostico'),'tokvant_start');
+ assert.equal(basicIntent('que es un fideicomiso'),'trust');
+ assert.equal(basicIntent('quiero representar un colmenar abejas kilos de miel'),'bees');
+ assert.equal(basicIntent('quiero tokenizar vino una bodega'),'wine');
+ assert.equal(basicIntent('tengo una finca y quiero tokenizar la estadia de los fines de semana'),'farm_stay');
  assert.equal(basicIntent('el inmueble está en Buenos Aires'),null);
 });
 
