@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Sparkles, ArrowRight, CheckCircle2, ShieldCheck, FileText, ChevronRight } from 'lucide-react';
 import { LeadSubmission, StandardType, TokenProject } from '../../types';
 import {newClientProjectId} from '../../lib/clientProjects';
+import {assetTypeFromLeadSector} from '../../lib/leadAssetType';
 
 interface LeadCaptureModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
 
   // Form state
   const [sector, setSector] = useState('');
+  const [sectorOther, setSectorOther] = useState('');
   const [assetType, setAssetType] = useState('');
   const [country, setCountry] = useState('Por definir');
   const [objective, setObjective] = useState('');
@@ -79,7 +81,8 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       contact: {fullName:fullName.trim(),email:email.trim(),phone:phone.trim(),consent},
       assetDescription: assetType,
       commercialContext: {targetAudience,commercialChannels,objective,country,sector,experienceLevel,marketingConsent},
-      assetType: sector.includes('Agro') ? 'Agropecuario' : sector.includes('Inmobiliario') ? 'Inmobiliario' : 'Deuda / Factoring',
+      assetType: assetTypeFromLeadSector(sector),
+      assetTypeOther: sector==='Otro' ? sectorOther.trim() : undefined,
       jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : country === 'Argentina' ? 'Argentina' : country === 'Estados Unidos' ? 'Estados Unidos (Reg D / Reg S)' : 'Por definir (revisión del expediente)',
       standard: recommendedStandard,
       network: isMultiToken ? 'sepolia' : 'polygon',
@@ -202,7 +205,9 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <option value="Infraestructura & Logística Hidroviaria">Infraestructura, Energía & Logística</option>
                 <option value="Créditos de Carbono & Activos Ambientales">Créditos de Carbono & Activos Ambientales</option>
                 <option value="Fondo de Inversión Cerrado / Participaciones">Fondo de Inversión / Equity Privado</option>
+                <option value="Otro">Otro sector</option>
               </select>
+              {sector==='Otro'&&<div className="mt-3"><label htmlFor="lead-sector-other" className="mb-1 block text-xs font-semibold text-slate-300">Especificá el sector *</label><input id="lead-sector-other" type="text" maxLength={200} value={sectorOther} onChange={e=>setSectorOther(e.target.value)} placeholder="Ej. Minería / extracción de oro" className="w-full rounded-lg border border-[#273246] bg-[#0B0D12] px-3.5 py-2.5 text-sm text-white focus:border-[#316BFA] focus:outline-none"/></div>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -290,7 +295,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep(2)}
-                disabled={!sector||!assetType.trim()||!objective}
+                disabled={!sector||(sector==='Otro'&&!sectorOther.trim())||!assetType.trim()||!objective}
                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#316BFA] hover:bg-[#2557DC] rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>Continuar a Datos de Contacto</span>

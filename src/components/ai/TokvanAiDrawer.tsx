@@ -107,7 +107,10 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
    const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
    const profits=/ganancia|utilidad|rendimiento|ingreso|particip|inversor/.test(q);
    const location=countryFromLocation(question);
-   answer=profits
+   if(leadOpen&&leadStep===1){
+    answer={short:`En este diagnóstico elegí «Otro sector» en «Sector Económico» y escribí «Minería / extracción de oro» si corresponde. En «Descripción Específica del Activo» describí la explotación${profits?' y que querés proponer una participación en ganancias':''}. ${location?`En «País de Radicación del Activo» elegí «${location}». ¿Qué volumen aproximado querés representar?`:'¿En qué país está el yacimiento?'}`,more:'La orientación técnica y los derechos económicos se revisarán después. No elijas «Agropecuario» ni «Infraestructura» solo para poder avanzar.'};
+    setGuidedSector('Otro');setDiagnosticStage(location?'volume':'country');
+   }else answer=profits
     ?{short:'Para una explotación minera con participación en ganancias, en «Tipo de Activo Subyacente» elegí «Otro tipo de activo» y especificá «Actividad minera y participación en resultados». En «Memoria Descriptiva» explicá qué recibiría el titular y cómo se calcularía. ¿En qué país está el proyecto?',more:'El token no otorga por sí solo derechos sobre la mina ni sobre sus ganancias. El equipo deberá revisar la estructura, los documentos y la oferta antes de definir el estándar.'}
     :{short:`Entiendo que el activo es una explotación minera${/alta montana/.test(q)?' de alta montaña':''}. En «Tipo de Activo Subyacente» elegí «Otro tipo de activo» y escribí «Actividad minera». ${location?`Indicá «${location}» como referencia de ubicación en la memoria.`:'¿En qué país está el yacimiento?'}`,more:'En «Memoria Descriptiva del Activo» contá qué se extrae y qué derecho recibiría quien tenga el token. Si buscás repartir ganancias, explicá cómo se calcularían; TOKVANT revisará el alcance jurídico.'};
   }else if(intent==='token'){
@@ -209,6 +212,8 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
    }else{
     answer={short:'En «¿A quién estaría dirigido el token?» describí el público previsto con tus palabras. Si aún no lo sabés, podés dejarlo vacío.',more:'Después indicá tus canales comerciales actuales, si los hay. Ambos campos son opcionales.'};
    }
+  }else if(leadOpen&&guidedSector==='Otro'&&/sector econ[oó]mico|cu[aá]l elijo|qu[eé] elijo/i.test(question)){
+   answer={short:'En este diagnóstico seleccioná «Otro sector» y, en «Especificá el sector», escribí «Minería / extracción de oro». Después indicá el país del yacimiento.',more:'El campo «Otro tipo de activo» aparece más adelante, en la solicitud completa de cinco pasos. Allí se conservará el sector que escribas ahora.'};
   }else if(guidedSector&&diagnosticStage==='country'){
    const country=countryFromLocation(question);
    if(country){

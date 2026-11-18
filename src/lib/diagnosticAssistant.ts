@@ -1,4 +1,4 @@
-export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo & Residencial'|'Deuda Privada & Factoring Ganadero/Comercial'|'Infraestructura & Logística Hidroviaria'|'Créditos de Carbono & Activos Ambientales'|'Fondo de Inversión Cerrado / Participaciones';
+export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo & Residencial'|'Deuda Privada & Factoring Ganadero/Comercial'|'Infraestructura & Logística Hidroviaria'|'Créditos de Carbono & Activos Ambientales'|'Fondo de Inversión Cerrado / Participaciones'|'Otro';
 export type SectorHint={sector:SuggestedSector;short:string};
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
