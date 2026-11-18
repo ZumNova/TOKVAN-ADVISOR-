@@ -75,7 +75,7 @@ export default function App() {
   };
 
   const handleNavigate = (view: string) => {
-    if (['dashboard','projects','factory','simulator','standards','approvals','admin','architecture'].includes(view) && !roleCanOpen(staff?.role ?? null, view)) {
+    if (['dashboard','projects','factory','standards','approvals','admin','architecture'].includes(view) && !roleCanOpen(staff?.role ?? null, view)) {
       setRequestedView(view); setCurrentView('staff-access'); window.scrollTo({top:0}); return;
     }
     refreshClientRecords();
@@ -282,7 +282,7 @@ export default function App() {
           <Suspense fallback={<p className="p-8">Cargando factory…</p>}><FactoryWorkspace projects={projects} staffAccount={staff?.account ?? null} staffRole={staff?.role ?? null} initialProjectId={selectedProjectForDetail?.id} /></Suspense>
         )}
 
-        {currentView === 'simulator' && roleCanOpen(staff?.role ?? null, 'simulator') && (
+        {currentView === 'simulator' && (
           <TokenSimulator
             onNavigate={handleNavigate}
           />
