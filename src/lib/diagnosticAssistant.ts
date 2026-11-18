@@ -24,6 +24,16 @@ export function isAccessPassProposal(question:string):boolean{
  return (venue&&access)||(access&&credential&&/\b(pagar|paguen|comprar|compren|validar|entregar|entreguen)\b/.test(q));
 }
 
+export function isTaxIdQuestion(question:string):boolean{
+ const q=normalize(question);
+ return /\b(ruc|identificador fiscal|identificacion fiscal|numero fiscal|id fiscal|cuit|cnpj)\b/.test(q);
+}
+
+export function isMiningProposal(question:string):boolean{
+ const q=normalize(question);
+ return /\b(miner[ioa]|mineria|extraccion minera|explotacion minera|yacimiento|mina de|mineral(?:es)?)\b/.test(q);
+}
+
 export function isLocationReply(question:string):boolean{
  const q=normalize(question).trim();
  if(/\b(quiero|representar|comercializar|vender|comprar|emitir)\b/.test(q))return false;

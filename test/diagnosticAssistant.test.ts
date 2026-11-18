@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {basicIntent,countryFromLocation,isAccessPassProposal,isLocationReply,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+import {basicIntent,countryFromLocation,isAccessPassProposal,isLocationReply,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
 
 test('resuelve preguntas básicas y distingue un lote de siembra de una solicitud genérica',()=>{
  assert.equal(basicIntent('que es un token'),'token');
@@ -19,6 +19,15 @@ test('resuelve preguntas básicas y distingue un lote de siembra de una solicitu
 test('distingue un pase de acceso de un inmueble aunque la conversación anterior fuera inmobiliaria',()=>{
  assert.equal(isAccessPassProposal('Quiero tokenizar un club: usuarios pagan antes y presentan desde el celular un QR en la entrada'),true);
  assert.equal(isAccessPassProposal('Tengo un terreno y quiero hacer un edificio'),false);
+});
+
+test('reconoce preguntas del campo fiscal y proyectos mineros sin confundirlos con sectores disponibles',()=>{
+ assert.equal(isTaxIdQuestion('¿Qué es RUC / Identificación Fiscal?'),true);
+ assert.equal(isTaxIdQuestion('¿Qué número va ahí?'),false);
+ assert.equal(isMiningProposal('Somos una empresa minera; queremos tokenizar participación en ganancias'),true);
+ assert.equal(isMiningProposal('minería de alta montaña'),true);
+ assert.equal(isMiningProposal('extracción minera'),true);
+ assert.equal(suggestSector('extracción minera'),null);
 });
 
 test('orienta los tres ejemplos del diagnóstico hacia el sector correcto',()=>{

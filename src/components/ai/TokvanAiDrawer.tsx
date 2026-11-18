@@ -1,7 +1,7 @@
 import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
-import {basicIntent,countryFromLocation,isAccessPassProposal,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
+import {basicIntent,countryFromLocation,isAccessPassProposal,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 import {nextDiagnosticField,unresolvedDiagnosticAnswer,type CommercialStage,type DiagnosticStage} from './diagnosticFlow';
 
@@ -92,6 +92,15 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
+  }else if(currentView==='wizard'&&isTaxIdQuestion(question)){
+   answer={short:'En «RUC / Identificación Fiscal» va el número fiscal oficial de la organización emisora, tal como figura en su registro tributario. Si todavía no lo tenés a mano, este campo no es obligatorio: podés seguir y completarlo o aclararlo después.',more:'No inventes un número ni escribas un documento personal en este chat. Cargá el dato de la empresa directamente en el formulario. El nombre del identificador cambia según el país.'};
+  }else if(isMiningProposal(question)){
+   const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   const profits=/ganancia|utilidad|rendimiento|ingreso|particip|inversor/.test(q);
+   const location=countryFromLocation(question);
+   answer=profits
+    ?{short:'Para una explotación minera con participación en ganancias, en «Tipo de Activo Subyacente» elegí «Otro tipo de activo» y especificá «Actividad minera y participación en resultados». En «Memoria Descriptiva» explicá qué recibiría el titular y cómo se calcularía. ¿En qué país está el proyecto?',more:'El token no otorga por sí solo derechos sobre la mina ni sobre sus ganancias. El equipo deberá revisar la estructura, los documentos y la oferta antes de definir el estándar.'}
+    :{short:`Entiendo que el activo es una explotación minera${/alta montana/.test(q)?' de alta montaña':''}. En «Tipo de Activo Subyacente» elegí «Otro tipo de activo» y escribí «Actividad minera». ${location?`Indicá «${location}» como referencia de ubicación en la memoria.`:'¿En qué país está el yacimiento?'}`,more:'En «Memoria Descriptiva del Activo» contá qué se extrae y qué derecho recibiría quien tenga el token. Si buscás repartir ganancias, explicá cómo se calcularían; TOKVANT revisará el alcance jurídico.'};
   }else if(intent==='token'){
    setGuidedSector(null);
    setDiagnosticStage(null);
