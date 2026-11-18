@@ -1,7 +1,7 @@
 import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
-import {countryFromLocation,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
+import {countryFromLocation,isAccessPassProposal,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 
 type Mode='educativo'|'operativo';
@@ -46,7 +46,9 @@ function topicFor(question:string):Topic{
  if(/despleg|factory|contrato|gas/.test(q))return 'despliegue';
  return 'inicio';
 }
-function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:'audience'|'channels'|'contact'){
+function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:'audience'|'channels'|'contact',accessStage:'usage'|'individual'|null){
+ if(accessStage==='usage')return 'Caso: pases de acceso al club. Definamos primero si sirven una vez o varias veces.';
+ if(accessStage==='individual')return 'Caso: pases de acceso al club. Ahora definamos si cada pase es individual o intercambiable.';
  if(leadOpen&&leadStep===2)return commercialStage==='audience'?'Estás en «Entidad & Contacto». ¿A quién estaría dirigido el token?':commercialStage==='channels'?'Ahora completá «¿Qué canales comerciales tiene actualmente?» con los que ya usás.':'Si completaste estrategia comercial y contacto en el formulario, pulsá «Generar Diagnóstico Institucional».';
  if(leadOpen&&leadStep===3)return 'Este es el diagnóstico preliminar. Revisá la orientación y abrí el borrador para continuar.';
  if(leadOpen)return 'Sigamos los campos de «Activo & Objetivo» de TOKVANT, uno por vez. ¿Qué activo o proyecto tenés?';
@@ -70,12 +72,14 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
  const [diagnosticStage,setDiagnosticStage]=useState<DiagnosticStage>(null);
  const [commercialStage,setCommercialStage]=useState<'audience'|'channels'|'contact'>('audience');
+ const [accessStage,setAccessStage]=useState<'usage'|'individual'|null>(null);
  function startNewConversation(){
   setMessages([]);
   setQuery('');
   setGuidedSector(null);
   setDiagnosticStage(null);
   setCommercialStage('audience');
+  setAccessStage(null);
  }
  if(!isOpen)return null;
  async function ask(question:string){
@@ -83,6 +87,28 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
+  }else if(isAccessPassProposal(question)){
+   setGuidedSector(null);
+   setDiagnosticStage(null);
+   setAccessStage('usage');
+   answer={short:'Entiendo la idea: el cliente paga antes, recibe un pase digital en su celular y muestra un QR en la entrada del club. ¿El pase sirve una sola vez o permite varios ingresos?',more:'El token podría representar el derecho de acceso, pero el cobro, el QR y la validación en la puerta necesitan funciones adicionales. Primero definamos cómo se usa el pase; después vemos el estándar.'};
+  }else if(accessStage==='usage'){
+   const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   const single=/una (sola )?vez|un (solo )?ingreso|un (solo )?uso|se (quema|consume)|descartable/.test(q);
+   const recurring=/varias veces|muchas veces|reutiliz|recurrent|mensual|abono|membresia|socio/.test(q);
+   if(single||recurring){
+    answer={short:`Entonces sería un pase ${single?'de un solo ingreso':'reutilizable'}. ¿Cada pase debe identificar a una persona concreta o todos los pases del mismo tipo pueden ser iguales?`,more:single?'Para impedir un segundo uso, la puerta debe comprobar y registrar que el pase ya fue utilizado; quemarlo es una opción, pero requiere que el contrato y el flujo de validación lo permitan.':'La validez por período y la renovación necesitan reglas adicionales; el token por sí solo no controla la puerta.'};
+    setAccessStage('individual');
+   }else answer={short:'Para orientar el diseño, decime primero si cada pase permite un solo ingreso o si puede usarse varias veces.',more:'Con esa respuesta podremos distinguir la validación en la puerta del tipo de token.'};
+  }else if(accessStage==='individual'){
+   const q=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   if(/persona|individual|unico|unica|identific|nombre|intransferible/.test(q)){
+    answer={short:'Si cada pase es individual y único, ERC-721 es una opción para explorar. ¿Querés que el titular pueda transferirlo a otra persona?',more:'El QR y la comprobación de identidad se diseñan aparte. La revisión del proyecto deberá definir también privacidad, vencimiento y cómo impedir usos repetidos.'};
+    setAccessStage(null);
+   }else if(/iguales|identicos|mismo tipo|intercambiables|todos|varios/.test(q)){
+    answer={short:'Si emitís muchos pases iguales del mismo tipo, ERC-1155 es una opción para explorar. ¿Habrá distintas categorías de acceso, como día o temporada?',more:'Cada categoría puede ser un ID con varias unidades. El pago y la lectura del QR se integran aparte; la puerta debe comprobar que el pase sigue vigente.'};
+    setAccessStage(null);
+   }else answer={short:'¿Cada pase identifica a una persona concreta o todos los pases de una categoría pueden ser iguales?',more:'Esa diferencia ayuda a decidir si conviene explorar ERC-721 o ERC-1155.'};
   }else if(leadOpen&&leadStep===2){
    const normalized=question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
    if(/(complete|llene|cargue|termine|listo|finalice).*(campo|dato|formulario)|^listo[.! ]*$/.test(normalized)){
@@ -140,7 +166,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep}:Prop
  return <div role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Nueva conversación</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,accessStage)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
    {messages.map(message=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>

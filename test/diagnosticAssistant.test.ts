@@ -1,6 +1,11 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {countryFromLocation,isLocationReply,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+import {countryFromLocation,isAccessPassProposal,isLocationReply,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+
+test('distingue un pase de acceso de un inmueble aunque la conversación anterior fuera inmobiliaria',()=>{
+ assert.equal(isAccessPassProposal('Quiero tokenizar un club: usuarios pagan antes y presentan desde el celular un QR en la entrada'),true);
+ assert.equal(isAccessPassProposal('Tengo un terreno y quiero hacer un edificio'),false);
+});
 
 test('orienta los tres ejemplos del diagnóstico hacia el sector correcto',()=>{
  assert.equal(suggestSector('Tengo un campo con vacas')?.sector,'Agropecuario / Forestal');

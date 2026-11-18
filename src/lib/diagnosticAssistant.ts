@@ -2,6 +2,14 @@ export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo 
 export type SectorHint={sector:SuggestedSector;short:string};
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
+export function isAccessPassProposal(question:string):boolean{
+ const q=normalize(question);
+ const venue=/\b(club|evento|recital|estadio|gimnasio|socio|socios)\b/.test(q);
+ const access=/\b(entrar|entrada|acceso|ingresar|ingreso|pase|pases)\b/.test(q);
+ const credential=/\b(token|tokens|qr|celular|movil|boleto|ticket)\b/.test(q);
+ return (venue&&access)||(access&&credential&&/\b(pagar|paguen|comprar|compren|validar|entregar|entreguen)\b/.test(q));
+}
+
 export function isLocationReply(question:string):boolean{
  const q=normalize(question).trim();
  if(/\b(quiero|representar|comercializar|vender|comprar|emitir)\b/.test(q))return false;
