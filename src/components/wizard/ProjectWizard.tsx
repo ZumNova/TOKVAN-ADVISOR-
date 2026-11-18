@@ -12,6 +12,7 @@ import {projectBlockers} from '../../lib/erc20Factory';
 interface ProjectWizardProps {
   initialProject?: Partial<TokenProject>;
   initialStep?: number;
+  onStepChange?: (step: number) => void;
   onSaveProject: (project: TokenProject) => void;
   onCancel: () => void;
 }
@@ -19,10 +20,12 @@ interface ProjectWizardProps {
 export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   initialProject,
   initialStep = 1,
+  onStepChange,
   onSaveProject,
   onCancel,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(initialStep);
+  useEffect(() => { onStepChange?.(currentStep); }, [currentStep, onStepChange]);
   const totalSteps = 5;
 
   // Form State

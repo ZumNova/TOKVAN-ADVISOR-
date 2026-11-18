@@ -271,6 +271,7 @@ export default function App() {
             key={wizardSeedProject?.id || 'new-client-project'}
             initialProject={wizardSeedProject}
             initialStep={wizardStep}
+            onStepChange={setWizardStep}
             onSaveProject={handleSaveProjectFromWizard}
             onCancel={() => {
               setWizardSeedProject(undefined);
@@ -352,6 +353,7 @@ export default function App() {
         leadOpen={isLeadModalOpen}
         leadStep={leadStep}
         leadField={leadField}
+        wizardStep={wizardStep}
       />
 
     </div>
