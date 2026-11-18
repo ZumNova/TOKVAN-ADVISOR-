@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {suggestObjective,suggestSector} from '../src/lib/diagnosticAssistant';
+import {isLocationReply,suggestObjective,suggestSector} from '../src/lib/diagnosticAssistant';
 
 test('orienta los tres ejemplos del diagnóstico hacia el sector correcto',()=>{
  assert.equal(suggestSector('Tengo un campo con vacas')?.sector,'Agropecuario / Forestal');
@@ -12,4 +12,10 @@ test('pregunta por el derecho o producto antes de sugerir un objetivo',()=>{
  assert.match(suggestObjective('No sé todavía','Agropecuario / Forestal'),/qué recibiría/);
  assert.match(suggestObjective('Quiero vender cada vaca','Agropecuario / Forestal'),/cada activo/);
  assert.match(suggestObjective('Quiero representar una parte del edificio','Inmobiliario Corporativo & Residencial'),/Fraccionamiento/);
+});
+
+test('una respuesta de ubicación continúa la conversación sin reiniciar el sector',()=>{
+ assert.equal(isLocationReply('El inmueble está en Buenos Aires'),true);
+ assert.equal(isLocationReply('El inmueble esta en Buenos Aires'),true);
+ assert.equal(isLocationReply('Quiero vender el inmueble en Buenos Aires'),false);
 });

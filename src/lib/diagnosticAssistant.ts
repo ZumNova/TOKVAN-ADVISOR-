@@ -2,6 +2,12 @@ export type SuggestedSector='Agropecuario / Forestal'|'Inmobiliario Corporativo 
 export type SectorHint={sector:SuggestedSector;short:string};
 const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
+export function isLocationReply(question:string):boolean{
+ const q=normalize(question).trim();
+ if(/\b(quiero|representar|comercializar|vender|comprar|emitir)\b/.test(q))return false;
+ return /\b(esta|queda|ubicado|ubicada|situado|situada|se encuentra)\b.{0,55}\ben\b/.test(q);
+}
+
 export function suggestSector(question:string):SectorHint|null{
  const q=normalize(question);
  if(/vaca|ganado|bovino|hacienda|agro|cultivo|cosecha|granja|plantin/.test(q))return {sector:'Agropecuario / Forestal',short:'Tu caso parece agropecuario. En «Sector Económico» elegí «Agropecuario / Silvopastoril / Forestal».'};

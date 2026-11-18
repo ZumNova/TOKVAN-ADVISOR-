@@ -1,7 +1,7 @@
 import {useState,type FormEvent} from 'react';
 import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
-import {suggestObjective,suggestSector,type SuggestedSector} from '../../lib/diagnosticAssistant';
+import {isLocationReply,suggestObjective,suggestSector,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 
 type Mode='educativo'|'operativo';
@@ -71,6 +71,8 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen}:Props)=>{
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
+  }else if(guidedSector&&isLocationReply(question)){
+   answer={short:'Entiendo: esa es la ubicación del activo. Podés indicarla en la descripción del proyecto. ¿Qué recibiría quien tenga el token?',more:'Por ejemplo, podría tratarse de un acceso, un derecho de cobro o una participación. El equipo TOKVANT revisará cómo describirlo y qué reglas aplicar.'};
   }else if(guidedSector&&/quiero|represent|comercial|vender|token|parte|lote|derecho|particip/i.test(question)&&!/^tengo\b/i.test(question)){
    answer={short:suggestObjective(question,guidedSector),more:'Es una orientación preliminar para completar «Objetivo Principal». Describí el derecho o producto concreto; TOKVANT revisará después el estándar y las reglas aplicables.'};
    setGuidedSector(null);
