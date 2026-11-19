@@ -1,6 +1,15 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {decimalGuide,explicitStandardQuestion,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {decimalGuide,explicitStandardQuestion,privilegedGuide,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('explica cada función privilegiada sin prometer UUPS ni doble firma automática',()=>{
+ assert.match(privilegedGuide('¿Qué son las funcionalidades privilegiadas?')!.short,/pausa.*quema.*emisión adicional.*UUPS/);
+ assert.match(privilegedGuide('¿Qué es pausabilidad de emergencia?')!.more,/ERC-3643.*agentes/);
+ assert.match(privilegedGuide('¿Qué es quema de tokens?')!.more,/sin su firma/);
+ assert.match(privilegedGuide('¿Qué es emisión adicional?')!.short,/porcentaje relativo/);
+ assert.match(privilegedGuide('¿Qué es Proxy UUPS?')!.short,/no lo implementan/);
+ assert.match(privilegedGuide('¿Qué significa doble firma multi-sig?')!.short,/no instala una bóveda/);
+});
 
 test('explica las tres opciones y sus límites reales en TOKVANT v1',()=>{
  const comparison=transferGuide('¿Qué significa régimen de transferencia y controles?')!;

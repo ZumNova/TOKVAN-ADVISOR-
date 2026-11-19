@@ -4,7 +4,7 @@ import {TokvanLogo} from '../brand/TokvanLogo';
 import {basicIntent,countryFromLocation,isAccessPassProposal,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 import {mentionedDiagnosticField,nextDiagnosticField,unresolvedDiagnosticAnswer,type CommercialStage,type DiagnosticStage,type LeadField} from './diagnosticFlow';
-import {decimalGuide,explicitStandardQuestion,transferGuide,wizardGuide,wizardFallback} from './wizardGuide';
+import {decimalGuide,explicitStandardQuestion,privilegedGuide,transferGuide,wizardGuide,wizardFallback} from './wizardGuide';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
@@ -110,6 +110,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   const standardQuestion=explicitStandardQuestion(question);
   const decimalAnswer=decimalGuide(question,messages.map(message=>message.question));
   const transferAnswer=transferGuide(question);
+  const privilegedAnswer=privilegedGuide(question);
   const wizardAnswer=currentView==='wizard'&&!leadOpen?wizardGuide(question,wizardStep,messages.map(message=>message.question)):null;
   let answer:Answer;
   if(containsPrivateData(question)){
@@ -120,6 +121,8 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
    answer=decimalAnswer;
   }else if(transferAnswer){
    answer=transferAnswer;
+  }else if(privilegedAnswer){
+   answer=privilegedAnswer;
   }else if(wizardAnswer){
    answer=wizardAnswer;
   }else if(currentView==='wizard'&&isTaxIdQuestion(question)){
