@@ -4,7 +4,7 @@ import {TokvanLogo} from '../brand/TokvanLogo';
 import {basicIntent,countryFromLocation,isAccessPassProposal,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
 import {mentionedDiagnosticField,nextDiagnosticField,unresolvedDiagnosticAnswer,type CommercialStage,type DiagnosticStage,type LeadField} from './diagnosticFlow';
-import {decimalGuide,explicitStandardQuestion,privilegedGuide,transferGuide,wizardGuide,wizardFallback} from './wizardGuide';
+import {decimalGuide,explicitStandardQuestion,privilegedGuide,submittedProjectGuide,transferGuide,wizardGuide,wizardFallback} from './wizardGuide';
 
 type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
@@ -108,6 +108,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   if(fieldAsked)setMentionedField(fieldAsked);
   const activeField=fieldAsked||mentionedField||leadField;
   const standardQuestion=explicitStandardQuestion(question);
+  const submittedAnswer=submittedProjectGuide(question);
   const decimalAnswer=decimalGuide(question,messages.map(message=>message.question));
   const transferAnswer=transferGuide(question);
   const privilegedAnswer=privilegedGuide(question);
@@ -115,6 +116,8 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};
+  }else if(submittedAnswer){
+   answer=submittedAnswer;
   }else if(standardQuestion){
    answer=(mode==='educativo'?educational:operational)[standardQuestion];
   }else if(decimalAnswer){

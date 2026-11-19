@@ -46,6 +46,15 @@ export function wizardFallback(step:number):WizardGuideAnswer{
  return {short:`Estás en el paso ${step} de la solicitud completa: ${name}. Decime el nombre del campo que te genera dudas o qué querés representar; seguimos desde acá.`,more:'Si todavía no podés definir una respuesta, dejala indicada para revisión de TOKVANT y avanzá con los demás campos. No hace falta volver al diagnóstico breve.'};
 }
 
+export function submittedProjectGuide(question:string):WizardGuideAnswer|null{
+ const q=norm(question);
+ const submitted=/comprobante|solicitud (?:enviada|recibida)|expediente (?:enviado|recibido)|termine (?:la carga|de cargar)|ya (?:envie|mande) (?:la solicitud|el expediente)|despues de enviar/.test(q);
+ const next=/que hago ahora|como sigo|siguiente paso|esper|cuanto tard|cuando (?:contest|respond)|presupuesto|precio|valor del servicio|cuanto cuesta|descarg|resumen json|contact|correo|mail/.test(q);
+ if(!submitted&&!/presupuesto|precio|valor del servicio|cuanto cuesta|cuanto tardan en (?:contest|respond)/.test(q))return null;
+ if(!next&&!/presupuesto|precio|valor del servicio|cuanto cuesta/.test(q))return null;
+ return {short:'Si ya apareció el comprobante, TOKVANT recibió tu solicitud. Guardá su número y descargá «Resumen JSON» y los adjuntos desde «Tus borradores y solicitudes». Ahora corresponde la revisión del equipo; el presupuesto se define para tu expediente y todavía no hay un plazo de respuesta publicado.',more:'Podés descargar el JSON también desde un celular; el navegador te ofrecerá guardarlo o compartirlo según el dispositivo. Revisá el email y teléfono que cargaste: son los datos para que el equipo pueda contactarte, pero los avisos automáticos aún no están activos. El comprobante de recepción no indica que el servicio esté presupuestado, aprobado o pagado. Cuando TOKVANT publique sus canales oficiales, también podrás consultarlos allí.'};
+}
+
 export function wizardGuide(question:string,step:number,previousQuestions:string[],standard?:string):WizardGuideAnswer|null{
  const q=norm(question), history=norm(previousQuestions.join(' '));
  const decimalAnswer=decimalGuide(question,previousQuestions);

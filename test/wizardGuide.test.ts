@@ -1,6 +1,13 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {decimalGuide,explicitStandardQuestion,privilegedGuide,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {decimalGuide,explicitStandardQuestion,privilegedGuide,submittedProjectGuide,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('tras recibir el comprobante explica próximos pasos sin prometer plazo ni presupuesto',()=>{
+ const answer=submittedProjectGuide('Una vez terminada la carga se generó un comprobante. ¿Qué hago ahora, cuánto tardan en contestar y dónde veo el valor del servicio?')!;
+ assert.match(answer.short,/recibió tu solicitud.*Resumen JSON.*presupuesto/);
+ assert.match(answer.more,/celular.*avisos automáticos aún no están activos/);
+ assert.equal(submittedProjectGuide('¿Qué es un token?'),null);
+});
 
 test('explica cada función privilegiada sin prometer UUPS ni doble firma automática',()=>{
  assert.match(privilegedGuide('¿Qué son las funcionalidades privilegiadas?')!.short,/pausa.*quema.*emisión adicional.*UUPS/);
