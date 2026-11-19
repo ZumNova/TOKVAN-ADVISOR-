@@ -8,4 +8,6 @@ La fuente original marca las FAQ seleccionadas como **revisión editorial pendie
 
 `review_v2.sql` aplica la primera revisión al lote V2 ya cargado: publica únicamente la definición de blockchain (FAQ-0001), que el responsable aprobó. Actualiza cuatro respuestas sobre participantes, comercialización, usos empresariales y membresía; quedan en `draft` para leer la nueva redacción. Las preguntas sobre incorporación de transacciones y oráculos permanecen en `draft` porque se descartaron para publicación por ahora.
 
+Tras revisar las siete filas de esa primera revisión, el responsable aprobó publicarlas. `publish_v2_seven.sql` marca esas siete como `published`; la API pública de TOKVANT AI ya consulta esa tabla por estado y las incorpora sin desplegar código. FAQ-0031 sigue en borrador. Ejecutar el archivo en el SQL Editor de Supabase y verificar que devuelva siete filas `published`.
+
 Quedan excluidas las FAQ de validación especializada y las marcadas «No publicar». También quedan fuera las afirmaciones sobre productos o servicios de terceros cuya versión actual no se verificó. El bot solo usa las filas publicadas; mientras tanto conserva sus respuestas incorporadas.
