@@ -6,4 +6,6 @@ La fuente original marca las FAQ seleccionadas como **revisión editorial pendie
 
 `public_drafts_v2.sql` agrega ocho preguntas distintas de la misma base V1, enfocadas en dudas durante el diagnóstico y la solicitud TOKVANT. También se insertan únicamente como `draft` y puede ejecutarse nuevamente sin duplicar sus referencias. Revisar cada respuesta antes de publicarla; no cargar automáticamente el manual completo.
 
+`review_v2.sql` aplica la primera revisión al lote V2 ya cargado: publica únicamente la definición de blockchain (FAQ-0001), que el responsable aprobó. Actualiza cuatro respuestas sobre participantes, comercialización, usos empresariales y membresía; quedan en `draft` para leer la nueva redacción. Las preguntas sobre incorporación de transacciones y oráculos permanecen en `draft` porque se descartaron para publicación por ahora.
+
 Quedan excluidas las FAQ de validación especializada y las marcadas «No publicar». También quedan fuera las afirmaciones sobre productos o servicios de terceros cuya versión actual no se verificó. El bot solo usa las filas publicadas; mientras tanto conserva sus respuestas incorporadas.
