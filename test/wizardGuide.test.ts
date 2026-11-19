@@ -1,6 +1,15 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {explicitStandardQuestion,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {decimalGuide,explicitStandardQuestion,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('la precisión decimal tiene prioridad sobre el caso minero',()=>{
+ const answer=wizardGuide('PARA un token de mineria erc 3643 que presicion decimal usaria una de 2, 0, 6 o 18',3,[]);
+ assert.match(answer!.short,/0 = solo unidades enteras.*2 = centésimos.*6 = millonésimos.*18 = fracciones muy pequeñas/);
+ assert.match(answer!.short,/ERC-20 y ERC-3643/);
+ assert.doesNotMatch(answer!.short,/yacimiento/);
+ assert.match(answer!.more,/paridad/);
+ assert.equal(decimalGuide('quiero tokenizar una mina'),null);
+});
 
 test('las cuatro burbujas identifican su estándar exacto',()=>{
  assert.equal(explicitStandardQuestion('¿Qué es ERC-20?'),'erc20');
