@@ -34,6 +34,20 @@ export function isMiningProposal(question:string):boolean{
  return /\b(miner[ioa]|mineria|yacimiento|mina|mineral(?:es)?|oro)\b/.test(q)||/\b(?:extr|extar)[a-z]*cion\b/.test(q)&&/\b(oro|mina|mineral(?:es)?)\b/.test(q);
 }
 
+export function isArtProposal(question:string):boolean{
+ const q=normalize(question);
+ return /\b(arte|artist[ao]|obra(?:s)?(?: de arte)?|pintura(?:s)?|cuadro(?:s)?|dibujo(?:s)?|ilustracion(?:es)?|escultura(?:s)?|fotografia(?:s)?|arte textil|pieza(?:s)? textil(?:es)?|prenda(?:s)? de autor|ropa de autor)\b/.test(q);
+}
+
+export function isArtFinancialRights(question:string):boolean{
+ const q=normalize(question);
+ return /\b(fraccion|participacion|cuotaparte|rendimiento|ganancia|regalias?|derecho de cobro|ingresos|inversor|inversion|capital)\b/.test(q);
+}
+
+export function isUniqueArtProposal(description:string,sector:string,objective:string):boolean{
+ return isArtProposal(`${description} ${sector}`)&&!isArtFinancialRights(`${description} ${objective}`)&&!/(ediciones?|serie|copias|ejemplares|multiples unidades|varias iguales)/.test(normalize(description))&&!/productos por lotes/.test(normalize(objective));
+}
+
 export function isLocationReply(question:string):boolean{
  const q=normalize(question).trim();
  if(/\b(quiero|representar|comercializar|vender|comprar|emitir)\b/.test(q))return false;

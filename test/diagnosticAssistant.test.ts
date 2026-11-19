@@ -1,6 +1,18 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {basicIntent,countryFromLocation,isAccessPassProposal,isLocationReply,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+import {basicIntent,countryFromLocation,isAccessPassProposal,isArtFinancialRights,isArtProposal,isLocationReply,isMiningProposal,isTaxIdQuestion,isUniqueArtProposal,suggestObjective,suggestSector,volumeBandFromText} from '../src/lib/diagnosticAssistant';
+
+test('detecta arte sin confundir una participación económica con una obra única',()=>{
+ assert.equal(isArtProposal('quiero digitalizar una pintura original'),true);
+ assert.equal(isArtProposal('dibujo y arte textil'),true);
+ assert.equal(isArtProposal('una prenda de autor'),true);
+ assert.equal(isArtFinancialRights('participación en regalías de la obra'),true);
+ assert.equal(isArtProposal('quiero tokenizar un hotel'),false);
+ assert.equal(isUniqueArtProposal('Una pintura original','Arte','Por definir con TOKVANT'),true);
+ assert.equal(isUniqueArtProposal('Serie de 50 copias de la pintura','Arte','Por definir con TOKVANT'),false);
+ assert.equal(isUniqueArtProposal('Obra de arte','Arte','Levantamiento de capital privado mediante cuotapartes reguladas'),false);
+ assert.equal(isUniqueArtProposal('Obras de arte','Arte','Mercado de productos por lotes con varios tipos y cantidades'),false);
+});
 
 test('resuelve preguntas básicas y distingue un lote de siembra de una solicitud genérica',()=>{
  assert.equal(basicIntent('que es un token'),'token');

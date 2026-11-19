@@ -1,4 +1,5 @@
 export type WizardGuideAnswer={short:string;more:string};
+import {isArtFinancialRights,isArtProposal} from '../../lib/diagnosticAssistant';
 const norm=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const stepNames=['','organización y activo','estándar y red','parámetros del token','documentación','revisión y envío'];
 
@@ -53,6 +54,14 @@ export function submittedProjectGuide(question:string):WizardGuideAnswer|null{
  if(!submitted&&!/presupuesto|precio|valor del servicio|cuanto cuesta|cuanto tardan en (?:contest|respond)/.test(q))return null;
  if(!next&&!/presupuesto|precio|valor del servicio|cuanto cuesta/.test(q))return null;
  return {short:'Si ya apareció el comprobante, TOKVANT recibió tu solicitud. Guardá su número y descargá «Resumen JSON» y los adjuntos desde «Tus borradores y solicitudes». Ahora corresponde la revisión del equipo; el presupuesto se define para tu expediente y todavía no hay un plazo de respuesta publicado.',more:'Podés descargar el JSON también desde un celular; el navegador te ofrecerá guardarlo o compartirlo según el dispositivo. Revisá el email y teléfono que cargaste: son los datos para que el equipo pueda contactarte, pero los avisos automáticos aún no están activos. El comprobante de recepción no indica que el servicio esté presupuestado, aprobado o pagado. Cuando TOKVANT publique sus canales oficiales, también podrás consultarlos allí.'};
+}
+
+export function artGuide(question:string,previousQuestions:string[]=[]):WizardGuideAnswer|null{
+ const q=norm(question),context=previousQuestions.slice(-4).join(' ');
+ if(!isArtProposal(question)&&!(/^(una|unica|original|una sola|varias|edicion|serie|copias|ejemplares)/.test(q)&&isArtProposal(context)))return null;
+ if(isArtFinancialRights(question))return {short:'Si el token representaría ganancias, regalías o una participación en la obra, primero describí ese derecho. No alcanza con que sea arte para elegir ERC-721. ¿Venderías la pieza única o un derecho económico sobre ella?',more:'La estructura económica y sus restricciones necesitan revisión antes de recomendar el estándar.'};
+ if(/\b(ediciones?|serie|copias|ejemplares|multiples unidades|varias iguales)\b/.test(q))return {short:'Si vendés una edición con varias unidades iguales, contá cuántas copias tendrá. ERC-1155 puede servir para tipos o ediciones con varias unidades; si cada pieza es distinta, ERC-721 sigue siendo una opción. ¿Son copias de una edición o piezas únicas?',more:'Definí por separado imagen, descripción y cantidad de cada pieza o edición. El derecho que recibe el comprador debe quedar escrito en el expediente.'};
+ return {short:'Si querés representar una obra única —pintura, dibujo, escultura, fotografía o pieza textil— explorá un NFT ERC-721. En el diagnóstico elegí «Otro sector» y escribí «Arte»; describí la obra y, en la solicitud completa, seleccioná ERC-721. ¿Es una sola pieza o una edición con varias copias?',more:'Para una sola pieza, proponé 1 unidad y 0 decimales. Adjuntá su imagen y explicá qué recibe el titular: obra física, archivo digital, acceso o certificado. El NFT no transfiere automáticamente la propiedad física ni derechos de autor. Si hay participaciones económicas, el equipo debe revisar el modelo antes de elegir estándar.'};
 }
 
 export function wizardGuide(question:string,step:number,previousQuestions:string[],standard?:string):WizardGuideAnswer|null{

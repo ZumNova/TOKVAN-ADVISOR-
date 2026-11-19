@@ -1,6 +1,14 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {decimalGuide,explicitStandardQuestion,privilegedGuide,submittedProjectGuide,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {artGuide,decimalGuide,explicitStandardQuestion,privilegedGuide,submittedProjectGuide,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('guía una obra única hacia ERC-721 y distingue ediciones y derechos económicos',()=>{
+ assert.match(artGuide('Quiero tokenizar una pintura única')!.short,/NFT ERC-721.*Otro sector/);
+ assert.match(artGuide('una prenda de autor')!.more,/1 unidad y 0 decimales/);
+ assert.match(artGuide('varias copias de la obra')!.short,/ERC-1155/);
+ assert.match(artGuide('quiero participar en las regalías de una obra')!.short,/derecho económico/);
+ assert.equal(artGuide('quiero tokenizar un hotel'),null);
+});
 
 test('tras recibir el comprobante explica próximos pasos sin prometer plazo ni presupuesto',()=>{
  const answer=submittedProjectGuide('Una vez terminada la carga se generó un comprobante. ¿Qué hago ahora, cuánto tardan en contestar y dónde veo el valor del servicio?')!;

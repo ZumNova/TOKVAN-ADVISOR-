@@ -3,6 +3,7 @@ import { X, Sparkles, ArrowRight, CheckCircle2, ShieldCheck, FileText, ChevronRi
 import { LeadSubmission, StandardType, TokenProject } from '../../types';
 import {newClientProjectId} from '../../lib/clientProjects';
 import {assetTypeFromLeadSector} from '../../lib/leadAssetType';
+import {isUniqueArtProposal} from '../../lib/diagnosticAssistant';
 import type {LeadField} from '../ai/diagnosticFlow';
 
 interface LeadCaptureModalProps {
@@ -56,8 +57,11 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
     }
 
     // Recommendation logic based on objective & asset
+    const uniqueArt=isUniqueArtProposal(assetType,sectorOther,objective);
     let standard: StandardType = 'ERC-3643';
-    if (objective === 'Mercado de productos por lotes con varios tipos y cantidades') {
+    if (uniqueArt) {
+      standard = 'ERC-721';
+    } else if (objective === 'Mercado de productos por lotes con varios tipos y cantidades') {
       standard = 'ERC-1155';
     } else if (sector.includes('Factoring') || assetType.includes('Facturas') || assetType.includes('Deuda')) {
       standard = 'ERC-1155';
@@ -70,7 +74,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
     }
 
     const draftId = newClientProjectId();
-    setStandardPending(objective==='Por definir con TOKVANT');
+    setStandardPending(objective==='Por definir con TOKVANT'&&!uniqueArt);
     setGeneratedDraftId(draftId);
     setRecommendedStandard(standard);
     setStep(3);
@@ -78,6 +82,8 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
 
   const handleStartProjectDraft = () => {
     const isMultiToken = recommendedStandard === 'ERC-1155';
+    const isUniqueToken = recommendedStandard === 'ERC-721';
+    const needsIdentity = recommendedStandard === 'ERC-3643';
     const draftProject: TokenProject = {
       id: generatedDraftId || newClientProjectId(),
       title: `${companyName || 'Proyecto'} — Tokenización ${assetType}`,
@@ -90,7 +96,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       assetTypeOther: sector==='Otro' ? sectorOther.trim() : undefined,
       jurisdiction: country === 'Paraguay' ? 'Paraguay (BCP / CNV / Ley DLT)' : country === 'Argentina' ? 'Argentina' : country === 'Estados Unidos' ? 'Estados Unidos (Reg D / Reg S)' : 'Por definir (revisión del expediente)',
       standard: recommendedStandard,
-      network: isMultiToken ? 'sepolia' : 'polygon',
+      network: isMultiToken || isUniqueToken ? 'sepolia' : 'polygon',
       status: 'Preliminar',
       progressPercent: 15,
       targetValuationUsd: estimatedVolume==='Por definir' ? 0 : estimatedVolume.includes('50M') ? 50000000 : estimatedVolume.includes('25M') ? 17500000 : estimatedVolume.includes('10M') ? 7500000 : 3000000,
@@ -100,19 +106,19 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
       parameters: {
         tokenName: `${companyName || 'Activo'} Digital Token`,
         tokenSymbol: 'TK-DIGITAL',
-        decimals: isMultiToken ? 0 : 2,
-        initialSupply: isMultiToken ? 3 : 750000,
-        maxSupply: isMultiToken ? 3 : 750000,
+        decimals: isMultiToken || isUniqueToken ? 0 : 2,
+        initialSupply: isMultiToken ? 3 : isUniqueToken ? 1 : 750000,
+        maxSupply: isMultiToken ? 3 : isUniqueToken ? 1 : 750000,
         isPausable: true,
         isBurnable: false,
         isMintable: isMultiToken,
-        isUpgradeabilityEnabled: !isMultiToken,
-        transferRestrictions: recommendedStandard === 'ERC-3643' ? 'Permisos ERC-3643 (Identity Registry)' : isMultiToken ? 'Sin restricción' : 'Lista blanca (Whitelist)',
+        isUpgradeabilityEnabled: !isMultiToken&&!isUniqueToken,
+        transferRestrictions: needsIdentity ? 'Permisos ERC-3643 (Identity Registry)' : isMultiToken || isUniqueToken ? 'Sin restricción' : 'Lista blanca (Whitelist)',
         custodyModel: 'Por definir (revisión de custodia)',
         complianceRules: {
-          requireKYC: !isMultiToken,
-          requireKYB: !isMultiToken,
-          restrictSanctionedCountries: !isMultiToken,
+          requireKYC: needsIdentity,
+          requireKYB: needsIdentity,
+          restrictSanctionedCountries: needsIdentity,
         },
       },
       documents: [],
@@ -551,7 +557,7 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
                 <span>Orientación técnica preliminar de TOKVANT</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                {standardPending?<>El objetivo quedó «Por definir con TOKVANT». No se recomienda un estándar todavía. En el borrador aparecerá ERC-3643 como valor técnico provisional; revisá la selección en el paso 2 de la solicitud completa antes de enviarla.</>:<>Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se sugiere explorar <strong className="text-white">{recommendedStandard}</strong>. {recommendedStandard==='ERC-1155'?'Permite varios IDs en una colección y múltiples unidades por ID. El borrador de prueba se abrirá en Sepolia con un máximo inicial de tres tipos, editable en el asistente.':'Las funciones disponibles dependen de la implementación y de la configuración.'} El estándar no determina por sí solo los derechos del titular ni el cumplimiento aplicable.</>}
+                {standardPending?<>El objetivo quedó «Por definir con TOKVANT». No se recomienda un estándar todavía. En el borrador aparecerá ERC-3643 como valor técnico provisional; revisá la selección en el paso 2 de la solicitud completa antes de enviarla.</>:<>Para el activo <strong className="text-white">{assetType}</strong> radicado en <strong className="text-white">{country}</strong> con un volumen objetivo de <strong className="text-white">{estimatedVolume}</strong>, se sugiere explorar <strong className="text-white">{recommendedStandard}</strong>. {recommendedStandard==='ERC-1155'?'Permite varios IDs en una colección y múltiples unidades por ID. El borrador de prueba se abrirá en Sepolia con un máximo inicial de tres tipos, editable en el asistente.':recommendedStandard==='ERC-721'?'Cada obra única puede tener un NFT propio. El borrador de prueba se abrirá en Sepolia con una pieza inicial; revisá los derechos asociados en la solicitud completa.':'Las funciones disponibles dependen de la implementación y de la configuración.'} El estándar no determina por sí solo los derechos del titular ni el cumplimiento aplicable.</>}
               </p>
               <div className="text-[11px] text-[#9BA6BD] pt-1">
                 * Nota institucional: Este diagnóstico es de carácter orientativo preliminar y no constituye asesoría legal ni financiera vinculante. Requiere validación por la mesa técnica y de compliance de TOKVANT.
