@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ArrowRight, Cpu } from 'lucide-react';
+import { UseCasesStrip } from './UseCasesStrip';
 
 interface CommercialLandingPageProps {
   onNavigate: (view: string) => void;
@@ -867,6 +868,8 @@ export const CommercialLandingPage: React.FC<
     </div>
   </div>
 </section>
+
+<UseCasesStrip onOpenLeadModal={onOpenLeadModal} />
 
 {/* 11. CONTACTO COMERCIAL */}
 <section
