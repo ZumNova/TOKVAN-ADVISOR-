@@ -741,41 +741,36 @@ export const CommercialLandingPage: React.FC<
         {
           name: 'Martín Irigoyen',
           role: 'CEO & Founder',
+          photo: '/team/martin.webp',
         },
         {
           name: 'Franco Emmanuel Pierucci',
           role: 'CTO & Founder',
+          photo: '/team/franco.webp',
         },
         {
           name: 'Mateo Ribodino',
           role: 'CCO & Founder',
+          photo: '/team/mateo.webp',
         },
         {
           name: 'Pablo Amodio',
           role: 'Blockchain Developer',
+          photo: '/team/pablo.webp',
         },
-      ].map((member, index) => (
+      ].map((member) => (
         <article
           key={member.name}
           className="overflow-hidden rounded-2xl border border-[#2B3E5D] bg-[#101A2A] p-4 transition-colors hover:border-[#5372A5]"
         >
 
-          {/* Espacio reservado para fotografía real */}
-          <div
-            className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-[#7394C5] bg-gradient-to-br from-[#203554] to-[#101D30]"
-            role="img"
-            aria-label={`Fotografía pendiente de ${member.name}`}
-          >
-            <div className="text-center">
-              <span className="block text-4xl font-bold text-[#A5C3FF]">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-
-              <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.16em] text-[#C2D6EF]">
-                Fotografía pendiente
-              </span>
-            </div>
-          </div>
+          <img
+            src={member.photo}
+            alt={`Retrato de ${member.name}`}
+            loading="lazy"
+            decoding="async"
+            className="aspect-[4/5] w-full rounded-xl object-cover object-top"
+          />
 
           <div className="px-2 pb-2 pt-5">
             <h3 className="text-lg font-bold text-white">
@@ -792,7 +787,7 @@ export const CommercialLandingPage: React.FC<
     </div>
 
     <p className="mt-7 text-xs leading-relaxed text-[#AABBD4]">
-      Fotografías, cargos y perfiles sujetos a confirmación
+      Cargos y perfiles sujetos a confirmación
       y aprobación por TOKVANT antes de su publicación.
     </p>
 
