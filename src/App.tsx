@@ -23,7 +23,7 @@ import {listClientProjects,markClientProjectSubmitted,removeClientProject,type C
 import {submitClientProject,listSharedSubmissions,downloadSharedDocument,loadPrivateContact} from './lib/sharedSubmissions';
 import {saveSharedReview,type SharedReview} from './lib/governance';
 
-import { TokenProject } from './types';
+import { TokenProject, type StandardType } from './types';
 
 const FactoryWorkspace = lazy(() => import('./components/factory/FactoryWorkspace'));
 
@@ -58,6 +58,7 @@ export default function App() {
   const [selectedProjectForDetail, setSelectedProjectForDetail] = useState<TokenProject | null>(null);
   const [wizardSeedProject, setWizardSeedProject] = useState<Partial<TokenProject> | undefined>(undefined);
   const [wizardStep,setWizardStep] = useState(1);
+  const [wizardStandard,setWizardStandard] = useState<StandardType>('ERC-3643');
   const [clientRecords,setClientRecords] = useState<ClientProjectRecord[]>(()=>{try{return listClientProjects();}catch{return [];}});
   const [clientReceipt,setClientReceipt] = useState<ClientProjectRecord>();
   const [submissionProgress,setSubmissionProgress]=useState('');
@@ -272,6 +273,7 @@ export default function App() {
             initialProject={wizardSeedProject}
             initialStep={wizardStep}
             onStepChange={setWizardStep}
+            onStandardChange={setWizardStandard}
             onSaveProject={handleSaveProjectFromWizard}
             onCancel={() => {
               setWizardSeedProject(undefined);
@@ -354,6 +356,7 @@ export default function App() {
         leadStep={leadStep}
         leadField={leadField}
         wizardStep={wizardStep}
+        wizardStandard={wizardStandard}
       />
 
     </div>

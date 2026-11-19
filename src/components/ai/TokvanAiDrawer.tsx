@@ -10,7 +10,7 @@ type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
 type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
-interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;leadField:LeadField;wizardStep:number;}
+interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;leadField:LeadField;wizardStep:number;wizardStandard:string;}
 
 const educational:Record<Topic,Answer>={
  erc20:{short:'ERC-20 crea unidades iguales entre sí. Sirve, por ejemplo, para puntos digitales de una comunidad ficticia.',more:'Primero se definen nombre, cantidad y administración. Después se revisan sus reglas y se crea el contrato. El estándar por sí solo no determina derechos económicos ni habilitaciones legales.'},
@@ -67,7 +67,7 @@ async function publicAnswer(question:string):Promise<Answer|null>{
  }catch{/* La guía local sigue disponible si la biblioteca no responde. */}
  return null;
 }
-export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadField,wizardStep}:Props)=>{
+export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadField,wizardStep,wizardStandard}:Props)=>{
  const drawerRef=useRef<HTMLDivElement>(null);
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
@@ -111,7 +111,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   const decimalAnswer=decimalGuide(question,messages.map(message=>message.question));
   const transferAnswer=transferGuide(question);
   const privilegedAnswer=privilegedGuide(question);
-  const wizardAnswer=currentView==='wizard'&&!leadOpen?wizardGuide(question,wizardStep,messages.map(message=>message.question)):null;
+  const wizardAnswer=currentView==='wizard'&&!leadOpen?wizardGuide(question,wizardStep,messages.map(message=>message.question),wizardStandard):null;
   let answer:Answer;
   if(containsPrivateData(question)){
    answer={short:'Para cuidar la privacidad, reformulá tu pregunta sin nombres, contactos, direcciones de wallet ni datos de un expediente.',more:'Podés describir un caso ficticio y preguntar por el sector, el estándar o el siguiente paso del formulario.'};

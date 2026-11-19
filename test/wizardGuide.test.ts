@@ -58,8 +58,18 @@ test('paso tres atiende funcionalidades y cantidad',()=>{
 });
 
 test('documentación inmobiliaria y derecho de cobro no se desvían al diagnóstico',()=>{
- assert.match(wizardGuide('en documentacion que pongo para un proyecto inmobiliario',4,[])!.short,/título|registral/i);
+ assert.match(wizardGuide('en documentacion que pongo para un proyecto inmobiliario',4,[])!.short,/respaldos|categoría/i);
  assert.match(wizardGuide('DERECHO DE COBRO',3,['quiero tokenizar un hotel'])!.short,/ingresos futuros.*créditos ya existentes/i);
+});
+
+test('guía de documentos ERC-3643 y revisión final respeta el paso del wizard',()=>{
+ const documents=wizardGuide('¿Qué cargo en categoría?',4,[],'ERC-3643')!;
+ assert.match(documents.short,/emisora.*activo.*derechos.*valuación/);
+ assert.match(documents.short,/varios archivos/);
+ assert.match(documents.more,/No subas documentos personales de inversores/);
+ const final=wizardGuide('Estoy en paso 5 revisar y finalizar',5,[],'ERC-3643')!;
+ assert.match(final.short,/comprobá.*datos.*estándar.*adjuntos/i);
+ assert.match(final.more,/wallets receptoras.*sin que eso las acredite/);
 });
 
 test('continuación y fallback mantienen el paso actual',()=>{

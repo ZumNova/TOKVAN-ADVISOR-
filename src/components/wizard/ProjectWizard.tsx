@@ -13,6 +13,7 @@ interface ProjectWizardProps {
   initialProject?: Partial<TokenProject>;
   initialStep?: number;
   onStepChange?: (step: number) => void;
+  onStandardChange?: (standard: StandardType) => void;
   onSaveProject: (project: TokenProject) => void;
   onCancel: () => void;
 }
@@ -21,6 +22,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   initialProject,
   initialStep = 1,
   onStepChange,
+  onStandardChange,
   onSaveProject,
   onCancel,
 }) => {
@@ -56,6 +58,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   const [standard, setStandard] = useState<StandardType>(
     initialProject?.standard || 'ERC-3643'
   );
+  useEffect(() => { onStandardChange?.(standard); }, [standard, onStandardChange]);
   const [network, setNetwork] = useState<NetworkId>(
     initialProject?.network || 'polygon'
   );
@@ -682,7 +685,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
           </div>
         )}
 
-        {currentStep === 4 && <ClientDocuments projectId={projectId} documents={documents} onChange={setDocuments} onBusyChange={setDocumentsBusy}/>}
+        {currentStep === 4 && <ClientDocuments projectId={projectId} documents={documents} standard={standard} onChange={setDocuments} onBusyChange={setDocumentsBusy}/>}
 
         {currentStep === 5 && <section className="space-y-5">
           <h2 className="text-lg font-bold text-white">Revisá tu expediente</h2>
