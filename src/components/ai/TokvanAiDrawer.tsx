@@ -108,7 +108,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   if(fieldAsked)setMentionedField(fieldAsked);
   const activeField=fieldAsked||mentionedField||leadField;
   const standardQuestion=explicitStandardQuestion(question);
-  const decimalAnswer=decimalGuide(question);
+  const decimalAnswer=decimalGuide(question,messages.map(message=>message.question));
   const wizardAnswer=currentView==='wizard'&&!leadOpen?wizardGuide(question,wizardStep,messages.map(message=>message.question)):null;
   let answer:Answer;
   if(containsPrivateData(question)){

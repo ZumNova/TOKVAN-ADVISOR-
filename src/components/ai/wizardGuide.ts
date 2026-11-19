@@ -2,9 +2,12 @@ export type WizardGuideAnswer={short:string;more:string};
 const norm=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 const stepNames=['','organización y activo','estándar y red','parámetros del token','documentación','revisión y envío'];
 
-export function decimalGuide(question:string):WizardGuideAnswer|null{
- const q=norm(question);
- if(!/decim|precisi[oó]n|presici[oó]n/.test(q))return null;
+export function decimalGuide(question:string,previousQuestions:string[]=[]):WizardGuideAnswer|null{
+ const q=norm(question),history=norm(previousQuestions.join(' '));
+ const asksDecimals=/decim|precision|presicion/.test(q);
+ const mining=/miner|mina|oro/.test(q+' '+history);
+ if(!asksDecimals&&!(mining&&/conviene poner|que pongo|cual elijo|cual uso/.test(q)&&/decim|precision|presicion/.test(history)))return null;
+ if(mining)return {short:'Para una prueba de token minero ERC-3643, elegiría 0 decimales si cada token representa una participación entera. Si querés vender o transferir fracciones, 2 decimales permite, por ejemplo, mover 0,25 tokens. ¿Qué derecho representa 1 token y se podrá dividir?',more:'6 o 18 decimales solo aportan fracciones aún más pequeñas; no son obligatorios para ERC-3643. La precisión no determina el valor del mineral ni crea por sí sola el derecho económico. Definí la fracción mínima que tendrá sentido para el proyecto y dejá la estructura jurídica para revisión.'};
  return {short:'La precisión decimal indica en cuántas fracciones se puede dividir 1 token: 0 = solo unidades enteras; 2 = centésimos; 6 = millonésimos; 18 = fracciones muy pequeñas. ERC-20 y ERC-3643 permiten elegirla; no exigen 18 ni 6. ¿El titular podrá transferir fracciones de una unidad?',more:'Para un token minero, la elección depende del derecho que representa cada unidad y de la fracción mínima que querés permitir, no de que el activo sea oro. ERC-721 y ERC-1155 usan unidades enteras (0). Un token 1:1 con USD o EUR no obtiene su respaldo ni su paridad por elegir 2 o 6 decimales: eso requiere reglas y reservas aparte. Definí la unidad económica antes de elegir la precisión.'};
 }
 
@@ -24,7 +27,7 @@ export function wizardFallback(step:number):WizardGuideAnswer{
 
 export function wizardGuide(question:string,step:number,previousQuestions:string[]):WizardGuideAnswer|null{
  const q=norm(question), history=norm(previousQuestions.join(' '));
- const decimalAnswer=decimalGuide(question);
+ const decimalAnswer=decimalGuide(question,previousQuestions);
  if(decimalAnswer)return decimalAnswer;
  const hotel=/hotel|hospedaje|habitacion/.test(q+' '+history);
  const realEstate=/hotel|inmueble|inmobiliari|propiedad|titularidad/.test(q+' '+history);

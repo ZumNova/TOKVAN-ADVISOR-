@@ -4,10 +4,13 @@ import {decimalGuide,explicitStandardQuestion,wizardGuide,wizardFallback} from '
 
 test('la precisión decimal tiene prioridad sobre el caso minero',()=>{
  const answer=wizardGuide('PARA un token de mineria erc 3643 que presicion decimal usaria una de 2, 0, 6 o 18',3,[]);
- assert.match(answer!.short,/0 = solo unidades enteras.*2 = centésimos.*6 = millonésimos.*18 = fracciones muy pequeñas/);
- assert.match(answer!.short,/ERC-20 y ERC-3643/);
+ assert.match(answer!.short,/0 decimales.*2 decimales/);
+ assert.match(answer!.short,/participación entera/);
  assert.doesNotMatch(answer!.short,/yacimiento/);
- assert.match(answer!.more,/paridad/);
+ assert.match(answer!.short,/¿Qué derecho representa 1 token/);
+ const followUp=wizardGuide('si fuera un token minero que conviene poner',3,['qué precisión decimal uso']);
+ assert.match(followUp!.short,/0 decimales/);
+ assert.match(decimalGuide('qué decimales uso')!.short,/0 = solo unidades enteras.*2 = centésimos/);
  assert.equal(decimalGuide('quiero tokenizar una mina'),null);
 });
 
