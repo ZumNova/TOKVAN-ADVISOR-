@@ -12,3 +12,5 @@ Fuentes primarias que orientan la selección; las preguntas y los ejemplos ficti
 Antes de publicar, revisar especialmente las respuestas sobre derechos, pagos y circulación con los responsables técnico y de cumplimiento. No clasifican jurídicamente ningún proyecto ni sustituyen la revisión por país.
 
 Todas las respuestas amplias conducen al mismo paso: resumir la idea y las preguntas en la solicitud y adjuntar allí los respaldos disponibles. El chat público no recibe documentos ni datos privados. Si las diez filas ya se cargaron antes de esta mejora, ejecutar `guide_to_submission.sql`; solo actualiza sus borradores y evita repetir el texto.
+
+Una vez revisados los diez borradores en Supabase, ejecutar `publish_ten.sql` para ponerlos a disposición del bot público. El resultado debe mostrar diez filas con estado `published`.
