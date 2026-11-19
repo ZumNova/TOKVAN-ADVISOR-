@@ -632,8 +632,8 @@ export const CommercialLandingPage: React.FC<
         </h3>
 
         <p className="mt-4 text-sm leading-relaxed text-[#AABBD4]">
-          Explicará conceptos de tokenización, estándares,
-          wallets, gas, derechos y riesgos mediante una base
+          Explica conceptos de tokenización, estándares,
+          wallets, gas, derechos y riesgos con una base
           de conocimiento revisada y aprobada por TOKVANT.
         </p>
 
@@ -657,8 +657,9 @@ export const CommercialLandingPage: React.FC<
         </div>
 
         <p className="mt-5 text-xs text-[#AABBD4]">
-          Vista ilustrativa. La conexión con la base educativa
-          y el modelo de IA requiere desarrollo adicional.
+          Ya podés consultarlo durante tu recorrido. Seguimos
+          mejorando sus respuestas a partir de las dudas que surgen,
+          con revisión de TOKVANT antes de sumar conocimiento.
         </p>
       </article>
 
