@@ -11,6 +11,16 @@ export function decimalGuide(question:string,previousQuestions:string[]=[]):Wiza
  return {short:'La precisión decimal indica en cuántas fracciones se puede dividir 1 token: 0 = solo unidades enteras; 2 = centésimos; 6 = millonésimos; 18 = fracciones muy pequeñas. ERC-20 y ERC-3643 permiten elegirla; no exigen 18 ni 6. ¿El titular podrá transferir fracciones de una unidad?',more:'Para un token minero, la elección depende del derecho que representa cada unidad y de la fracción mínima que querés permitir, no de que el activo sea oro. ERC-721 y ERC-1155 usan unidades enteras (0). Un token 1:1 con USD o EUR no obtiene su respaldo ni su paridad por elegir 2 o 6 decimales: eso requiere reglas y reservas aparte. Definí la unidad económica antes de elegir la precisión.'};
 }
 
+export function transferGuide(question:string):WizardGuideAnswer|null{
+ const q=norm(question);
+ const asksRegime=/regimen de transferencia|controles de transferencia|opciones de transferencia|lista blanca|whitelist|sin restriccion|identity registry|permisos erc.?3643/.test(q);
+ if(!asksRegime)return null;
+ if(/lista blanca|whitelist/.test(q)&&!/tres opciones|diferencias|compar|regimen de transferencia/.test(q))return {short:'«Lista blanca» significa que una administradora autoriza direcciones concretas. Es útil cuando solo determinadas wallets pueden recibir o transferir. ¿Necesitás controlar direcciones, o verificar identidad y acreditaciones?',more:'Estar en una lista no demuestra KYC por sí solo. Los factories v1 actuales de TOKVANT no implementan whitelist: elegirla en la solicitud deja un requisito para diseñar y revisar, no activa ese control on-chain.'};
+ if(/sin restriccion/.test(q)&&!/tres opciones|diferencias|compar|regimen de transferencia/.test(q))return {short:'«Sin restricción» permite transferencias sin comprobar una lista de wallets ni acreditaciones en cada envío. ¿El token puede circular libremente entre titulares?',more:'Si el contrato tiene pausa de emergencia, una pausa activa igualmente puede detener transferencias. Elegir esta opción en el formulario no determina por sí solo la clasificación jurídica del activo. En ERC-3643, el contrato de prueba sigue comprobando identidades aunque se marque otra opción.'};
+ if(/identity registry|permisos erc.?3643/.test(q)&&!/tres opciones|diferencias|compar|regimen de transferencia/.test(q))return {short:'«Permisos ERC-3643» significa que el contrato consulta identidad y acreditaciones antes de permitir transferencias. Sirve para una circulación controlada entre wallets elegibles. ¿Tus destinatarios necesitan ser acreditados antes de recibir?',more:'En la prueba de TOKVANT en Sepolia, las acreditaciones son ficticias y se consultan junto con reglas como país y cupo. Registrar una wallet en una lista operativa no la acredita automáticamente.'};
+ return {short:'En «Régimen de Transferencia y Controles» elegí según quién podrá recibir: ERC-3643 verifica identidad y acreditaciones; lista blanca autorizaría direcciones concretas; sin restricción no exige esas habilitaciones para transferir. ¿Qué control necesita tu proyecto?',more:'En TOKVANT v1, el factory ERC-3643 sí ejecuta controles de identidad ficticios en Sepolia. La whitelist no está implementada en los factories actuales. «Sin restricción» no elimina una pausa de emergencia si el token la tiene, y ninguna opción sustituye la revisión del derecho ofrecido.'};
+}
+
 export function explicitStandardQuestion(question:string):'erc20'|'erc721'|'erc1155'|'erc3643'|null{
  const q=norm(question).replace(/[¿?¡!.,]/g,'').trim();
  if(!/^(que es|explicame|que significa)\s+(un\s+)?(erc[ -]?(20|721|1155|3643)|nft)$/.test(q))return null;
@@ -29,6 +39,8 @@ export function wizardGuide(question:string,step:number,previousQuestions:string
  const q=norm(question), history=norm(previousQuestions.join(' '));
  const decimalAnswer=decimalGuide(question,previousQuestions);
  if(decimalAnswer)return decimalAnswer;
+ const transferAnswer=transferGuide(question);
+ if(transferAnswer)return transferAnswer;
  const hotel=/hotel|hospedaje|habitacion/.test(q+' '+history);
  const realEstate=/hotel|inmueble|inmobiliari|propiedad|titularidad/.test(q+' '+history);
  const ownership=/titularidad|copropiedad|parte de la propiedad|parte del inmueble/.test(q+' '+history);

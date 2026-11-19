@@ -1,6 +1,16 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
-import {decimalGuide,explicitStandardQuestion,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+import {decimalGuide,explicitStandardQuestion,transferGuide,wizardGuide,wizardFallback} from '../src/components/ai/wizardGuide';
+
+test('explica las tres opciones y sus límites reales en TOKVANT v1',()=>{
+ const comparison=transferGuide('¿Qué significa régimen de transferencia y controles?')!;
+ assert.match(comparison.short,/ERC-3643.*lista blanca.*sin restricción/);
+ assert.match(comparison.more,/whitelist no está implementada/);
+ assert.match(transferGuide('¿Qué es lista blanca?')!.more,/no implementan whitelist/);
+ assert.match(transferGuide('¿Qué es sin restricción?')!.more,/pausa activa/);
+ assert.match(transferGuide('¿Qué son permisos ERC-3643?')!.more,/acreditaciones son ficticias/);
+ assert.equal(transferGuide('quiero tokenizar una mina'),null);
+});
 
 test('la precisión decimal tiene prioridad sobre el caso minero',()=>{
  const answer=wizardGuide('PARA un token de mineria erc 3643 que presicion decimal usaria una de 2, 0, 6 o 18',3,[]);
