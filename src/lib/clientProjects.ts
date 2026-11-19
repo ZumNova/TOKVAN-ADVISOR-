@@ -39,7 +39,8 @@ export function listClientProjects():ClientProjectRecord[]{
 export function clientProjectChecks(project:TokenProject){
  return [
   {step:1,label:'Empresa y título del proyecto',ok:Boolean(project.organizationName.trim()&&project.title.trim())},
-  {step:1,label:'Responsable y email de contacto',ok:Boolean(project.contact?.fullName.trim()&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.contact?.email||''))},
+  {step:1,label:'Nombre y apellido del responsable',ok:Boolean(project.contact?.fullName?.trim())},
+  {step:1,label:'Email de contacto válido (ejemplo: nombre@empresa.com)',ok:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.contact?.email?.trim()||'')},
   {step:1,label:'Consentimiento para revisar la solicitud',ok:project.contact?.consent===true},
   {step:1,label:'Descripción del activo',ok:Boolean(project.assetDescription?.trim()&&(project.assetType!=='Otro'||project.assetTypeOther?.trim()))},
   {step:2,label:'Estándar y red propuestos',ok:Boolean(project.standard&&project.network)},

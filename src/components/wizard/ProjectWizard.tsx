@@ -94,6 +94,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
 
   const [documents, setDocuments] = useState<ProjectDocument[]>(initialProject?.documents?.filter(d=>d.storage==='browser') || []);
   const [contact, setContact] = useState(initialProject?.contact || {fullName:'',email:'',phone:'',consent:false});
+  const contactInputRefs = useRef<Partial<Record<'fullName'|'email'|'phone',HTMLInputElement>>>({});
   const [clientWalletAddress, setClientWalletAddress] = useState(initialProject?.clientWalletAddress || '');
   const [clientWalletNetwork, setClientWalletNetwork] = useState<NetworkId>(initialProject?.clientWalletNetwork || initialProject?.network || 'polygon');
   const [proposedRecipientsText,setProposedRecipientsText]=useState((initialProject?.proposedRecipients||[]).map(row=>row.walletAddress).join('\n'));
@@ -196,8 +197,23 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
   };
   const handleNextStep=()=>{
     if(documentsBusy||submitting)return;
-    const missing=checks.find(c=>c.step===currentStep&&!c.ok);
-    if(missing){setFormError('Complete: '+missing.label+'.');window.scrollTo({top:0,behavior:'smooth'});return;}
+    // Algunos autocompletados del navegador cambian el DOM sin disparar onChange.
+    const visibleContact=currentStep===1?{
+      ...contact,
+      fullName:contactInputRefs.current.fullName?.value ?? contact.fullName,
+      email:contactInputRefs.current.email?.value ?? contact.email,
+      phone:contactInputRefs.current.phone?.value ?? contact.phone,
+    }:contact;
+    if(currentStep===1&&(visibleContact.fullName!==contact.fullName||visibleContact.email!==contact.email||visibleContact.phone!==contact.phone))setContact(visibleContact);
+    const currentChecks=currentStep===1?clientProjectChecks({...draft,contact:visibleContact}):checks;
+    const missing=currentChecks.find(c=>c.step===currentStep&&!c.ok);
+    if(missing){
+      setFormError('Complete: '+missing.label+'.');
+      if(missing.label.startsWith('Nombre'))contactInputRefs.current.fullName?.focus();
+      else if(missing.label.startsWith('Email'))contactInputRefs.current.email?.focus();
+      else window.scrollTo({top:0,behavior:'smooth'});
+      return;
+    }
     setFormError('');setCurrentStep(step=>Math.min(5,step+1));window.scrollTo({top:0,behavior:'smooth'});
   };
   const handlePrevStep=()=>{setFormError('');setCurrentStep(step=>Math.max(1,step-1));};
@@ -299,7 +315,7 @@ export const ProjectWizard: React.FC<ProjectWizardProps> = ({
             <div className="rounded-xl border border-[#39547C] p-4 space-y-3">
               <h3 className="text-sm font-semibold text-white">Responsable de la solicitud</h3>
               <div className="grid sm:grid-cols-2 gap-3">
-                {([['fullName','Nombre y apellido *','text'],['email','Email de contacto *','email'],['phone','Teléfono / WhatsApp con código de país (opcional)','tel']] as const).map(([key,label,type])=><label key={key} className="text-xs text-slate-300">{label}<input type={type} maxLength={200} value={contact[key]} onChange={e=>setContact({...contact,[key]:e.target.value})} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-3 text-white"/></label>)}
+                {([['fullName','Nombre y apellido *','text'],['email','Email de contacto *','email'],['phone','Teléfono / WhatsApp con código de país (opcional)','tel']] as const).map(([key,label,type])=><label key={key} className="text-xs text-slate-300">{label}<input ref={element=>{if(element)contactInputRefs.current[key]=element;}} type={type} autoComplete={key==='fullName'?'name':key==='email'?'email':'tel'} maxLength={200} value={contact[key]} onChange={e=>setContact({...contact,[key]:e.target.value})} className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-3 text-white"/></label>)}
               </div>
               <label className="flex gap-2 text-xs text-slate-300"><input type="checkbox" checked={contact.consent} onChange={e=>setContact({...contact,consent:e.target.checked})}/>Autorizo el uso de mis datos de contacto para gestionar esta solicitud y recibir observaciones de TOKVANT.</label>
             </div>

@@ -30,7 +30,9 @@ test('completitud no toma documentos ficticios como evidencia adjunta',()=>{
  assert.equal(clientProjectChecks({...withWallet,clientWalletNetwork:'sepolia'}).find(c=>c.step===5)?.ok,complete.network==='sepolia');
  assert.equal(clientProjectChecks({...withWallet,clientWalletAddress:'0x123'}).find(c=>c.step===5)?.ok,false);
  assert.equal(clientProjectChecks({...complete,clientWalletAddress:''}).find(c=>c.step===5),undefined);
- assert.equal(clientProjectChecks({...complete,contact:{...p.contact,email:'invalido'}}).find(c=>c.label.includes('email'))?.ok,false);
+ assert.equal(clientProjectChecks({...complete,contact:{...p.contact,email:'invalido'}}).find(c=>c.label.startsWith('Email'))?.ok,false);
+ assert.equal(clientProjectChecks({...complete,contact:{...p.contact,fullName:'  '}}).find(c=>c.label.startsWith('Nombre'))?.ok,false);
+ assert.equal(clientProjectChecks({...complete,contact:{...p.contact,email:' ana@example.test '}}).find(c=>c.label.startsWith('Email'))?.ok,true);
  assert.equal(clientProjectChecks({...complete,standard:'ERC-721' as const,parameters:{...complete.parameters,decimals:2}}).find(c=>c.step===3)?.ok,false);
 });
 test('validación de formato y límite; hash comprobable y rechazo de extensión falsa',async()=>{
