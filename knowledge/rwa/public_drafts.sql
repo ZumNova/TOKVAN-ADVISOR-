@@ -44,7 +44,9 @@ with entries(question,short_answer,more_answer,keywords,category,source_referenc
 )
 insert into public.public_educational_answers
  (question,short_answer,more_answer,keywords,category,source_reference,status)
-select question,short_answer,more_answer,keywords,category,source_reference,'draft'
+select question,short_answer,
+       more_answer || ' En la solicitud TOKVANT, escribí un resumen breve de tu idea y tus preguntas; adjuntá los documentos de respaldo que tengas. Si te falta alguno, indicalo para que el equipo lo evalúe.',
+       keywords,category,source_reference,'draft'
 from entries e
 where not exists (
  select 1 from public.public_educational_answers existing
