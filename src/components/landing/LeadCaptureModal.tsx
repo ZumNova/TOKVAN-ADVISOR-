@@ -9,6 +9,7 @@ import type {LeadField} from '../ai/diagnosticFlow';
 interface LeadCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAi: () => void;
   onStepChange?: (step: 1 | 2 | 3) => void;
   onFieldFocus?: (field:LeadField) => void;
   onProjectCreatedFromLead?: (newProject: TokenProject) => void;
@@ -17,6 +18,7 @@ interface LeadCaptureModalProps {
 export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
   isOpen,
   onClose,
+  onOpenAi,
   onStepChange,
   onFieldFocus,
   onProjectCreatedFromLead,
@@ -171,9 +173,20 @@ export const LeadCaptureModal: React.FC<LeadCaptureModalProps> = ({
             <Sparkles className="w-4 h-4" />
             <span>Diagnóstico Preliminar de Tokenización</span>
           </div>
-          <h2 className="text-xl md:text-2xl font-bold text-white mt-1 font-display">
-            ¿Qué desea tokenizar en su organización?
-          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-3 pr-8">
+            <h2 className="text-xl md:text-2xl font-bold text-white font-display">
+              ¿Qué desea tokenizar en su organización?
+            </h2>
+            <button
+              type="button"
+              onClick={onOpenAi}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#7096FF] bg-[#172F64] px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-[#244580] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              aria-label="Abrir TOKVANT AI para ayudar con el diagnóstico"
+            >
+              <Sparkles className="h-4 w-4" />
+              TOKVANT AI
+            </button>
+          </div>
           <p className="text-sm text-[#9BA6BD] mt-1">
             Esta es una evaluación breve de tres etapas. Al terminar, podrá abrir la solicitud completa de cinco pasos. También puede iniciar esa solicitud directamente desde el simulador.
           </p>

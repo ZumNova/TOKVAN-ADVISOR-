@@ -331,6 +331,7 @@ export default function App() {
         onStepChange={setLeadStep}
         onFieldFocus={setLeadField}
         onClose={() => setIsLeadModalOpen(false)}
+        onOpenAi={() => setIsAiDrawerOpen(true)}
         onProjectCreatedFromLead={handleProjectCreatedFromLead}
       />
 
