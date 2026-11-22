@@ -9,6 +9,8 @@ import {paymentMessage,authorizationMessage} from '../src/lib/governance';
 test('la versión revisada coincide en cliente y servidor',()=>{
  assert.equal(projectHash(MOCK_PROJECTS[0]),projectReviewHash(MOCK_PROJECTS[0]));
  assert.notEqual(projectHash(MOCK_PROJECTS[0]),projectHash({...MOCK_PROJECTS[0],parameters:{...MOCK_PROJECTS[0].parameters,initialSupply:1}}));
+ assert.notEqual(projectHash(MOCK_PROJECTS[0]),projectHash({...MOCK_PROJECTS[0],standard:'ERC-721'}));
+ assert.notEqual(projectHash(MOCK_PROJECTS[0]),projectHash({...MOCK_PROJECTS[0],network:'sepolia'}));
 });
 test('recibo y autorización vinculan expediente, dictámenes y comprobante a la firma',async()=>{
  const wallet=Wallet.createRandom(),origin='https://tokvan-advisor.vercel.app',id='11111111-1111-4111-8111-111111111111';

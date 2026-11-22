@@ -339,6 +339,7 @@ export default function App() {
       <ProjectDetailModal
         project={currentView==='projects'||currentView==='dashboard'?selectedProjectForDetail:null}
         staffAccount={staff?.account ?? null}
+        onClassificationChanged={updated=>{setProjects(previous=>previous.map(item=>item.submissionId===updated.submissionId?updated:item));setSelectedProjectForDetail(updated);showToast('Nueva versión guardada. Las aprobaciones anteriores ya no habilitan esta configuración.');}}
         onLoadPrivateContact={staff?.role==='owner'&&staff.account&&selectedProjectForDetail?.submissionId?()=>loadPrivateContact(staff.account,selectedProjectForDetail.submissionId!):undefined}
         onClose={() => setSelectedProjectForDetail(null)}
         onDownloadDocument={(project,doc)=>{if(!staff)return;void downloadSharedDocument(staff.account,project,doc).catch(e=>showToast(e instanceof Error?e.message:'No se pudo descargar.'));}}

@@ -3,6 +3,7 @@ import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
 import {getAddress,isAddress,verifyMessage} from 'ethers';
 import type {ProjectDocument,TokenProject} from '../src/types';
+import {projectHash} from './governance.js';
 
 const BUCKET='tokvant-expedientes';
 // Sepolia staff wallets; kept in sync with deployment/sepolia-participants.json.
@@ -21,7 +22,7 @@ const config=()=>{
  if(!url||!key||!publishable)throw new Error('La recepción privada aún no está configurada en Vercel.');
  return {db:createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}}),url,publishable};
 };
-type Action='start'|'finalize'|'list'|'document'|'contact'|'media-list'|'media-document';
+type Action='start'|'finalize'|'list'|'document'|'contact'|'media-list'|'media-document'|'amend-classification';
 const authMessage=(origin:string,action:Action,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
 function requireStaff(request:Request,action:Action){
  const address=request.headers.get('x-tokvant-wallet')||'',timestamp=request.headers.get('x-tokvant-time')||'',nonce=request.headers.get('x-tokvant-nonce')||'',signature=request.headers.get('x-tokvant-signature')||'';
@@ -66,7 +67,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>160000)return response({error:'Solicitud demasiado grande.'},413);
   const payload=await request.json();
   const action=payload?.action as Action;
-  if(!['start','finalize','list','document','contact','media-list','media-document'].includes(action))return response({error:'Operación desconocida.'},400);
+  if(!['start','finalize','list','document','contact','media-list','media-document','amend-classification'].includes(action))return response({error:'Operación desconocida.'},400);
   const {db,url,publishable}=config();
   if(action==='start'){
    const project=cleanProject(payload.project);
@@ -117,6 +118,34 @@ export async function POST(request:Request){
   }
   const actor=requireStaff(request,action);
   const staffWallet=actor.wallet;
+  if(action==='amend-classification'){
+   if(actor.role!=='owner'&&actor.role!=='reviewer')return response({error:'Solo el primer revisor técnico puede corregir estándar y red.'},403);
+   const id=String(payload.id||''),reason=String(payload.reason||'').trim(),standard=String(payload.standard||''),network=String(payload.network||'');
+   const initialSupply=Number(payload.initialSupply),decimals=Number(payload.decimals),transferRestrictions=String(payload.transferRestrictions||''),removeLegacyControls=payload.removeLegacyControls===true;
+   if(!/^[0-9a-f-]{36}$/i.test(id)||reason.length<12||reason.length>1000||!['ERC-20','ERC-721','ERC-1155','ERC-3643'].includes(standard)||!['sepolia','polygon','ethereum','arbitrum'].includes(network)||!Number.isSafeInteger(initialSupply)||initialSupply<1||!Number.isInteger(decimals)||decimals<0||decimals>18||!['Permisos ERC-3643 (Identity Registry)','Lista blanca (Whitelist)','Sin restricción','Regulada por país'].includes(transferRestrictions))return response({error:'Datos de corrección inválidos.'},400);
+   if((standard==='ERC-721'||standard==='ERC-1155')&&decimals!==0)return response({error:'ERC-721 y ERC-1155 requieren cero decimales.'},400);
+   if((standard==='ERC-721'||standard==='ERC-1155')&&transferRestrictions!=='Sin restricción')return response({error:'Este factory NFT de prueba solo admite transferencias sin restricción.'},400);
+   const found=await db.from(TABLE).select('id,project,status,received_at').eq('id',id).single();
+   if(found.error||!found.data||found.data.status!=='received')return response({error:'Expediente recibido no encontrado.'},404);
+   const old=found.data.project as TokenProject;
+   if(old.deployedContractAddress||old.status==='Desplegado')return response({error:'Este expediente ya figura desplegado y no se puede reclasificar.'},409);
+   if((old.classificationHistory?.length||0)>=20)return response({error:'Este expediente alcanzó el límite de correcciones; requiere revisión manual.'},409);
+   const nft=standard==='ERC-721'||standard==='ERC-1155';
+   const hasLegacyControls=old.parameters.isUpgradeabilityEnabled||old.parameters.complianceRules.requireKYC||old.parameters.complianceRules.requireKYB||old.parameters.complianceRules.restrictSanctionedCountries||(old.parameters.complianceRules.lockupPeriodDays||0)>0;
+   if(nft&&hasLegacyControls&&!removeLegacyControls)return response({error:'Confirmá expresamente el retiro de controles que el factory NFT v1 no implementa.'},400);
+   const previousHash=projectHash(old);
+   if(previousHash!==payload.expectedHash)return response({error:'El expediente cambió. Actualizá la bandeja antes de corregirlo.'},409);
+   if(old.standard===standard&&old.network===network&&old.parameters.initialSupply===initialSupply&&old.parameters.decimals===decimals&&old.parameters.transferRestrictions===transferRestrictions)return response({error:'No hay cambios para guardar.'},400);
+   const [issuance,collection]=await Promise.all([db.from('submission_issuances').select('id').eq('submission_id',id).limit(1),db.from('submission_collections').select('id').eq('submission_id',id).limit(1)]);
+   if(issuance.error||collection.error)throw issuance.error||collection.error;
+   if(issuance.data?.length||collection.data?.length)return response({error:'Este expediente ya tiene un despliegue vinculado; no se puede reclasificar.'},409);
+   const next:TokenProject={...old,standard:standard as TokenProject['standard'],network:network as TokenProject['network'],parameters:{...old.parameters,initialSupply,decimals,transferRestrictions:transferRestrictions as TokenProject['parameters']['transferRestrictions'],...(nft&&removeLegacyControls?{isUpgradeabilityEnabled:false,complianceRules:{...old.parameters.complianceRules,requireKYC:false,requireKYB:false,restrictSanctionedCountries:false,lockupPeriodDays:0}}:{})},proposedRecipients:standard==='ERC-3643'?old.proposedRecipients:undefined,status:'En revisión',progressPercent:50,updatedAt:new Date().toISOString().slice(0,10),approvals:old.approvals.map(step=>({id:step.id,role:step.role,label:step.label,status:'Pendiente'}))};
+   const newHash=projectHash(next);
+   next.classificationHistory=[...(old.classificationHistory||[]),{at:new Date().toISOString(),by:staffWallet,reason,previousHash,newHash,before:{standard:old.standard,network:old.network,parameters:old.parameters,proposedRecipients:old.proposedRecipients},after:{standard:next.standard,network:next.network,legacyControlsRemoved:nft&&removeLegacyControls}}];
+   const saved=await db.from(TABLE).update({project:next}).eq('id',id).eq('status','received').select('project').single();
+   if(saved.error)throw saved.error;
+   return response({project:{...saved.data.project,submissionId:id,receivedAt:found.data.received_at}});
+  }
   if(['multi_operator','nft_operator'].includes(actor.role)&&action!=='media-list'&&action!=='media-document')return response({error:'Este rol solo puede consultar las imágenes de su expediente NFT.'},403);
   if(action==='media-list'||action==='media-document'){
    if(!['owner','multi_operator','nft_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);

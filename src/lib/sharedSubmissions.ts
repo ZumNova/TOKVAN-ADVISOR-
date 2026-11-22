@@ -2,6 +2,7 @@ import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import type {TokenProject,ProjectDocument} from '../types';
 import {getClientDocument,downloadClientFile,sha256} from './clientDocuments';
 import {OWNER,readGrants} from './staffAccess';
+import {projectReviewHash} from './reviewSignatures';
 
 type Receipt={id:string;requestId:string;receivedAt:string};
 const SECRET_PREFIX='tokvant:submission-secret:';
@@ -48,6 +49,11 @@ export async function staffRequest(action:string,account:string,body:Record<stri
 export async function listSharedSubmissions(account:string):Promise<TokenProject[]>{
  const result=await staffRequest('list',account);
  return (result.items as {id:string;project:TokenProject;received_at:string;deployed:boolean}[]).map(row=>({...row.project,submissionId:row.id,receivedAt:row.received_at,...(row.deployed?{status:'Desplegado' as const,progressPercent:100}:{})}));
+}
+export async function amendClassification(account:string,project:TokenProject,changes:{standard:TokenProject['standard'];network:TokenProject['network'];initialSupply:number;decimals:number;transferRestrictions:TokenProject['parameters']['transferRestrictions'];removeLegacyControls:boolean;reason:string}):Promise<TokenProject>{
+ if(!project.submissionId)throw new Error('Este expediente no está en la recepción compartida.');
+ const result=await staffRequest('amend-classification',account,{id:project.submissionId,expectedHash:projectReviewHash(project),...changes});
+ return result.project as TokenProject;
 }
 export async function downloadSharedDocument(account:string,project:TokenProject,doc:ProjectDocument){
  if(!project.submissionId||!doc.sha256)throw new Error('Documento remoto inválido.');
