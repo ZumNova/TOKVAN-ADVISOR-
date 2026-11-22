@@ -1,5 +1,5 @@
-import {useEffect,useRef,useState} from 'react';
-import {X,MessageCircle} from 'lucide-react';
+import {useEffect,useRef,useState,type FormEvent} from 'react';
+import {X,Send} from 'lucide-react';
 import {TokvanLogo} from '../brand/TokvanLogo';
 import {basicIntent,countryFromLocation,isAccessPassProposal,isMiningProposal,isTaxIdQuestion,suggestObjective,suggestSector,volumeBandFromText,type SuggestedSector} from '../../lib/diagnosticAssistant';
 import {containsPrivateData} from '../../../server/publicKnowledgeSearch';
@@ -12,22 +12,6 @@ type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
 type SuggestedQuestion={question:string;short:string;more:string};
 interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;leadField:LeadField;wizardStep:number;wizardStandard:string;}
-
-const whatsappNumber=String(import.meta.env.VITE_TOKVANT_WHATSAPP_NUMBER||'').replace(/\D/g,'');
-const whatsappReady=/^\d{8,15}$/.test(whatsappNumber);
-function questionsForScreen(items:SuggestedQuestion[],view:string,leadOpen:boolean,leadStep:number,leadField:LeadField,wizardStep:number,standard:string){
- const context=(leadOpen
-  ?leadStep===1?(leadField==='sector'||leadField==='sectorOther'?'activo sector empresa proyecto':leadField==='country'?'pais jurisdiccion activo':leadField==='volume'?'valor valuacion volumen emision':leadField==='objective'?'objetivo derecho tokenizacion':'activo tokenizacion proyecto')
-   :leadStep===2?'empresa participantes comercial solicitud':'diagnostico proyecto estandar'
-  :view==='wizard'
-   ?wizardStep===1?'empresa activo proyecto jurisdiccion':wizardStep===2?'estandar token erc wallet cantidad':wizardStep===3?'derechos transferencia controles':wizardStep===4?'documentos evidencia imagen': 'solicitud revision comprobante'
-  :view==='simulator'?'estandar erc blockchain red gas costo':view==='factory'?'factory emision wallet despliegue token':view==='projects'||view==='approvals'||view==='admin'?'revision compliance roles pago expediente':view==='client-confirmation'?'solicitud comprobante revision contacto':'tokenizar activo blockchain empresa proyecto')+(view==='wizard'&&standard?` ${standard.toLowerCase()}`:'');
- const terms=context.split(' ');
- const normalized=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
- const matching=items.map((item,index)=>({item,index,score:terms.reduce((score,term)=>score+(normalized(item.question).includes(term)?3:0)+(normalized(`${item.short} ${item.more}`).includes(term)?1:0),0)}))
-  .filter(entry=>entry.score>0).sort((a,b)=>b.score-a.score||a.index-b.index).slice(0,3).map(entry=>entry.item);
- return matching.length?matching:items.slice(0,3);
-}
 
 const educational:Record<Topic,Answer>={
  erc20:{short:'ERC-20 crea unidades iguales entre sí. Sirve, por ejemplo, para puntos digitales de una comunidad ficticia.',more:'Primero se definen nombre, cantidad y administración. Después se revisan sus reglas y se crea el contrato. El estándar por sí solo no determina derechos económicos ni habilitaciones legales.'},
@@ -65,17 +49,17 @@ function topicFor(question:string):Topic{
  return 'inicio';
 }
 function hint(view:string,leadOpen:boolean,leadStep:1|2|3,commercialStage:CommercialStage,diagnosticStage:DiagnosticStage,activeField:LeadField,accessStage:'usage'|'individual'|null,sowingStage:boolean,caseStage:'bees'|'wine'|'farm_stay'|null,wizardStep:number){
- if(view==='wizard')return `Estás en la solicitud completa, paso ${wizardStep} de 5. Elegí una pregunta sugerida para entender el campo que estás completando.`;
+ if(view==='wizard')return `Estás en la solicitud completa, paso ${wizardStep} de 5. Preguntame por el campo que estás completando; seguimos desde acá.`;
  if(caseStage)return 'Caso nuevo: aclaremos qué recibiría quien tenga el token antes de sugerir un estándar.';
  if(sowingStage)return 'Caso: lote de siembra. Aclaremos qué representa el token antes de elegir un estándar.';
  if(accessStage==='usage')return 'Caso: pases de acceso al club. Definamos primero si sirven una vez o varias veces.';
  if(accessStage==='individual')return 'Caso: pases de acceso al club. Ahora definamos si cada pase es individual o intercambiable.';
  if(leadOpen){const next=nextDiagnosticField({leadOpen,leadStep,commercialStage,diagnosticStage,activeField});return next?`Estás en el diagnóstico breve. Campo actual: «${next.label}». ${next.guidance}`:'Sigamos el diagnóstico, un campo por vez.';}
  if(view==='wizard')return 'Estás en la solicitud completa de cinco pasos. El diagnóstico breve de tres etapas era opcional. Preguntame por el campo que estés completando.';
- if(view==='factory')return 'Estás en Factories. Explorá las preguntas sobre emisión y despliegue.';
- if(view==='projects'||view==='approvals')return 'Estás en la revisión. Explorá las preguntas sobre roles y cumplimiento.';
- if(view==='simulator')return 'Estás en el simulador. Explorá las preguntas sobre estándares y costos.';
- return 'Elegí una pregunta educativa para comenzar.';
+ if(view==='factory')return 'Estás en Factories. Puedo explicar qué comprobar antes de firmar.';
+ if(view==='projects'||view==='approvals')return 'Estás en la revisión. Puedo explicar qué hace cada rol.';
+ if(view==='simulator')return 'Estás en el simulador. Preguntame por los cuatro estándares.';
+ return '¿Qué querés tokenizar o qué término te gustaría entender?';
 }
 async function publicAnswer(question:string):Promise<Answer|null>{
  try{
@@ -87,7 +71,7 @@ async function publicAnswer(question:string):Promise<Answer|null>{
 export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadField,wizardStep,wizardStandard}:Props)=>{
  const drawerRef=useRef<HTMLDivElement>(null);
  const [mode,setMode]=useState<Mode>('educativo');
- const [contactMessage,setContactMessage]=useState('');
+ const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
  const [suggestedQuestions,setSuggestedQuestions]=useState<SuggestedQuestion[]>([]);
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
@@ -120,7 +104,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
  },[isOpen,onClose]);
  function startNewConversation(){
   setMessages([]);
-  setContactMessage('');
+  setQuery('');
   setGuidedSector(null);
   setDiagnosticStage(null);
   setCommercialStage('audience');
@@ -317,25 +301,20 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   }
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
  }
- function openWhatsapp(){
-  const message=contactMessage.trim();
-  if(!whatsappReady||!message)return;
-  window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`,'_blank','noopener,noreferrer');
- }
+ function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;void ask(question);setQuery('');}
  function chooseSuggestion(item:SuggestedQuestion){
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question:item.question,answer:{short:item.short,more:item.more},expanded:false}]);
  }
  const nextField=nextDiagnosticField({leadOpen,leadStep,diagnosticStage,commercialStage,activeField:mentionedField||leadField});
  const showNextField=Boolean(nextField&&!accessStage&&!sowingStage&&!caseStage);
- const contextualQuestions=questionsForScreen(suggestedQuestions,currentView,leadOpen,leadStep,leadField,wizardStep,wizardStandard);
  return <div ref={drawerRef} role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
-  <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Preguntas según tu pantalla</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Limpiar respuestas</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
+  <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Nueva conversación</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  {contextualQuestions.length>0&&<div className="shrink-0 border-b border-[#273246] px-3 py-3"><div className="grid gap-2" aria-label="Preguntas educativas para esta pantalla">{contextualQuestions.map(item=><button type="button" key={item.question} onClick={()=>chooseSuggestion(item)} className="rounded-full border border-[#45628B] bg-[#1D2A40] px-4 py-2 text-left text-xs leading-snug text-[#E1ECFC] hover:border-[#78A8FF] hover:bg-[#244168] focus-visible:outline-2 focus-visible:outline-[#78A8FF]">{item.question}</button>)}</div></div>}
-  <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm">{messages.length===0&&<p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage,wizardStep)}</p>}{messages.length===0&&suggestedQuestions.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
-   {messages.slice(-1).map(message=><section key={message.id} className="space-y-3"><p className="rounded-xl bg-[#316BFA] p-3 text-sm font-semibold">{message.question}</p><div className="rounded-xl border border-[#334765] bg-[#0B0D12] p-4 text-base leading-relaxed"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-3 text-[#B8C9E1]">{message.answer.more}</p>}{showNextField&&nextField&&<p className="mt-4 rounded-lg border border-[#45628B] bg-[#1D2A40] p-3 text-sm text-[#D9E6FA]"><strong>Campo actual: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-4 text-sm font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
-   {messages.length===0&&<p className="text-xs text-[#8FA6C8]">Respuestas públicas revisadas por TOKVANT. Esta guía no consulta expedientes ni datos de clientes.</p>}
+  {mode==='educativo'&&suggestedQuestions.length>0&&<div className="border-b border-[#273246] px-3 py-3"><p className="mb-2 text-xs font-semibold text-[#AFC2E0]">Preguntas para explorar</p><div className="flex snap-x gap-2 overflow-x-auto pb-1" aria-label="Preguntas educativas publicadas">{suggestedQuestions.map(item=><button type="button" key={item.question} onClick={()=>chooseSuggestion(item)} className="max-w-64 min-w-48 shrink-0 snap-start rounded-xl border border-[#45628B] bg-[#1D2A40] px-3 py-2 text-left text-xs leading-snug text-[#E1ECFC] hover:border-[#78A8FF] hover:bg-[#244168] focus-visible:outline-2 focus-visible:outline-[#78A8FF]">{item.question}</button>)}</div></div>}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage,wizardStep)}</p>{messages.length===0&&(mode==='operativo'||suggestedQuestions.length===0)&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+   {messages.map((message,index)=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}{index===messages.length-1&&showNextField&&nextField&&<p className="mt-3 rounded-lg border border-[#45628B] bg-[#1D2A40] p-2 text-xs text-[#D9E6FA]"><strong>Campo actual: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
-  <div className="shrink-0 space-y-2 border-t border-[#273246] p-3"><label htmlFor="tokvant-contact-message" className="block text-xs font-semibold text-[#D9E6FA]">Escribí tu consulta para WhatsApp de administración</label><textarea id="tokvant-contact-message" maxLength={1000} rows={2} className="w-full resize-y rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Tu mensaje…" value={contactMessage} onChange={event=>setContactMessage(event.target.value)}/>{whatsappReady&&<button type="button" onClick={openWhatsapp} disabled={!contactMessage.trim()} className="inline-flex items-center gap-2 rounded-lg bg-[#316BFA] px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"><MessageCircle size={17}/>Abrir WhatsApp</button>}</div>
+  <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
+  <div className="space-y-1 px-4 pb-3 text-[11px]"><p className="font-semibold text-[#6CE1E8]">Guía educativa de TOKVANT; no es una IA conversacional.</p><p className="text-[#8FA6C8]">Consulta respuestas públicas revisadas; no accede a expedientes ni datos de clientes. Para explorar una duda con tu propia IA, compartí solo tokvan-advisor.vercel.app y verificá su respuesta. Nunca pegues datos privados.</p></div>
  </div>;
 };
