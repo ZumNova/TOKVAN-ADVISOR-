@@ -24,18 +24,18 @@ const cases: UseCase[] = [
   { id: 'tesoreria', icon: '🏛️', category: 'Tesorería', title: 'Instrumentos financieros', idea: 'Estudiar una estructura vinculada con instrumentos de corto plazo.', question: '¿Quién custodia el respaldo y cuáles son las condiciones de salida?', possibleStandard: 'ERC-3643' },
 ];
 
-export function UseCasesStrip({ onOpenLeadModal }: { onOpenLeadModal: () => void }) {
+export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLeadModal: () => void; compact?: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = cases.find(item => item.id === selectedId);
 
   return (
-    <section id="casos-de-uso" aria-labelledby="use-cases-title" className="border-b border-[#2B3E5D] bg-[#0B1423] py-16 sm:py-20">
-      <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+    <section id={compact ? 'casos-simulador' : 'casos-de-uso'} aria-labelledby={compact ? 'simulator-use-cases-title' : 'use-cases-title'} className={compact ? 'min-w-0' : 'border-b border-[#2B3E5D] bg-[#0B1423] py-16 sm:py-20'}>
+      <div className={compact ? 'min-w-0' : 'mx-auto max-w-7xl px-5 sm:px-6 lg:px-8'}>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6CE1E8]">Ideas para explorar</p>
-        <h2 id="use-cases-title" className="mt-3 max-w-3xl text-3xl font-bold text-white sm:text-4xl">¿Y si tu proyecto pudiera empezar por aquí?</h2>
+        <h2 id={compact ? 'simulator-use-cases-title' : 'use-cases-title'} className={compact ? 'mt-2 text-xl font-bold text-white sm:text-2xl' : 'mt-3 max-w-3xl text-3xl font-bold text-white sm:text-4xl'}>¿Y si tu proyecto pudiera empezar por aquí?</h2>
         <p className="mt-4 max-w-3xl text-sm leading-relaxed text-[#B9CCE6] sm:text-base">Tocá una idea para descubrir qué tendrías que definir. Son ejemplos ficticios y orientativos; tu proyecto puede ser diferente.</p>
 
-        <div aria-label="Explorar ejemplos de tokenización" className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4">
+        <div aria-label="Explorar ejemplos de tokenización" className={`flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 ${compact ? 'mt-5' : 'mt-8'}`}>
           {cases.map(item => (
             <button
               key={item.id}
@@ -61,7 +61,7 @@ export function UseCasesStrip({ onOpenLeadModal }: { onOpenLeadModal: () => void
             <p className="mt-3 text-sm text-[#E8C879]"><strong>Para empezar:</strong> {selected.question}</p>
             <p className="mt-3 text-xs text-[#AFC2DC]">El estándar y los derechos se definen al revisar el expediente. Podés contar tu idea aunque todavía no tengas todas las respuestas.</p>
             <button type="button" onClick={onOpenLeadModal} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#567EFF] px-5 py-3 text-sm font-semibold text-white hover:bg-[#4169E1]">
-              Contar mi idea <ArrowRight size={16} />
+              {compact ? 'Crear mi solicitud' : 'Contar mi idea'} <ArrowRight size={16} />
             </button>
           </div>
         )}

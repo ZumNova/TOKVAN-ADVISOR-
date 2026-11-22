@@ -15,6 +15,7 @@ import {
 import { StandardType, NetworkId } from '../../types';
 import { SUPPORTED_NETWORKS } from '../../constants/networks';
 import { TOKEN_STANDARDS } from '../../constants/standards';
+import { UseCasesStrip } from '../landing/UseCasesStrip';
 
 interface TokenSimulatorProps {
   onApplyParametersToWizard?: (params: any) => void;
@@ -156,6 +157,8 @@ export const TokenSimulator: React.FC<TokenSimulatorProps> = ({
           </p>
         </div>
       </div>
+
+      <UseCasesStrip compact onOpenLeadModal={() => onNavigate('wizard')} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
