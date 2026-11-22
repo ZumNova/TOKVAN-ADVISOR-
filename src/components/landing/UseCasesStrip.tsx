@@ -24,7 +24,7 @@ const cases: UseCase[] = [
   { id: 'tesoreria', icon: '🏛️', category: 'Tesorería', title: 'Instrumentos financieros', idea: 'Estudiar una estructura vinculada con instrumentos de corto plazo.', question: '¿Quién custodia el respaldo y cuáles son las condiciones de salida?', possibleStandard: 'ERC-3643' },
 ];
 
-export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLeadModal: () => void; compact?: boolean }) {
+export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLeadModal?: () => void; compact?: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = cases.find(item => item.id === selectedId);
 
@@ -60,9 +60,11 @@ export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLead
             <p className="mt-4 text-sm leading-relaxed text-[#D9E6F6]">{selected.idea}</p>
             <p className="mt-3 text-sm text-[#E8C879]"><strong>Para empezar:</strong> {selected.question}</p>
             <p className="mt-3 text-xs text-[#AFC2DC]">El estándar y los derechos se definen al revisar el expediente. Podés contar tu idea aunque todavía no tengas todas las respuestas.</p>
-            <button type="button" onClick={onOpenLeadModal} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#567EFF] px-5 py-3 text-sm font-semibold text-white hover:bg-[#4169E1]">
-              {compact ? 'Crear mi solicitud' : 'Contar mi idea'} <ArrowRight size={16} />
-            </button>
+            {!compact && onOpenLeadModal && (
+              <button type="button" onClick={onOpenLeadModal} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#567EFF] px-5 py-3 text-sm font-semibold text-white hover:bg-[#4169E1]">
+                Contar mi idea <ArrowRight size={16} />
+              </button>
+            )}
           </div>
         )}
       </div>

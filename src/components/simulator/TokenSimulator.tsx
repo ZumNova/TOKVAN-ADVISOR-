@@ -158,7 +158,7 @@ export const TokenSimulator: React.FC<TokenSimulatorProps> = ({
         </div>
       </div>
 
-      <UseCasesStrip compact onOpenLeadModal={() => onNavigate('wizard')} />
+      <UseCasesStrip compact />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
