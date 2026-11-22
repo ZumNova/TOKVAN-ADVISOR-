@@ -11,6 +11,12 @@ const api='/api/submissions';
 const parse=async (response:Response)=>{const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo conectar con recepción TOKVANT.');return result;};
 const secretFor=(id:string)=>{let secret=localStorage.getItem(SECRET_PREFIX+id);if(!secret){secret=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem(SECRET_PREFIX+id,secret);}return secret;};
 export const readReceipt=(id:string):Receipt|undefined=>{try{return JSON.parse(localStorage.getItem(RECEIPT_PREFIX+id)||'null')||undefined;}catch{return undefined;}};
+export type ClientDeploymentStatus={status:'received'|'deployed'|'pending';deployment:null|{standard:string;chainId:number;address:string;transactionHash:string;blockNumber:number;symbol:string};types?:{id:number;historicalUnits:string}[]};
+export async function readClientDeployment(projectId:string,submissionId:string):Promise<ClientDeploymentStatus>{
+ const secret=localStorage.getItem(SECRET_PREFIX+projectId);
+ if(!secret||!readReceipt(projectId)||readReceipt(projectId)?.id!==submissionId)throw new Error('La consulta de estado requiere el comprobante guardado en este navegador.');
+ return parse(await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'receipt-status',id:submissionId,receiptSecret:secret})})) as Promise<ClientDeploymentStatus>;
+}
 export async function submitClientProject(project:TokenProject,onProgress?:(text:string)=>void):Promise<Receipt>{
  const existing=readReceipt(project.id);if(existing)return existing;
  const receiptSecret=secretFor(project.id);

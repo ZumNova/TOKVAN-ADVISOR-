@@ -1,7 +1,7 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import {getAddress,isAddress,verifyMessage} from 'ethers';
+import {getAddress,Interface,isAddress,verifyMessage} from 'ethers';
 import type {ProjectDocument,TokenProject} from '../src/types';
 import {projectHash} from './governance.js';
 
@@ -22,7 +22,15 @@ const config=()=>{
  if(!url||!key||!publishable)throw new Error('La recepción privada aún no está configurada en Vercel.');
  return {db:createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}}),url,publishable};
 };
-type Action='start'|'finalize'|'list'|'document'|'contact'|'media-list'|'media-document'|'amend-classification';
+type Action='start'|'finalize'|'receipt-status'|'list'|'document'|'contact'|'media-list'|'media-document'|'amend-classification';
+const multiRead=new Interface(['function typeCount() view returns (uint256)','function mintedCount(uint256) view returns (uint256)']);
+async function readMulti(address:string,name:'typeCount'|'mintedCount',args:unknown[]=[]):Promise<bigint>{
+ const result=await fetch(process.env.SEPOLIA_RPC_URL||'https://ethereum-sepolia-rpc.publicnode.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_call',params:[{to:address,data:multiRead.encodeFunctionData(name,args)},'latest']}),signal:AbortSignal.timeout(10000)});
+ if(!result.ok)throw new Error('No se pudo consultar Sepolia.');
+ const body=await result.json() as {result?:string;error?:unknown};
+ if(!body.result||body.error)throw new Error('No se pudo consultar Sepolia.');
+ return multiRead.decodeFunctionResult(name,body.result)[0] as bigint;
+}
 const authMessage=(origin:string,action:Action,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
 function requireStaff(request:Request,action:Action){
  const address=request.headers.get('x-tokvant-wallet')||'',timestamp=request.headers.get('x-tokvant-time')||'',nonce=request.headers.get('x-tokvant-nonce')||'',signature=request.headers.get('x-tokvant-signature')||'';
@@ -67,7 +75,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>160000)return response({error:'Solicitud demasiado grande.'},413);
   const payload=await request.json();
   const action=payload?.action as Action;
-  if(!['start','finalize','list','document','contact','media-list','media-document','amend-classification'].includes(action))return response({error:'Operación desconocida.'},400);
+  if(!['start','finalize','receipt-status','list','document','contact','media-list','media-document','amend-classification'].includes(action))return response({error:'Operación desconocida.'},400);
   const {db,url,publishable}=config();
   if(action==='start'){
    const project=cleanProject(payload.project);
@@ -115,6 +123,26 @@ export async function POST(request:Request){
    const saved=await db.from(TABLE).update({status:'received',received_at:receivedAt}).eq('id',id).eq('status','uploading').select('id').single();
    if(saved.error)throw saved.error;
    return response({id,requestId:row.request_id,receivedAt});
+  }
+  if(action==='receipt-status'){
+   const id=String(payload.id||''),secret=String(payload.receiptSecret||'');
+   if(!/^[0-9a-f-]{36}$/i.test(id)||!/^[a-f0-9]{64}$/.test(secret))return response({error:'Comprobante inválido.'},400);
+   const found=await db.from(TABLE).select('id,request_id,receipt_secret_hash,status').eq('id',id).maybeSingle();
+   if(found.error)throw found.error;
+   if(!found.data||!sameSecret(found.data.receipt_secret_hash,digest(secret)))return response({error:'Comprobante inválido.'},403);
+   if(found.data.status!=='received')return response({status:'pending'});
+   const [issuance,collection]=await Promise.all([
+    db.from('submission_issuances').select('standard,chain_id,token_address,transaction_hash,block_number,token_symbol').eq('submission_id',id).maybeSingle(),
+    db.from('submission_collections').select('standard,chain_id,collection_address,transaction_hash,block_number,collection_symbol').eq('submission_id',id).maybeSingle(),
+   ]);
+   if(issuance.error||collection.error)throw issuance.error||collection.error;
+   const deployment=collection.data?{standard:collection.data.standard,chainId:collection.data.chain_id,address:collection.data.collection_address,transactionHash:collection.data.transaction_hash,blockNumber:collection.data.block_number,symbol:collection.data.collection_symbol}:issuance.data?{standard:issuance.data.standard,chainId:issuance.data.chain_id,address:issuance.data.token_address,transactionHash:issuance.data.transaction_hash,blockNumber:issuance.data.block_number,symbol:issuance.data.token_symbol}:null;
+   if(!deployment)return response({status:'received',deployment:null});
+   let types:{id:number;historicalUnits:string}[]|undefined;
+   if(deployment.standard==='ERC-1155'&&deployment.chainId===11155111){
+    try{const count=Number(await readMulti(deployment.address,'typeCount'));if(count>=0&&count<=100)types=await Promise.all(Array.from({length:count},async(_,index)=>({id:index+1,historicalUnits:(await readMulti(deployment.address,'mintedCount',[index+1])).toString()})));}catch{/* The verified deployment remains visible if Sepolia is temporarily unavailable. */}
+   }
+   return response({status:'deployed',deployment,types});
   }
   const actor=requireStaff(request,action);
   const staffWallet=actor.wallet;
