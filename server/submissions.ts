@@ -148,7 +148,7 @@ export async function POST(request:Request){
   }
   if(['multi_operator','nft_operator'].includes(actor.role)&&action!=='media-list'&&action!=='media-document')return response({error:'Este rol solo puede consultar las imágenes de su expediente NFT.'},403);
   if(action==='media-list'||action==='media-document'){
-   if(!['owner','multi_operator','nft_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);
+   if(!['owner','factory','multi_operator','nft_operator'].includes(actor.role))return response({error:'Este rol no puede abrir las imágenes del expediente.'},403);
    const projectReference=String(payload.projectReference||'');
    if(!/^TOKVANT-[A-F0-9-]{36}$/.test(projectReference))return response({error:'Expediente inválido.'},400);
    const found=await db.from(TABLE).select('id,project').eq('request_id',projectReference).eq('status','received').maybeSingle();
@@ -157,6 +157,11 @@ export async function POST(request:Request){
    const project=found.data.project as TokenProject;
    const expectedStandard=actor.role==='nft_operator'?'ERC-721':actor.role==='multi_operator'?'ERC-1155':null;
    if(!['ERC-721','ERC-1155'].includes(project.standard)||project.network!=='sepolia'||(expectedStandard&&project.standard!==expectedStandard)||(expectedStandard&&(!project.clientWalletAddress||getAddress(project.clientWalletAddress)!==staffWallet)))return response({error:'Esta wallet no tiene acceso a las imágenes de este expediente NFT.'},403);
+   if(actor.role==='factory'){
+    const authorization=await db.from('submission_authorizations').select('id').eq('submission_id',found.data.id).eq('project_hash',projectHash(project)).limit(1).maybeSingle();
+    if(authorization.error)throw authorization.error;
+    if(!authorization.data)return response({error:'Este expediente NFT aún no tiene preparación autorizada para esta versión.'},403);
+   }
    const images=project.documents.filter(d=>d.category==='Imagen del token'&&/\.(png|jpe?g|webp)$/i.test(d.fileName));
    if(action==='media-list')return response({images:images.map(d=>({id:d.id,name:d.name,fileName:d.fileName,sha256:d.sha256,sizeBytes:d.sizeBytes}))});
    const doc=images.find(d=>d.id===payload.documentId);
