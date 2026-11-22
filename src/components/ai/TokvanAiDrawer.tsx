@@ -70,6 +70,8 @@ async function publicAnswer(question:string):Promise<Answer|null>{
 }
 export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadField,wizardStep,wizardStandard}:Props)=>{
  const drawerRef=useRef<HTMLDivElement>(null);
+ const questionStripRef=useRef<HTMLDivElement>(null);
+ const questionStripPaused=useRef(false);
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
@@ -102,6 +104,26 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   document.addEventListener('pointerdown',closeOutside);
   return ()=>document.removeEventListener('pointerdown',closeOutside);
  },[isOpen,onClose]);
+ useEffect(()=>{
+  if(!isOpen||mode!=='educativo'||suggestedQuestions.length===0)return;
+  const strip=questionStripRef.current;
+  if(!strip||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  let frame=0;
+  let previous=0;
+  const advance=(time:number)=>{
+   if(previous&&!questionStripPaused.current){
+    const firstSet=strip.firstElementChild?.getBoundingClientRect().width||0;
+    if(firstSet){
+     strip.scrollLeft+=(Math.min(time-previous,64)*25)/1000;
+     if(strip.scrollLeft>=firstSet)strip.scrollLeft-=firstSet;
+    }
+   }
+   previous=time;
+   frame=requestAnimationFrame(advance);
+  };
+  frame=requestAnimationFrame(advance);
+  return ()=>cancelAnimationFrame(frame);
+ },[isOpen,mode,suggestedQuestions]);
  function startNewConversation(){
   setMessages([]);
   setQuery('');
@@ -310,7 +332,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
  return <div ref={drawerRef} role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Nueva conversación</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  {mode==='educativo'&&suggestedQuestions.length>0&&<div className="border-b border-[#273246] px-3 py-3"><p className="mb-2 text-xs font-semibold text-[#AFC2E0]">Preguntas para explorar</p><div className="flex snap-x gap-2 overflow-x-auto pb-1" aria-label="Preguntas educativas publicadas">{suggestedQuestions.map(item=><button type="button" key={item.question} onClick={()=>chooseSuggestion(item)} className="max-w-64 min-w-48 shrink-0 snap-start rounded-xl border border-[#45628B] bg-[#1D2A40] px-3 py-2 text-left text-xs leading-snug text-[#E1ECFC] hover:border-[#78A8FF] hover:bg-[#244168] focus-visible:outline-2 focus-visible:outline-[#78A8FF]">{item.question}</button>)}</div></div>}
+  {mode==='educativo'&&suggestedQuestions.length>0&&<div className="shrink-0 border-b border-[#273246] px-3 py-3"><p className="mb-2 text-xs font-semibold text-[#AFC2E0]">Preguntas para explorar</p><div ref={questionStripRef} onPointerEnter={()=>{questionStripPaused.current=true;}} onPointerLeave={()=>{questionStripPaused.current=false;}} onFocusCapture={()=>{questionStripPaused.current=true;}} onBlurCapture={event=>{if(!event.currentTarget.contains(event.relatedTarget))questionStripPaused.current=false;}} onTouchStart={()=>{questionStripPaused.current=true;}} onTouchEnd={()=>{questionStripPaused.current=false;}} className="flex overflow-x-auto pb-2" aria-label="Preguntas educativas publicadas"><div className="flex w-max shrink-0 gap-2 pr-2">{suggestedQuestions.map(item=><button type="button" key={item.question} onClick={()=>chooseSuggestion(item)} className="max-w-64 min-w-40 shrink-0 rounded-full border border-[#CBD5E1] bg-white px-3 py-2 text-left text-xs leading-snug text-[#17243B] shadow-sm hover:border-[#78A8FF] hover:bg-[#EAF1FF] focus-visible:outline-2 focus-visible:outline-[#78A8FF]">{item.question}</button>)}</div><div className="flex w-max shrink-0 gap-2 pr-2" aria-hidden="true">{suggestedQuestions.map(item=><button type="button" key={`repeat-${item.question}`} tabIndex={-1} onClick={()=>chooseSuggestion(item)} className="max-w-64 min-w-40 shrink-0 rounded-full border border-[#CBD5E1] bg-white px-3 py-2 text-left text-xs leading-snug text-[#17243B] shadow-sm hover:border-[#78A8FF] hover:bg-[#EAF1FF]">{item.question}</button>)}</div></div></div>}
   <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage,wizardStep)}</p>{messages.length===0&&(mode==='operativo'||suggestedQuestions.length===0)&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
    {messages.map((message,index)=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}{index===messages.length-1&&showNextField&&nextField&&<p className="mt-3 rounded-lg border border-[#45628B] bg-[#1D2A40] p-2 text-xs text-[#D9E6FA]"><strong>Campo actual: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
