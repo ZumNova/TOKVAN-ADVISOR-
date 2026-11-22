@@ -1,1 +1,1 @@
-export {POST} from '../server/publicKnowledge.js';
+export {GET,POST} from '../server/publicKnowledge.js';

@@ -4,6 +4,10 @@ const words=(text:string)=>new Set(normalize(text).match(/[a-z0-9]{3,}/g)?.filte
 export function containsPrivateData(text:string){
  return /@|(?:0x[a-f0-9]{40})|\b(?:\+?\d[\d\s().-]{8,}\d)\b|\b(?:ruc|dni|cuit|cuil|pasaporte|expediente|cliente|contacto)\s*[:#-]/i.test(text);
 }
+export function publicSuggestions(rows:PublicAnswer[]){
+ return rows.filter(row=>!containsPrivateData([row.question,row.short_answer,row.more_answer,row.category,...row.keywords].join(' ')))
+  .map(row=>({question:row.question,short:row.short_answer,more:row.more_answer}));
+}
 export function bestPublicAnswer(query:string,rows:PublicAnswer[]):PublicAnswer|null{
  const terms=words(query);if(!terms.size)return null;
  let best:PublicAnswer|null=null,bestScore=0;

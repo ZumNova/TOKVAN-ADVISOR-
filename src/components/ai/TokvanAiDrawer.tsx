@@ -10,6 +10,7 @@ type Mode='educativo'|'operativo';
 type Topic='erc20'|'erc721'|'erc1155'|'erc3643'|'wallet'|'revision'|'pago'|'despliegue'|'imagen'|'inicio';
 type Answer={short:string;more:string};
 type Message={id:string;question:string;answer:Answer;expanded:boolean};
+type SuggestedQuestion={question:string;short:string;more:string};
 interface Props {isOpen:boolean;onClose:()=>void;currentView:string;leadOpen:boolean;leadStep:1|2|3;leadField:LeadField;wizardStep:number;wizardStandard:string;}
 
 const educational:Record<Topic,Answer>={
@@ -72,6 +73,7 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
  const [mode,setMode]=useState<Mode>('educativo');
  const [query,setQuery]=useState('');
  const [messages,setMessages]=useState<Message[]>([]);
+ const [suggestedQuestions,setSuggestedQuestions]=useState<SuggestedQuestion[]>([]);
  const [guidedSector,setGuidedSector]=useState<SuggestedSector|null>(null);
  const [diagnosticStage,setDiagnosticStage]=useState<DiagnosticStage>(null);
  const [commercialStage,setCommercialStage]=useState<CommercialStage>('audience');
@@ -80,6 +82,17 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
  const [caseStage,setCaseStage]=useState<'bees'|'wine'|'farm_stay'|null>(null);
  const [mentionedField,setMentionedField]=useState<LeadField|null>(null);
  useEffect(()=>setMentionedField(null),[leadField]);
+ useEffect(()=>{
+  if(!isOpen)return;
+  const controller=new AbortController();
+  void fetch('/api/public-knowledge',{signal:controller.signal})
+   .then(response=>response.ok?response.json():{questions:[]})
+   .then((result:{questions?:SuggestedQuestion[]})=>{
+    if(!controller.signal.aborted)setSuggestedQuestions(Array.isArray(result.questions)?result.questions:[]);
+   })
+   .catch(()=>{if(!controller.signal.aborted)setSuggestedQuestions([]);});
+  return ()=>controller.abort();
+ },[isOpen]);
  useEffect(()=>{if(currentView==='wizard'){setGuidedSector(null);setDiagnosticStage(null);setCommercialStage('audience');setAccessStage(null);setSowingStage(false);setCaseStage(null);setMentionedField(null);}},[currentView]);
  useEffect(()=>{
   if(!isOpen)return;
@@ -289,12 +302,16 @@ export const TokvanAiDrawer=({isOpen,onClose,currentView,leadOpen,leadStep,leadF
   setMessages(previous=>[...previous,{id:crypto.randomUUID(),question,answer,expanded:false}]);
  }
  function send(event:FormEvent){event.preventDefault();const question=query.trim();if(!question)return;void ask(question);setQuery('');}
+ function chooseSuggestion(item:SuggestedQuestion){
+  setMessages(previous=>[...previous,{id:crypto.randomUUID(),question:item.question,answer:{short:item.short,more:item.more},expanded:false}]);
+ }
  const nextField=nextDiagnosticField({leadOpen,leadStep,diagnosticStage,commercialStage,activeField:mentionedField||leadField});
  const showNextField=Boolean(nextField&&!accessStage&&!sowingStage&&!caseStage);
  return <div ref={drawerRef} role="dialog" aria-modal="false" aria-label="TOKVANT AI" className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-[#34517B] bg-[#101725] text-white shadow-2xl sm:w-[430px]">
   <header className="flex items-center justify-between border-b border-[#273246] p-4"><div className="flex items-center gap-2"><TokvanLogo variant="mark-only" size="sm"/><div><h2 className="font-bold">TOKVANT AI</h2><p className="text-xs text-[#AFC2E0]">Una respuesta a la vez</p></div></div><div className="flex items-center gap-2"><button type="button" onClick={startNewConversation} className="rounded-lg border border-[#45628B] px-2 py-1.5 text-xs text-[#D9E6FA] hover:bg-[#273246]">Nueva conversación</button><button type="button" onClick={onClose} aria-label="Cerrar asistente" className="rounded-lg p-2 hover:bg-[#273246]"><X size={18}/></button></div></header>
   <div className="grid grid-cols-2 gap-2 border-b border-[#273246] p-3 text-sm"><button type="button" aria-pressed={mode==='educativo'} onClick={()=>setMode('educativo')} className={`rounded-lg px-3 py-2 ${mode==='educativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Aprender</button><button type="button" aria-pressed={mode==='operativo'} onClick={()=>setMode('operativo')} className={`rounded-lg px-3 py-2 ${mode==='operativo'?'bg-[#316BFA]':'bg-[#1D2A40]'}`}>Guía de operación</button></div>
-  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage,wizardStep)}</p>{messages.length===0&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
+  {mode==='educativo'&&suggestedQuestions.length>0&&<div className="border-b border-[#273246] px-3 py-3"><p className="mb-2 text-xs font-semibold text-[#AFC2E0]">Preguntas para explorar</p><div className="flex snap-x gap-2 overflow-x-auto pb-1" aria-label="Preguntas educativas publicadas">{suggestedQuestions.map(item=><button type="button" key={item.question} onClick={()=>chooseSuggestion(item)} className="max-w-64 min-w-48 shrink-0 snap-start rounded-xl border border-[#45628B] bg-[#1D2A40] px-3 py-2 text-left text-xs leading-snug text-[#E1ECFC] hover:border-[#78A8FF] hover:bg-[#244168] focus-visible:outline-2 focus-visible:outline-[#78A8FF]">{item.question}</button>)}</div></div>}
+  <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm"><p className="rounded-xl bg-[#1D2A40] p-3 text-[#D9E6FA]">{hint(currentView,leadOpen,leadStep,commercialStage,diagnosticStage,mentionedField||leadField,accessStage,sowingStage,caseStage,wizardStep)}</p>{messages.length===0&&(mode==='operativo'||suggestedQuestions.length===0)&&<div className="flex flex-wrap gap-2">{(leadOpen&&leadStep===2?['Mis clientes actuales y nuevos clientes','¿Qué son los canales comerciales?']:leadOpen?['Tengo vacas','Tengo una flota de camiones','Quiero tokenizar un inmueble']:['¿Qué es ERC-20?','¿Qué es un NFT?','¿Qué es ERC-1155?','¿Qué es ERC-3643?']).map(question=><button type="button" key={question} onClick={()=>ask(question)} className="rounded-full border border-[#45628B] px-3 py-2 text-xs hover:bg-[#203A69]">{question}</button>)}</div>}
    {messages.map((message,index)=><section key={message.id} className="space-y-2"><p className="ml-6 rounded-xl bg-[#316BFA] p-3 text-xs">{message.question}</p><div className="mr-6 rounded-xl border border-[#334765] bg-[#0B0D12] p-3"><p>{message.answer.short}</p>{message.expanded&&<p className="mt-2 text-[#B8C9E1]">{message.answer.more}</p>}{index===messages.length-1&&showNextField&&nextField&&<p className="mt-3 rounded-lg border border-[#45628B] bg-[#1D2A40] p-2 text-xs text-[#D9E6FA]"><strong>Campo actual: {nextField.label}.</strong> {nextField.guidance}</p>}<button type="button" className="mt-2 text-xs font-semibold text-[#9BBCFF] underline" onClick={()=>setMessages(previous=>previous.map(item=>item.id===message.id?{...item,expanded:!item.expanded}:item))}>{message.expanded?'Ver menos':'Explicame más'}</button></div></section>)}
   </div>
   <form onSubmit={send} className="flex gap-2 border-t border-[#273246] p-3"><input aria-label="Escribí tu pregunta" maxLength={300} className="min-w-0 flex-1 rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 text-sm" placeholder="Escribí tu pregunta…" value={query} onChange={event=>setQuery(event.target.value)}/><button type="submit" disabled={!query.trim()} aria-label="Enviar pregunta" className="rounded-lg bg-[#316BFA] px-3 disabled:opacity-40"><Send size={17}/></button></form>
