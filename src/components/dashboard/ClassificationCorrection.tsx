@@ -10,6 +10,7 @@ export function ClassificationCorrection({project,account,onSaved}:{project:Toke
  const [standard,setStandard]=useState(project.standard);
  const [network,setNetwork]=useState(project.network);
  const [initialSupply,setInitialSupply]=useState(String(project.parameters.initialSupply));
+ const [maxSupply,setMaxSupply]=useState(String(project.parameters.maxSupply??project.parameters.initialSupply));
  const [decimals,setDecimals]=useState(String(project.parameters.decimals));
  const [transferRestrictions,setTransferRestrictions]=useState(project.parameters.transferRestrictions);
  const [reason,setReason]=useState('');
@@ -18,10 +19,10 @@ export function ClassificationCorrection({project,account,onSaved}:{project:Toke
  const [error,setError]=useState('');
  const nft=standard==='ERC-721'||standard==='ERC-1155';
  const hasLegacyControls=project.parameters.isUpgradeabilityEnabled||project.parameters.complianceRules.requireKYC||project.parameters.complianceRules.requireKYB||project.parameters.complianceRules.restrictSanctionedCountries||(project.parameters.complianceRules.lockupPeriodDays||0)>0;
- const changed=standard!==project.standard||network!==project.network||Number(initialSupply)!==project.parameters.initialSupply||Number(decimals)!==project.parameters.decimals||transferRestrictions!==project.parameters.transferRestrictions;
+ const changed=standard!==project.standard||network!==project.network||Number(initialSupply)!==project.parameters.initialSupply||Number(maxSupply)!==(project.parameters.maxSupply??project.parameters.initialSupply)||Number(decimals)!==project.parameters.decimals||transferRestrictions!==project.parameters.transferRestrictions;
  const save=async()=>{
   setBusy(true);setError('');
-  try{onSaved(await amendClassification(account,project,{standard,network,initialSupply:Number(initialSupply),decimals:Number(decimals),transferRestrictions,removeLegacyControls,reason:reason.trim()}));}
+  try{onSaved(await amendClassification(account,project,{standard,network,initialSupply:Number(initialSupply),maxSupply:Number(maxSupply),decimals:Number(decimals),transferRestrictions,removeLegacyControls,reason:reason.trim()}));}
   catch(e){setError(e instanceof Error?e.message:'No se pudo corregir el expediente.');}
   finally{setBusy(false);}
  };
@@ -32,6 +33,8 @@ export function ClassificationCorrection({project,account,onSaved}:{project:Toke
    <label>Estándar<select value={standard} onChange={event=>{const next=event.target.value as TokenProject['standard'];setStandard(next);if(next==='ERC-721'||next==='ERC-1155'){setDecimals('0');setTransferRestrictions('Sin restricción');}}} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{standards.map(value=><option key={value}>{value}</option>)}</select></label>
    <label>Red<select value={network} onChange={event=>setNetwork(event.target.value as TokenProject['network'])} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{networks.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
    <label>Cantidad propuesta<input type="number" min="1" step="1" value={initialSupply} onChange={event=>setInitialSupply(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>
+   <label>Máximo de suministro<input type="number" min="1" step="1" value={maxSupply} onChange={event=>setMaxSupply(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>
+   {standard==='ERC-3643'&&<p className="sm:col-span-2 text-slate-300">Cantidad propuesta: participaciones previstas. Máximo: límite inicial de unidades en circulación del token; el factory v2 lo verifica contra esta versión aprobada.</p>}
    <label>Decimales<input type="number" min="0" max="18" step="1" disabled={nft} value={decimals} onChange={event=>setDecimals(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2 disabled:opacity-60"/></label>
    <label className="sm:col-span-2">Régimen de transferencia<select value={transferRestrictions} onChange={event=>setTransferRestrictions(event.target.value as TokenProject['parameters']['transferRestrictions'])} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{restrictions.map(value=><option key={value}>{value}</option>)}</select></label>
   </div>
