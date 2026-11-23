@@ -183,7 +183,7 @@ function ERC1155FactoryV1View({projects,staffAccount,initialProjectId}:{projects
   </div>;
 }
 export default function ERC1155FactoryView(props:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
-  const [mode,setMode]=useState<'v1'|'v2'>(()=>props.projects.length===0?'v1':'v2');
+  const [mode,setMode]=useState<'v1'|'v2'>('v2');
   if(props.projects.length===0)return <ERC1155FactoryV1View {...props}/>;
   return <div className="space-y-4"><div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className={mode==='v2'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className={mode==='v1'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Consultar flujo anterior · v1</button></div>{mode==='v2'?<ERC1155FactoryV2View {...props}/>:<ERC1155FactoryV1View {...props}/>}</div>;
 }
