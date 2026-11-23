@@ -1,5 +1,8 @@
-import {AbiCoder,getAddress,id,Interface,isAddress,keccak256,parseUnits,ZeroAddress} from 'ethers';
+import {AbiCoder,ContractFactory,getAddress,id,Interface,isAddress,keccak256,parseUnits,ZeroAddress} from 'ethers';
 import factoryArtifact from '../src/generated/erc3643FactoryArtifact.json' with {type:'json'};
+import factoryV2Artifact from '../src/generated/erc3643FactoryV2Artifact.json' with {type:'json'};
+import claimV2Artifact from '../src/generated/erc3643ClaimV2Artifact.json' with {type:'json'};
+import complianceV2Artifact from '../src/generated/erc3643ComplianceV2Artifact.json' with {type:'json'};
 import suite from '../src/generated/erc3643Suite.json' with {type:'json'};
 import {db,OWNER,projectHash,reply,staff,submission} from './governance.js';
 
@@ -7,7 +10,7 @@ const FACTORY=getAddress('0x873Cd8e429c677e678b4C5970e28492585403774');
 const OPERATOR=getAddress('0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25');
 const COMPLIANCE=getAddress('0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24');
 const BOARD=getAddress('0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D');
-const factory=new Interface(factoryArtifact.abi),token=new Interface(suite.implementations[0].abi);
+const factory=new Interface(factoryArtifact.abi),factoryV2=new Interface(factoryV2Artifact.abi),token=new Interface(suite.implementations[0].abi),claimV2=new Interface(claimV2Artifact.abi),complianceV2=new Interface(complianceV2Artifact.abi);
 const tuple='tuple(string name,string symbol,uint8 decimals,address admin,address claimAuthority,uint256 supplyCap,uint256 walletCap,uint16[] countries,bytes32 dossierHash)';
 type Receipt={status:string;blockNumber:string;logs:{address:string;topics:string[];data:string}[]};
 type Transaction={to:string|null;from:string;input:string;value:string};
@@ -25,7 +28,7 @@ async function call(address:string,iface:Interface,name:string,args:unknown[]=[]
 export async function POST(request:Request){
  try{
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
-  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;acknowledgeAdminDifference?:boolean};
+  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;factoryDeploymentHash?:string;acknowledgeAdminDifference?:boolean};
   if(body.action!=='link'||!/^0x[0-9a-f]{64}$/i.test(body.transactionHash||''))return reply({error:'Hash de creación inválido.'},400);
   const actor=staff(request,'link');
   if(actor.wallet!==OWNER)return reply({error:'Solo la 047 puede vincular el token al expediente.'},403);
@@ -35,6 +38,62 @@ export async function POST(request:Request){
   if(existing.error)throw existing.error;
   if(existing.data){if(existing.data.transaction_hash.toLowerCase()===body.transactionHash!.toLowerCase())return reply({issuance:existing.data});throw new Error('Este expediente ya tiene un token vinculado.');}
   const hash=projectHash(row.project);
+  if(body.factoryDeploymentHash){
+   if(!/^0x[0-9a-f]{64}$/i.test(body.factoryDeploymentHash))throw new Error('Hash de despliegue del factory v2 inválido.');
+   if(BigInt(await rpc('eth_chainId',[]) as string)!==11155111n)throw new Error('El RPC configurado no es Sepolia.');
+   const [receipt,tx,factoryReceipt,factoryTx]=await Promise.all([
+    rpc('eth_getTransactionReceipt',[body.transactionHash]) as Promise<Receipt|null>,
+    rpc('eth_getTransactionByHash',[body.transactionHash]) as Promise<Transaction|null>,
+    rpc('eth_getTransactionReceipt',[body.factoryDeploymentHash]) as Promise<(Receipt&{contractAddress:string|null})|null>,
+    rpc('eth_getTransactionByHash',[body.factoryDeploymentHash]) as Promise<Transaction|null>,
+   ]);
+   if(!receipt||!tx||BigInt(receipt.status)!==1n||!tx.to||getAddress(tx.from)!==OWNER||BigInt(tx.value)!==0n)throw new Error('La creación v2 debe estar confirmada y firmada por la 047.');
+   const factoryAddress=getAddress(tx.to);
+   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||getAddress(factoryReceipt.contractAddress)!==factoryAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||BigInt(factoryTx.value)!==0n)throw new Error('El factory v2 no coincide con el despliegue de la 047.');
+   if(!factoryTx.input.toLowerCase().startsWith(factoryV2Artifact.bytecode.toLowerCase()))throw new Error('El bytecode del factory v2 no coincide.');
+   const ctor=AbiCoder.defaultAbiCoder().decode(['address','address[5]'],'0x'+factoryTx.input.slice(factoryV2Artifact.bytecode.length));
+   const implementations=Array.from(ctor[1]) as string[];
+   const expected=(await new ContractFactory(factoryV2Artifact.abi,factoryV2Artifact.bytecode).getDeployTransaction(OWNER,implementations)).data!;
+   if(factoryTx.input.toLowerCase()!==expected.toLowerCase())throw new Error('El despliegue del factory v2 tiene otros parámetros.');
+   for(let i=0;i<5;i++){
+    const code=await rpc('eth_getCode',[implementations[i],'latest']) as string;
+    if(keccak256(code)!==suite.implementations[i].runtimeHash)throw new Error('Un componente oficial ERC-3643 no coincide.');
+   }
+   const [approvals,payments]=await Promise.all([
+    client.from('submission_operator_authorizations').select('project_hash,payment_id,decision').eq('submission_id',row.id).order('created_at',{ascending:false}),
+    client.from('submission_payments').select('id,status').eq('submission_id',row.id),
+   ]);
+   if(approvals.error||payments.error)throw approvals.error||payments.error;
+   const latest=approvals.data?.find(a=>a.project_hash===hash);
+   if(latest?.decision!=='approved'||!payments.data?.some(p=>p.id===latest.payment_id&&p.status==='verified'))throw new Error('Falta la decisión integral vigente y el pago verificado.');
+   const projectId=id(row.project.id),decoded=factoryV2.parseTransaction({data:tx.input});
+   if(decoded?.name!=='createToken'||decoded.args.projectId!==projectId||decoded.args.projectHash!==hash)throw new Error('La transacción corresponde a otro expediente o versión.');
+   const c=decoded.args.c,p=row.project.parameters;
+   if(c.name.trim()!==p.tokenName.trim()||c.symbol.trim()!==p.tokenSymbol.trim()||Number(c.decimals)!==p.decimals)throw new Error('Nombre, símbolo o decimales no coinciden con el expediente aprobado.');
+   const clientWallet=row.project.clientWalletAddress&&row.project.clientWalletNetwork==='sepolia'&&isAddress(row.project.clientWalletAddress)?getAddress(row.project.clientWalletAddress):null;
+   if(clientWallet&&getAddress(c.admin)!==clientWallet)throw new Error('La propietaria debe ser la wallet Sepolia declarada por la empresa.');
+   if(getAddress(c.claimAuthority)!==getAddress(c.admin)||c.dossierHash!==hash||c.countries.length!==0||BigInt(c.walletCap)!==BigInt(c.supplyCap))throw new Error('La suite v2 debe quedar sin acreditaciones, países ni operador delegado.');
+   if(p.maxSupply!==undefined&&BigInt(c.supplyCap)!==parseUnits(String(p.maxSupply),p.decimals))throw new Error('El máximo de tokens no coincide con el expediente aprobado.');
+   const version=await call(factoryAddress,factoryV2,'VERSION');
+   const operator=await call(factoryAddress,factoryV2,'operator');
+   if(version!==id('TOKVAN_3643_SEPOLIA_EDUCATIONAL_V2')||getAddress(operator)!==OWNER)throw new Error('El factory v2 no corresponde a TOKVANT.');
+   const digest=keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32','uint256','address','bytes32','bytes32',tuple],[version,11155111,factoryAddress,projectId,hash,c]));
+   const event=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return factoryV2.parseLog(l);}catch{return null;}}).find(l=>l?.name==='TokenCreated'&&l.args.projectId===projectId&&l.args.digest===digest&&l.args.projectHash===hash&&l.args.dossierHash===hash);
+   if(!event)throw new Error('No se encontró la creación ERC-3643 v2 de este expediente.');
+   const address=getAddress(event.args.token),linked=await call(factoryAddress,factoryV2,'tokenByProject',[projectId]);
+   if(getAddress(linked)!==address)throw new Error('El token no coincide con el registro del factory.');
+   const suiteParts=await call(factoryAddress,factoryV2,'suites',[address]);
+   const [code,name,symbol,decimals,owner,paused,supply,authority,complianceOwner]=await Promise.all([
+    rpc('eth_getCode',[address,'latest']),call(address,token,'name'),call(address,token,'symbol'),call(address,token,'decimals'),call(address,token,'owner'),call(address,token,'paused'),call(address,token,'totalSupply'),call(suiteParts.claimIssuer,claimV2,'authority'),call(suiteParts.compliance,complianceV2,'owner'),
+   ]);
+   if(code==='0x'||name!==c.name||symbol!==c.symbol||Number(decimals)!==Number(c.decimals)||getAddress(owner)!==getAddress(c.admin)||!paused||BigInt(supply)!==0n||getAddress(authority)!==getAddress(c.admin)||getAddress(complianceOwner)!==getAddress(c.admin))throw new Error('La suite creada no está pausada, vacía o bajo propiedad de la empresa.');
+   const latestBlock=BigInt(await rpc('eth_blockNumber',[]) as string);
+   if(latestBlock-BigInt(receipt.blockNumber)<2n)throw new Error('Esperá dos bloques y volvé a verificar.');
+   const record={submission_id:row.id,project_hash:hash,standard:'ERC-3643',chain_id:11155111,factory_address:factoryAddress.toLowerCase(),token_address:address.toLowerCase(),transaction_hash:body.transactionHash!.toLowerCase(),block_number:Number(BigInt(receipt.blockNumber)),project_id_hash:projectId,config_digest:digest,dossier_hash:hash,token_name:c.name,token_symbol:c.symbol,admin_wallet:getAddress(c.admin).toLowerCase(),recorded_by:actor.wallet.toLowerCase()};
+   const saved=await client.from('submission_regulated_issuances').insert(record).select('*').single();
+   if(saved.error)throw saved.error;
+   return reply({issuance:saved.data});
+  }
   const [reviews,payments,authorizations]=await Promise.all([
    client.from('submission_reviews').select('id,role,decision,project_hash').eq('submission_id',row.id).order('created_at',{ascending:false}),
    client.from('submission_payments').select('id,status').eq('submission_id',row.id),

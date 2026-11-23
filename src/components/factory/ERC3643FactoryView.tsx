@@ -10,6 +10,7 @@ import {loadGovernance} from '../../lib/governance';
 import {OWNER} from '../../lib/staffAccess';
 import {getAddress} from 'ethers';
 import ERC3643ParticipantsPanel from './ERC3643ParticipantsPanel';
+import ERC3643FactoryV2View from './ERC3643FactoryV2View';
 const button='rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-900 disabled:opacity-40 disabled:cursor-not-allowed';
 const panel='rounded-xl border border-slate-200 bg-white p-5 space-y-4';
 function saved<T>(key:string,fallback:T):T {try{return JSON.parse(localStorage.getItem(REG_PREFIX+key)||'null')??fallback;}catch{return fallback;}}
@@ -18,7 +19,7 @@ function download(name:string,value:unknown){const url=URL.createObjectURL(new B
 function Tx({hash}:{hash:string}){return <a className="text-blue-700 underline break-all" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${hash}`}>{hash}</a>;}
 function Field({label,value,onChange,disabled=false,hint}:{label:string;value:string;onChange:(s:string)=>void;disabled?:boolean;hint?:string}){return <label className="block">{label}<input className="block w-full rounded border p-2 mt-1" value={value} disabled={disabled} onChange={e=>onChange(e.target.value)}/>{hint&&<span className="text-xs text-slate-600">{hint}</span>}</label>;}
 const actionLabels:Record<RegAction,string>={attest:'Registrar acreditación ficticia',revokeIdentity:'Revocar acreditación',mint:'Emitir tokens',transfer:'Transferir mis tokens',burn:'Quemar tokens por agente',pause:'Pausar transferencias',unpause:'Reanudar transferencias',freeze:'Congelar wallet',unfreeze:'Descongelar wallet',freezePartial:'Congelar cantidad',unfreezePartial:'Liberar cantidad',forcedTransfer:'Transferencia forzada',authorizeRecovery:'Autorizar wallet de recuperación',recover:'Recuperar saldo e identidad',setIssuerIdentity:'Vincular identidad de la emisora'};
-export default function ERC3643FactoryView({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}){
+function ERC3643FactoryV1View({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}){
  const [record,setRecord]=useState<RegRecord|undefined>(()=>saved(':factory',undefined));
  const [implementations,setImplementations]=useState<(ImplementationRecord|null)[]>(()=>saved(':implementations',[null,null,null,null,null]));
  const [input,setInput]=useState<RegInput>(()=>saved(':draft',REG_DEFAULTS));
@@ -119,4 +120,9 @@ export default function ERC3643FactoryView({projects,staffAccount,initialProject
    <details><summary>Ver todos los eventos ({journal.length})</summary><p className="text-sm">Los importes de eventos se muestran en unidades mínimas del contrato. La consulta de saldos aplica los decimales.</p>{journal.map(e=><article key={e.id} className="border-t py-3 text-sm space-y-1"><strong>{e.name?e.name+' · ':''}{e.kind}</strong><p>Bloque {e.block}</p><p className="break-all">Contrato: {e.address}</p><p className="break-all">{e.detail}</p><Tx hash={e.hash}/></article>)}</details>
   </section>
  </div>;
+}
+export default function ERC3643FactoryView(props:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}){
+ const [mode,setMode]=useState<'v1'|'v2'>(()=>{try{return localStorage.getItem('tokvan:erc3643:factory-mode')==='v1'?'v1':'v2';}catch{return 'v2';}});
+ if(props.projects.length===0)return <ERC3643FactoryV1View {...props}/>;
+ return <div className="space-y-4"><div className="flex gap-2"><button type="button" onClick={()=>{setMode('v2');localStorage.setItem('tokvan:erc3643:factory-mode','v2');}} className={mode==='v2'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Operador único · v2</button><button type="button" onClick={()=>{setMode('v1');localStorage.setItem('tokvan:erc3643:factory-mode','v1');}} className={mode==='v1'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Consultar flujo anterior · v1</button></div>{mode==='v2'?<ERC3643FactoryV2View {...props}/>:<ERC3643FactoryV1View {...props}/>}</div>;
 }
