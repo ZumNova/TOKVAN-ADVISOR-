@@ -1,5 +1,6 @@
-import {AbiCoder,getAddress,id,Interface,isAddress,keccak256} from 'ethers';
+import {AbiCoder,ContractFactory,getAddress,id,Interface,isAddress,keccak256} from 'ethers';
 import nftFactoryArtifact from '../src/generated/erc721FactoryArtifact.json' with {type:'json'};
+import nftFactoryV2Artifact from '../src/generated/erc721FactoryV2Artifact.json' with {type:'json'};
 import multiFactoryArtifact from '../src/generated/erc1155FactoryArtifact.json' with {type:'json'};
 import nftArtifact from '../src/generated/erc721Artifact.json' with {type:'json'};
 import multiArtifact from '../src/generated/erc1155Artifact.json' with {type:'json'};
@@ -8,11 +9,11 @@ import {db,OWNER,projectHash,reply,staff,submission} from './governance.js';
 const OPERATOR=getAddress('0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25');
 const COMPLIANCE=getAddress('0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24');
 const BOARD=getAddress('0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D');
-const factory721=new Interface(nftFactoryArtifact.abi),factory1155=new Interface(multiFactoryArtifact.abi);
+const factory721=new Interface(nftFactoryArtifact.abi),factory721V2=new Interface(nftFactoryV2Artifact.abi),factory1155=new Interface(multiFactoryArtifact.abi);
 const collection721=new Interface(nftArtifact.abi),collection1155=new Interface(multiArtifact.abi);
 const tuple721='tuple(string name,string symbol,address admin,uint256 maxSupply,bool burnable,bool pausable)';
 const tuple1155='tuple(string name,string symbol,address admin,uint256 maxTypes,bool burnable,bool pausable)';
-type Receipt={status:string;blockNumber:string;logs:{address:string;topics:string[];data:string}[]};
+type Receipt={status:string;blockNumber:string;contractAddress:string|null;logs:{address:string;topics:string[];data:string}[]};
 type Transaction={to:string|null;from:string;input:string;value:string};
 async function rpc(method:string,params:unknown[]){
  const response=await fetch(process.env.SEPOLIA_RPC_URL||'https://ethereum-sepolia-rpc.publicnode.com',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params}),signal:AbortSignal.timeout(15000)});
@@ -29,7 +30,7 @@ async function call(to:string,iface:Interface,name:string,args:unknown[]=[]){
 export async function POST(request:Request){
  try{
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
-  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string};
+  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;factoryDeploymentHash?:string};
   if(body.action!=='link'||!/^0x[0-9a-f]{64}$/i.test(body.transactionHash||''))return reply({error:'Hash de creación inválido.'},400);
   const actor=staff(request,'link');
   if(actor.wallet!==OWNER)return reply({error:'Solo la 047 puede vincular una colección al expediente.'},403);
@@ -43,6 +44,30 @@ export async function POST(request:Request){
    throw new Error('Este expediente ya tiene una colección vinculada.');
   }
   const hash=projectHash(project);
+  if(BigInt(await rpc('eth_chainId',[]) as string)!==11155111n)throw new Error('El RPC configurado no es Sepolia.');
+  const [receipt,tx]=await Promise.all([
+   rpc('eth_getTransactionReceipt',[body.transactionHash]) as Promise<Receipt|null>,
+   rpc('eth_getTransactionByHash',[body.transactionHash]) as Promise<Transaction|null>,
+  ]);
+  if(!receipt||!tx||BigInt(receipt.status)!==1n||!tx.to||BigInt(tx.value)!==0n)throw new Error('La transacción no es una creación confirmada de colección TOKVANT.');
+  const factoryAddress=getAddress(tx.to),isV2=project.standard==='ERC-721'&&getAddress(tx.from)===OWNER;
+  if(isV2){
+   if(!/^0x[0-9a-f]{64}$/i.test(body.factoryDeploymentHash||''))throw new Error('Falta el hash de despliegue del factory ERC-721 v2.');
+   const [factoryReceipt,factoryTx]=await Promise.all([
+    rpc('eth_getTransactionReceipt',[body.factoryDeploymentHash]) as Promise<Receipt|null>,
+    rpc('eth_getTransactionByHash',[body.factoryDeploymentHash]) as Promise<Transaction|null>,
+   ]);
+   const expected=(await new ContractFactory(nftFactoryV2Artifact.abi,nftFactoryV2Artifact.bytecode).getDeployTransaction(OWNER)).data!;
+   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||getAddress(factoryReceipt.contractAddress)!==factoryAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||factoryTx.input.toLowerCase()!==expected.toLowerCase())throw new Error('El factory ERC-721 v2 no coincide con el despliegue de la 047.');
+   const [approvals,payments]=await Promise.all([
+    client.from('submission_operator_authorizations').select('project_hash,payment_id,decision').eq('submission_id',row.id).order('created_at',{ascending:false}),
+    client.from('submission_payments').select('id,status').eq('submission_id',row.id),
+   ]);
+   if(approvals.error||payments.error)throw approvals.error||payments.error;
+   const latest=approvals.data?.find(a=>a.project_hash===hash);
+   if(latest?.decision!=='approved'||!payments.data?.some(p=>p.id===latest.payment_id&&p.status==='verified'))throw new Error('Falta la decisión integral vigente y el pago verificado.');
+  }else{
+   if(getAddress(tx.from)!==OPERATOR)throw new Error('La creación v1 no proviene del operador 8A25.');
   const [reviews,payments,authorizations]=await Promise.all([
    client.from('submission_reviews').select('id,role,decision,project_hash').eq('submission_id',row.id).order('created_at',{ascending:false}),
    client.from('submission_payments').select('id,status').eq('submission_id',row.id),
@@ -54,18 +79,13 @@ export async function POST(request:Request){
   if(current.some(r=>!r||r.decision!=='Aprobado'||r.project_hash!==hash))throw new Error('Faltan dictámenes vigentes para esta versión del expediente.');
   const authorized=authorizations.data?.some(a=>a.project_hash===hash&&Array.isArray(a.review_ids)&&a.review_ids.length===3&&a.review_ids.every((v:string,i:number)=>v===current[i]?.id)&&payments.data?.some(p=>p.id===a.payment_id&&p.status==='verified'));
   if(!authorized)throw new Error('Falta autorización vigente y pago verificado.');
-  if(BigInt(await rpc('eth_chainId',[]) as string)!==11155111n)throw new Error('El RPC configurado no es Sepolia.');
-  const [receipt,tx]=await Promise.all([
-   rpc('eth_getTransactionReceipt',[body.transactionHash]) as Promise<Receipt|null>,
-   rpc('eth_getTransactionByHash',[body.transactionHash]) as Promise<Transaction|null>,
-  ]);
-  if(!receipt||!tx||BigInt(receipt.status)!==1n||!tx.to||getAddress(tx.from)!==OPERATOR||BigInt(tx.value)!==0n)throw new Error('La transacción no es una creación confirmada de colección TOKVANT.');
-  const factoryAddress=getAddress(tx.to);
-  const iface=project.standard==='ERC-721'?factory721:factory1155;
+  }
+  const iface=project.standard==='ERC-721'?(isV2?factory721V2:factory721):factory1155;
   const collectionIface=project.standard==='ERC-721'?collection721:collection1155;
   const decoded=iface.parseTransaction({data:tx.input});
   const projectId=id(project.id);
   if(decoded?.name!=='createCollection'||decoded.args.projectId!==projectId)throw new Error('La transacción corresponde a otro expediente.');
+  if(isV2&&decoded.args.projectHash!==hash)throw new Error('La colección no corresponde a esta versión aprobada del expediente.');
   const config=decoded.args.config,p=project.parameters;
   const cap=BigInt(project.standard==='ERC-721'?config.maxSupply:config.maxTypes);
   const differences=[
@@ -77,12 +97,22 @@ export async function POST(request:Request){
   ].filter(Boolean);
   if(differences.length)throw new Error(`La colección no coincide con los parámetros aprobados: ${differences.join('; ')}. Revisá la solicitud y el despliegue antes de vincularlos.`);
   if(project.clientWalletAddress&&project.clientWalletNetwork==='sepolia'&&isAddress(project.clientWalletAddress)&&getAddress(config.admin)!==getAddress(project.clientWalletAddress))throw new Error('La administradora no coincide con la wallet del expediente.');
-  const [technical,compliance,board,operator,version,linkedAddress,code]=await Promise.all([
-   call(factoryAddress,iface,'technicalReviewer'),call(factoryAddress,iface,'complianceReviewer'),call(factoryAddress,iface,'boardReviewer'),call(factoryAddress,iface,'operator'),call(factoryAddress,iface,'VERSION'),call(factoryAddress,iface,'collectionByProject',[projectId]),rpc('eth_getCode',[factoryAddress,'latest']),
+  const linkedAddress=await call(factoryAddress,iface,'collectionByProject',[projectId]);
+  const code=await rpc('eth_getCode',[factoryAddress,'latest']);
+  if(code==='0x')throw new Error('El factory no tiene código en Sepolia.');
+  let version:string='';
+  if(isV2){
+   const operator=await call(factoryAddress,iface,'operator');
+   if(getAddress(operator)!==OWNER)throw new Error('La 047 no es operadora de este factory v2.');
+  }else{
+  const [technical,compliance,board,operator,v1Version]=await Promise.all([
+   call(factoryAddress,iface,'technicalReviewer'),call(factoryAddress,iface,'complianceReviewer'),call(factoryAddress,iface,'boardReviewer'),call(factoryAddress,iface,'operator'),call(factoryAddress,iface,'VERSION'),
   ]);
-  if(getAddress(technical)!==OWNER||getAddress(compliance)!==COMPLIANCE||getAddress(board)!==BOARD||getAddress(operator)!==OPERATOR||version!==id(project.standard==='ERC-721'?'TOKVAN_ERC721_FACTORY_V1':'TOKVAN_ERC1155_FACTORY_V1')||code==='0x')throw new Error('El contrato no corresponde a un factory TOKVANT con los participantes esperados.');
-  const digest=keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32','uint256','address','bytes32',project.standard==='ERC-721'?tuple721:tuple1155],[version,11155111,factoryAddress,projectId,config]));
-  const event=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return iface.parseLog(l);}catch{return null;}}).find(l=>l?.name==='CollectionCreated'&&l.args.projectId===projectId&&l.args.digest===digest&&getAddress(l.args.admin)===getAddress(config.admin));
+  version=v1Version;
+  if(getAddress(technical)!==OWNER||getAddress(compliance)!==COMPLIANCE||getAddress(board)!==BOARD||getAddress(operator)!==OPERATOR||version!==id(project.standard==='ERC-721'?'TOKVAN_ERC721_FACTORY_V1':'TOKVAN_ERC1155_FACTORY_V1'))throw new Error('El contrato no corresponde a un factory TOKVANT con los participantes esperados.');
+  }
+  const digest=keccak256(AbiCoder.defaultAbiCoder().encode(isV2?['uint256','address','bytes32','bytes32',tuple721]:['bytes32','uint256','address','bytes32',project.standard==='ERC-721'?tuple721:tuple1155],isV2?[11155111,factoryAddress,projectId,hash,config]:[version,11155111,factoryAddress,projectId,config]));
+  const event=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return iface.parseLog(l);}catch{return null;}}).find(l=>l?.name==='CollectionCreated'&&l.args.projectId===projectId&&(isV2?l.args.configDigest===digest&&l.args.projectHash===hash:l.args.digest===digest)&&getAddress(l.args.admin)===getAddress(config.admin));
   if(!event||getAddress(event.args.collection)!==getAddress(linkedAddress))throw new Error('No se encontró la colección creada por este factory y expediente.');
   const collectionAddress=getAddress(event.args.collection);
   const [collectionCode,name,symbol,onchainCap,burnable,pausable]=await Promise.all([

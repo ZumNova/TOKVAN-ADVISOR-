@@ -1,4 +1,5 @@
 import NFTMediaPanel from './NFTMediaPanel';
+import ERC721FactoryV2View from './ERC721FactoryV2View';
 import {useEffect, useRef, useState} from 'react';
 import {getAddress,id,isAddress} from 'ethers';
 import {DEPLOYER, PARTICIPANTS, SEPOLIA_HEX, injectedWallet, walletError} from '../../lib/factoryWallet';
@@ -22,6 +23,7 @@ function FactoryHash({hash, onUse}:{hash:string;onUse:()=>void}) {
   </div>;
 }
 export default function ERC721FactoryView({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
+  const [mode,setMode]=useState<'v1'|'v2'>(staffAccount&&getAddress(staffAccount)===DEPLOYER?'v2':'v1');
   const [record,setRecord]=useState<NFTFactoryRecord|undefined>(()=>saved(':factory',undefined));
   const [input,setInput]=useState<CollectionInput>(()=>{const value=saved(':draft',NFT_DEFAULTS);try{prepareCollection(value,DEPLOYER);return value;}catch{return NFT_DEFAULTS;}});
   const [pending,setPending]=useState<NFTPending|undefined>(()=>saved(':pending',undefined));
@@ -127,7 +129,9 @@ export default function ERC721FactoryView({projects,staffAccount,initialProjectI
   const reviewer=state?reviewers.indexOf(state.account):-1;
   const approved=reviewer>=0&&Boolean((state?.approvals||0)&(1<<reviewer));
   const disabled=busy||uploading||Boolean(pending)||Boolean(review);
+  if(mode==='v2')return <div className="space-y-4"><div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className="rounded-lg bg-blue-600 px-4 py-2 text-white">Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className="rounded-lg border bg-white px-4 py-2">Consultar flujo anterior · v1</button></div><ERC721FactoryV2View projects={projects} staffAccount={staffAccount} initialProjectId={initialProjectId}/></div>;
   return <div className="space-y-6 text-slate-800">
+    <div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className="rounded-lg border bg-white px-4 py-2">Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className="rounded-lg bg-blue-600 px-4 py-2 text-white">Flujo anterior · v1</button></div>
     <header><h1 className="text-2xl font-bold">Factory ERC-721 · NFTs únicos</h1><p>Sepolia · Las mismas cuatro wallets, con aprobaciones y bitácora propias.</p></header>
     <div className="flex flex-wrap gap-2"><button className={button} disabled={busy} onClick={()=>void run(async()=>{await injectedWallet().request({method:'eth_requestAccounts'});if(record)await refresh();setMessage('Wallet conectada.');})}>Conectar wallet</button><button className={button} disabled={busy} onClick={()=>void run(async()=>{await injectedWallet().request({method:'wallet_switchEthereumChain',params:[{chainId:SEPOLIA_HEX}]});})}>Usar Sepolia</button><button className={button} disabled={busy||!record} onClick={()=>void run(()=>refresh())}>Actualizar estado ERC-721</button></div>
     {state?.account&&<p className="break-all text-sm">Wallet conectada: {state.account}</p>}
