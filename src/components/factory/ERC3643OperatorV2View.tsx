@@ -116,7 +116,12 @@ export default function ERC3643OperatorV2View(){
   {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">2. Wallet compradora</h3>
    <label className="block">Wallet destinataria<input className={field} value={recipient} onChange={e=>{setRecipient(e.target.value);setRecipientState(null);}} placeholder="0x…"/></label>
    <button type="button" className={button} disabled={busy||!isAddress(recipient)} onClick={inspect}>Consultar habilitación y saldo</button>
-   {recipientState&&<p className="text-sm">Identidad: {recipientState.verified?'vigente':'pendiente'} · País {recipientState.country||'sin registrar'}: {recipientState.countryAllowed?'habilitado':'pendiente'} · Saldo: {recipientState.balance} · Circulación: {recipientState.supply} / {recipientState.cap}</p>}
+   {recipientState&&<div className="flex flex-wrap gap-2 text-sm" aria-live="polite">
+    <span className={`rounded-lg border px-3 py-2 font-semibold ${recipientState.verified?'border-green-300 bg-green-50 text-green-800':'border-amber-300 bg-amber-50 text-amber-900'}`}>Identidad: {recipientState.verified?'vigente':'pendiente'}</span>
+    <span className={`rounded-lg border px-3 py-2 font-semibold ${recipientState.countryAllowed?'border-green-300 bg-green-50 text-green-800':'border-amber-300 bg-amber-50 text-amber-900'}`}>País {recipientState.country||'sin registrar'}: {recipientState.countryAllowed?'habilitado':'pendiente'}</span>
+    <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Saldo: {recipientState.balance}</span>
+    <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Circulación: {recipientState.supply} / {recipientState.cap}</span>
+   </div>}
    <div className="grid gap-3 sm:grid-cols-2">
     <label className="block">País de residencia · ISO numérico<input className={field} type="number" min="1" max="999" value={country} onChange={e=>setCountry(e.target.value)} placeholder="Ej.: 858 Uruguay, 32 Argentina"/></label>
     <label className="block">Vigencia en días (máx. 366)<input className={field} type="number" min="1" max="366" value={days} onChange={e=>setDays(e.target.value)}/></label>
