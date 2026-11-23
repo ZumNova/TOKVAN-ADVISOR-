@@ -14,7 +14,7 @@ import {
 import { TokenProject, ApprovalStep } from '../../types';
 import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import {projectReviewHash,reviewMessage,reviewRoleForWallet,reviewWallets,validReview,type ReviewProof,type ReviewDecision} from '../../lib/reviewSignatures';
-import {loadGovernance,verifyPayment,paymentInputError,downloadPaymentDocument,authorizePreparation,type GovernanceState,type SharedPayment,type SharedReview} from '../../lib/governance';
+import {loadGovernance,verifyPayment,paymentInputError,downloadPaymentDocument,authorizePreparation,authorizeSingleOperator,type GovernanceState,type SharedPayment,type SharedReview} from '../../lib/governance';
 import {projectBlockers} from '../../lib/erc20Factory';
 
 interface ApprovalWorkflowViewProps {
@@ -48,6 +48,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const [paymentCurrency,setPaymentCurrency]=useState('USD');
   const [paymentReference,setPaymentReference]=useState('');
   const [paymentFile,setPaymentFile]=useState<File|null>(null);
+  const [soloRationale,setSoloRationale]=useState('');
   const paymentFileInput=useRef<HTMLInputElement>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const factoryWarnings=activeProject?.standard==='ERC-20'&&activeProject.network==='sepolia'?projectBlockers(activeProject):[];
@@ -98,6 +99,13 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
     setBusy(true);setActionError(null);setActionSuccessMessage(null);
     try{await authorizePreparation(staffAccount,activeProject.submissionId,governance);setGovernance(previous=>previous?{...previous,authorized:true}:previous);setActionSuccessMessage('Preparación autorizada y guardada en Supabase. Ya podés continuar en el factory; allí faltan las aprobaciones on-chain.');}
     catch(e){setActionError(e instanceof Error?e.message:'No se pudo autorizar la preparación.');}
+    finally{setBusy(false);}
+  };
+  const authorizeSolo=async()=>{
+    if(!activeProject?.submissionId||!staffAccount||!governance)return;
+    setBusy(true);setActionError(null);setActionSuccessMessage(null);
+    try{await authorizeSingleOperator(staffAccount,activeProject.submissionId,governance,soloRationale);const updated=await loadGovernance(staffAccount,activeProject.submissionId);setGovernance(updated);setSoloRationale('');setActionSuccessMessage('Decisión integral firmada por la 047 y guardada en Supabase para esta versión del expediente.');}
+    catch(e){setActionError(e instanceof Error?e.message:'No se pudo firmar la decisión integral.');}
     finally{setBusy(false);}
   };
 
@@ -230,6 +238,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
               <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-semibold text-white">Bitácora compartida · Supabase</h3><p className="mt-1 text-xs text-[#9BA6BD]">Las firmas de este expediente recibido se verifican y conservan para todo el equipo.</p></div><button type="button" disabled={busy} onClick={()=>void refreshGovernance()} className="rounded-lg border border-[#567EFF] px-3 py-2 text-xs text-white disabled:opacity-50">{governance?'Actualizar bitácora':'Cargar bitácora compartida'}</button></div>
               {!governance&&<p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">Estado aún sin consultar. Las tarjetas inferiores pueden mostrar «Pendiente» aunque ya haya firmas guardadas. Cargá la bitácora antes de continuar.</p>}
               {governance&&<div className="space-y-3">
+                <p className="text-xs text-[#B8C9E1]">Modalidad de operador único: {governance.soloAuthorized?'aprobada por 047':'pendiente'} · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'}</p>
                 <p className="text-xs text-[#B8C9E1]">Dictámenes aprobados: {governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length} / 3 · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'} · Autorización TOKVANT: {governance.authorized?'vigente':'pendiente'}</p>
                 {governance.authorized&&['ERC-20','ERC-721','ERC-1155'].includes(activeProject.standard)&&onOpenFactory&&<button type="button" className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white" onClick={()=>onOpenFactory(activeProject)}>Continuar en Factory {activeProject.standard}</button>}
                 {governance.payments.filter(row=>row.status==='verified').map(row=><div key={row.id} className="break-all rounded-lg border border-[#273246] p-3 text-xs text-[#B8C9E1]">Pago {row.amount} {row.currency} · Referencia {row.reference} · Firmado por {row.signer_wallet} · <button type="button" className="text-[#7096FF] underline" onClick={()=>{if(staffAccount)void downloadPaymentDocument(staffAccount,row).catch(e=>setActionError(e instanceof Error?e.message:'No se pudo descargar.'));}}>Descargar comprobante: {row.file_name}</button></div>)}
@@ -248,6 +257,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                 {(paymentAmount||paymentReference||paymentFile)&&paymentInputError(paymentAmount,paymentReference,paymentFile)&&<p className="text-xs text-amber-200" role="status">{paymentInputError(paymentAmount,paymentReference,paymentFile)}</p>}
                 <button type="button" disabled={busy||Boolean(paymentInputError(paymentAmount,paymentReference,paymentFile))} onClick={()=>void recordPayment()} className="rounded-lg bg-[#316BFA] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar recibo de pago verificado</button>
               </div>}
+              {staffRole==='owner'&&governance&&<div className="space-y-3 border-t border-[#39547C] pt-4"><h4 className="font-semibold text-white">Operador único · decisión integral</h4><p className="text-xs text-[#9BA6BD]">Una firma de la 047 aprueba la versión exacta del expediente y el pago verificado. No suplanta los tres dictámenes anteriores ni habilita los factories v1, que mantienen sus propias reglas.</p>{!governance.soloStorageReady&&<p className="text-xs text-amber-200">Primero aplicá en Supabase la migración «20261123_single_operator_authorizations.sql».</p>}{governance.operatorAuthorizations.filter(item=>item.project_hash===governance.projectHash).slice(0,1).map(item=><p key={item.id} className="text-xs text-emerald-200">Última decisión: {item.decision==='approved'?'Aprobada':'Rechazada'} · {item.signer_wallet} · {new Date(item.signed_at).toLocaleString('es-AR')}</p>)}<label className="block text-xs text-[#B8C9E1]">Fundamento de la revisión<textarea value={soloRationale} onChange={e=>setSoloRationale(e.target.value)} maxLength={3000} rows={3} placeholder="Describí qué verificaste y qué límites tiene esta aprobación de prueba." className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-3 text-white"/></label><button type="button" disabled={busy||!governance.soloStorageReady||!governance.payments.some(row=>row.status==='verified')||soloRationale.trim().length<20} onClick={()=>void authorizeSolo()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar aprobación integral · 047</button></div>}
               {staffRole==='owner'&&governance&&<div className="border-t border-[#39547C] pt-4"><button type="button" disabled={busy||governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length!==3||!governance.payments.some(row=>row.status==='verified')} onClick={()=>void authorize()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Autorizar preparación del token</button><p className="mt-2 text-xs text-[#9BA6BD]">Esta firma habilita la preparación administrativa; no despliega un token ni sustituye las firmas on-chain del factory.</p></div>}
             </div>}
 

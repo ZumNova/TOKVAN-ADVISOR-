@@ -7,6 +7,7 @@ export type AdminDossier={
  reviews:{id:string;role:string;decision:string;project_hash:string;signer_wallet:string;created_at:string;proof?:{comments?:string}}[];
  payments:{id:string;status:string;amount:string;currency:string;reference:string;file_name:string;file_sha256:string;signer_wallet:string|null;verified_at:string|null;created_at:string}[];
  authorizations:{id:string;project_hash:string;review_ids:string[];payment_id:string;signer_wallet:string;created_at:string}[];
+ operatorAuthorizations:{id:string;project_hash:string;payment_id:string;decision:'approved'|'rejected';rationale:string;signer_wallet:string;signed_at:string;created_at:string}[];
  issuance:{id:string;standard:string;chain_id:number;factory_address:string;token_address:string;transaction_hash:string;block_number:number;token_name:string;token_symbol:string;admin_wallet:string;treasury_wallet:string;created_at:string}|null;
  collection:{id:string;standard:string;chain_id:number;factory_address:string;collection_address:string;transaction_hash:string;block_number:number;collection_name:string;collection_symbol:string;admin_wallet:string;max_items:string;created_at:string}|null;
  regulatedIssuance:{id:string;standard:string;chain_id:number;factory_address:string;token_address:string;transaction_hash:string;block_number:number;token_name:string;token_symbol:string;admin_wallet:string;dossier_hash:string;created_at:string}|null;

@@ -7,7 +7,8 @@ const endpoint='/api/governance';
 export type SharedReview={id:string;submission_id:string;role:ReviewProof['role'];decision:ReviewProof['decision'];project_hash:string;signer_wallet:string;signature:string;proof:ReviewProof;created_at:string};
 export type SharedPayment={id:string;status:'uploading'|'verified';amount:string;currency:string;reference:string;file_name:string;file_size:number;file_sha256:string;signer_wallet?:string;signature?:string;verified_at?:string};
 export type SharedAuthorization={id:string;project_hash:string;review_ids:string[];payment_id:string;signer_wallet:string;signature:string;created_at:string};
-export type GovernanceState={reviews:SharedReview[];payments:SharedPayment[];authorizations:SharedAuthorization[];projectHash:string;authorized:boolean};
+export type OperatorAuthorization={id:string;project_hash:string;payment_id:string;decision:'approved'|'rejected';rationale:string;signer_wallet:string;signed_at:string;created_at:string};
+export type GovernanceState={reviews:SharedReview[];payments:SharedPayment[];authorizations:SharedAuthorization[];operatorAuthorizations:OperatorAuthorization[];projectHash:string;authorized:boolean;soloAuthorized:boolean;soloStorageReady:boolean};
 export function paymentInputError(amount:string,reference:string,file:File|null):string|null{
  const value=amount.trim();
  if(!/^\d{1,12}(\.\d{1,2})?$/.test(value)||Number(value)<=0)return 'Ingresá un importe positivo sin separadores de miles; usá punto para centavos (ejemplo: 4000.00).';
@@ -43,6 +44,16 @@ export async function downloadPaymentDocument(account:string,payment:SharedPayme
  downloadClientFile(blob,payment.file_name);
 }
 export const authorizationMessage=(origin:string,submissionId:string,hash:string,reviewIds:string[],paymentId:string,account:string)=>`TOKVANT autorización para preparar token\nOrigen: ${origin}\nExpediente: ${submissionId}\nVersión: ${hash}\nDictámenes: ${reviewIds.join(',')}\nPago: ${paymentId}\nWallet: ${getAddress(account)}`;
+export const soloAuthorizationMessage=(origin:string,submissionId:string,hash:string,paymentId:string,decision:string,rationale:string,signedAt:string,nonce:string,account:string)=>`TOKVANT decisión integral del operador\nOrigen: ${origin}\nExpediente: ${submissionId}\nVersión: ${hash}\nPago verificado: ${paymentId}\nDecisión: ${decision}\nFundamento: ${rationale}\nFecha: ${signedAt}\nNonce: ${nonce}\nWallet: ${getAddress(account)}`;
+export async function authorizeSingleOperator(account:string,submissionId:string,state:GovernanceState,rationale:string,decision:'approved'|'rejected'='approved'){
+ const payment=state.payments.find(p=>p.status==='verified');
+ const reason=rationale.trim();
+ if(!payment)throw new Error('Primero verificá el pago y su comprobante.');
+ if(reason.length<20||reason.length>3000)throw new Error('Escribí un fundamento de 20 a 3000 caracteres.');
+ const signedAt=new Date().toISOString(),nonce=crypto.randomUUID();
+ const signature=await sign(account,soloAuthorizationMessage(location.origin,submissionId,state.projectHash,payment.id,decision,reason,signedAt,nonce,account));
+ return staffRequest('solo-authorize',account,{submissionId,projectHash:state.projectHash,paymentId:payment.id,decision,rationale:reason,signedAt,nonce,signature},endpoint);
+}
 export async function authorizePreparation(account:string,submissionId:string,state:GovernanceState){
  const roles=['Technical Reviewer','Compliance Reviewer','Enterprise Board'];
  const reviews=roles.map(role=>state.reviews.find(r=>r.role===role&&r.decision==='Aprobado'&&r.project_hash===state.projectHash));

@@ -11,7 +11,7 @@ const REVIEWERS={
  'Enterprise Board':getAddress('0x275fF48842eaf6dFE32B6Cc51713f6CF63841E8D'),
 } as const;
 const FIXED:Record<string,string>={reviewer:OWNER,compliance:REVIEWERS['Compliance Reviewer'],board:REVIEWERS['Enterprise Board'],factory:getAddress('0xF3aAD2304F711ad5f400Ad322442D67DeD3E8A25')};
-const ACTIONS=['list','review','payment-start','payment-finalize','payment-document','authorize'] as const;
+const ACTIONS=['list','review','payment-start','payment-finalize','payment-document','authorize','solo-authorize'] as const;
 type Action=typeof ACTIONS[number];
 type ReviewRole=keyof typeof REVIEWERS;
 type ReviewProof={projectId:string;stepId:string;role:ReviewRole;decision:'Aprobado'|'Rechazado'|'Corrección solicitada';comments:string;projectHash:string;timestamp:string;nonce:string;signer:string;signature:string};
@@ -41,6 +41,7 @@ export const projectHash=(p:TokenProject)=>keccak256(toUtf8Bytes(JSON.stringify(
 const reviewMessage=(p:ReviewProof,origin:string)=>`TOKVANT dictamen de expediente\nOrigen: ${origin}\nExpediente: ${p.projectId}\nPaso: ${p.stepId}\nRol: ${p.role}\nDecisión: ${p.decision}\nObservaciones: ${p.comments}\nVersión: ${p.projectHash}\nFecha: ${p.timestamp}\nNonce: ${p.nonce}\nWallet: ${p.signer}`;
 const paymentMessage=(origin:string,id:string,submissionId:string,amount:string,currency:string,reference:string,fileHash:string,wallet:string)=>`TOKVANT recibo de pago\nOrigen: ${origin}\nExpediente: ${submissionId}\nPago: ${id}\nImporte: ${amount} ${currency}\nReferencia: ${reference}\nComprobante SHA-256: ${fileHash}\nWallet: ${wallet}`;
 const authMessage=(origin:string,submissionId:string,hash:string,reviewIds:string[],paymentId:string,wallet:string)=>`TOKVANT autorización para preparar token\nOrigen: ${origin}\nExpediente: ${submissionId}\nVersión: ${hash}\nDictámenes: ${reviewIds.join(',')}\nPago: ${paymentId}\nWallet: ${wallet}`;
+const soloMessage=(origin:string,submissionId:string,hash:string,paymentId:string,decision:string,rationale:string,signedAt:string,nonce:string,wallet:string)=>`TOKVANT decisión integral del operador\nOrigen: ${origin}\nExpediente: ${submissionId}\nVersión: ${hash}\nPago verificado: ${paymentId}\nDecisión: ${decision}\nFundamento: ${rationale}\nFecha: ${signedAt}\nNonce: ${nonce}\nWallet: ${wallet}`;
 export async function submission(client:ReturnType<typeof db>,id:unknown){
  if(!uuid(id))throw new Error('Expediente inválido.');
  const found=await client.from('client_submissions').select('id,project,status').eq('id',id).single();
@@ -63,11 +64,16 @@ export async function POST(request:Request){
    const reviews=await latestReviews(client,row.id);
    const payments=await client.from('submission_payments').select('id,status,amount,currency,reference,file_name,file_size,file_sha256,signer_wallet,signature,verified_at,created_at').eq('submission_id',row.id).order('created_at',{ascending:false});
    const authorizations=await client.from('submission_authorizations').select('*').eq('submission_id',row.id).order('created_at',{ascending:false});
+   const solo=await client.from('submission_operator_authorizations').select('id,project_hash,payment_id,decision,rationale,signer_wallet,signed_at,created_at').eq('submission_id',row.id).order('created_at',{ascending:false});
    if(payments.error||authorizations.error)throw payments.error||authorizations.error;
+   const missingSolo=solo.error&&/relation .* does not exist|schema cache|Could not find the table/i.test(solo.error.message);
+   if(solo.error&&!missingSolo)throw solo.error;
    const hash=projectHash(row.project),roles=Object.keys(REVIEWERS) as ReviewRole[];
    const currentIds=roles.map(role=>reviews.find(review=>review.role===role&&review.decision==='Aprobado'&&review.project_hash===hash)?.id);
    const authorized=currentIds.every(Boolean)&&!!authorizations.data?.some(auth=>auth.project_hash===hash&&Array.isArray(auth.review_ids)&&auth.review_ids.length===3&&auth.review_ids.every((id:string,index:number)=>id===currentIds[index])&&payments.data?.some(payment=>payment.id===auth.payment_id&&payment.status==='verified'));
-   return reply({reviews,payments:payments.data,authorizations:authorizations.data,projectHash:hash,authorized});
+   const latestSolo=(solo.data||[]).find(item=>item.project_hash===hash);
+   const soloAuthorized=latestSolo?.decision==='approved'&&payments.data?.some(payment=>payment.id===latestSolo.payment_id&&payment.status==='verified');
+   return reply({reviews,payments:payments.data,authorizations:authorizations.data,operatorAuthorizations:solo.data||[],projectHash:hash,authorized,soloAuthorized:Boolean(soloAuthorized),soloStorageReady:!missingSolo});
   }
   if(action==='review'){
    const row=await submission(client,body.submissionId);const p=body.proof as ReviewProof;
@@ -108,6 +114,19 @@ export async function POST(request:Request){
    if(p.error||!p.data||p.data.status!=='verified')throw new Error('Comprobante no encontrado.');
    const signed=await client.storage.from('tokvant-expedientes').createSignedUrl(`${p.data.submission_id}/payments/${p.data.id}`,60,{download:p.data.file_name});
    if(signed.error)throw signed.error;return reply({url:signed.data.signedUrl});
+  }
+  if(action==='solo-authorize'){
+   if(actor.wallet!==OWNER)throw new Error('Solo la 047 puede firmar la decisión integral.');
+   const row=await submission(client,body.submissionId);
+   const decision=String(body.decision||''),rationale=String(body.rationale||'').trim(),signedAt=String(body.signedAt||''),nonce=String(body.nonce||''),hash=projectHash(row.project);
+   if(!['approved','rejected'].includes(decision)||rationale.length<20||rationale.length>3000||!uuid(nonce)||!Number.isFinite(Date.parse(signedAt))||Math.abs(Date.now()-Date.parse(signedAt))>600000||body.projectHash!==hash||!uuid(body.paymentId))throw new Error('Decisión integral inválida o expediente desactualizado.');
+   const payment=await client.from('submission_payments').select('id,status').eq('id',body.paymentId).eq('submission_id',row.id).maybeSingle();
+   if(payment.error||!payment.data||payment.data.status!=='verified')throw new Error('Falta el pago verificado de este expediente.');
+   const signature=String(body.signature||'');
+   if(verifyMessage(soloMessage(new URL(request.url).origin,row.id,hash,payment.data.id,decision,rationale,signedAt,nonce,actor.wallet),signature)!==OWNER)throw new Error('Firma de la decisión integral inválida.');
+   const saved=await client.from('submission_operator_authorizations').insert({submission_id:row.id,project_hash:hash,payment_id:payment.data.id,decision,rationale,signer_wallet:actor.wallet,signature,signed_at:signedAt,nonce}).select('id,project_hash,payment_id,decision,rationale,signer_wallet,signed_at,created_at').single();
+   if(saved.error)throw saved.error;
+   return reply({authorization:saved.data});
   }
   if(actor.wallet!==OWNER)throw new Error('Solo la administración 047 puede autorizar la preparación.');
   const row=await submission(client,body.submissionId);const reviews=await latestReviews(client,row.id);
