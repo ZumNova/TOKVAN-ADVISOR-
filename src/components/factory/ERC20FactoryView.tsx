@@ -9,6 +9,7 @@ import { DEPLOYER } from '../../lib/factoryWallet';
 import type { TokenProject } from '../../types';
 import { prepareFactoryRequest, projectBlockers, requestJson, type FactoryInput } from '../../lib/erc20Factory';
 import { loadGovernance } from '../../lib/governance';
+import ERC20FactoryV2View from './ERC20FactoryV2View';
 
 const defaults: FactoryInput = {
   projectId: 'TOKVAN-SEPOLIA-TKN-001', factory: FACTORY_REGISTRY.address, admin: DEPLOYER, treasury: DEPLOYER, name: 'TOKVAN Test Token', symbol: 'TKN',
@@ -21,6 +22,7 @@ function restoreDraft(): FactoryInput | null {
 }
 const fieldStyle = 'mt-1 block w-full rounded-lg border border-[#273246] bg-[#0B0D12] p-3 text-white';
 export default function ERC20FactoryView({ projects, staffAccount, initialProjectId }: { projects: TokenProject[]; staffAccount:string|null; initialProjectId?:string }) {
+  const [mode,setMode]=useState<'v1'|'v2'>('v2');
   const [savedDraft] = useState(restoreDraft);
   const [input, setInput] = useState<FactoryInput>(() => savedDraft ?? {...defaults});
   const [journalRevision, setJournalRevision] = useState(0);
@@ -76,8 +78,10 @@ export default function ERC20FactoryView({ projects, staffAccount, initialProjec
     ['initialSupply', 'Supply inicial (tokens)'], ['maxSupply', 'Supply máximo (tokens)'],
     ['admin', 'Wallet administradora del token'], ['treasury', 'Tesorería que recibe la emisión inicial'],
   ] as const;
+  if(mode==='v2')return <div className="space-y-4"><div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className="rounded-lg bg-blue-600 px-4 py-2 text-white">Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className="rounded-lg border bg-white px-4 py-2">Consultar flujo anterior · v1</button></div><ERC20FactoryV2View projects={projects} staffAccount={staffAccount} initialProjectId={initialProjectId}/></div>;
   return (
     <section className="erc20-light max-w-5xl mx-auto rounded-2xl bg-slate-50 px-4 py-8 space-y-6 text-slate-900 sm:px-6">
+      <div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className="rounded-lg border border-blue-600 px-4 py-2">Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className="rounded-lg bg-blue-600 px-4 py-2 text-white">Flujo anterior · v1</button></div>
       <div><p className="text-sm text-[#7096FF]">ERC-20 · v1 · Sepolia</p>
         <h1 className="text-3xl font-bold mt-2">Factory de tokens</h1>
         <p className="mt-3 text-slate-300">Configure la emisión, prepare la revisión y obtenga las transacciones para crear su token.</p>
