@@ -82,7 +82,7 @@ export async function POST(request:Request){
    if(!event)throw new Error('No se encontró la creación ERC-3643 v2 de este expediente.');
    const address=getAddress(event.args.token),linked=await call(factoryAddress,factoryV2,'tokenByProject',[projectId]);
    if(getAddress(linked)!==address)throw new Error('El token no coincide con el registro del factory.');
-   const suiteParts=await call(factoryAddress,factoryV2,'suites',[address]);
+   const suiteParts=factoryV2.decodeFunctionResult('suites',await rpc('eth_call',[{to:factoryAddress,data:factoryV2.encodeFunctionData('suites',[address])},'latest']) as string);
    const [code,name,symbol,decimals,owner,paused,supply,authority,complianceOwner]=await Promise.all([
     rpc('eth_getCode',[address,'latest']),call(address,token,'name'),call(address,token,'symbol'),call(address,token,'decimals'),call(address,token,'owner'),call(address,token,'paused'),call(address,token,'totalSupply'),call(suiteParts.claimIssuer,claimV2,'authority'),call(suiteParts.compliance,complianceV2,'owner'),
    ]);
