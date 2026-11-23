@@ -1,0 +1,137 @@
+import {useState} from 'react';
+import {formatUnits,getAddress,id,Interface,isAddress,keccak256,parseUnits,toUtf8Bytes,ZeroAddress} from 'ethers';
+import factoryArtifact from '../../generated/erc3643FactoryV2Artifact.json';
+import claimArtifact from '../../generated/erc3643ClaimV2Artifact.json';
+import complianceArtifact from '../../generated/erc3643ComplianceV2Artifact.json';
+import suiteArtifact from '../../generated/erc3643Suite.json';
+import {injectedWallet,walletError,type WalletProvider} from '../../lib/factoryWallet';
+
+const factoryAbi=new Interface(factoryArtifact.abi);
+const claimAbi=new Interface(claimArtifact.abi);
+const complianceAbi=new Interface(complianceArtifact.abi);
+const tokenAbi=new Interface(suiteArtifact.implementations[0].abi);
+const registryAbi=new Interface(suiteArtifact.implementations[1].abi);
+const factoryDefault='0x8cC92c109911514738555c144671d5E1B5307503';
+const field='mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900';
+const button='rounded-lg bg-blue-600 px-3 py-2 text-white disabled:opacity-50';
+type Context={account:string;factory:string;token:string;claim:string;compliance:string;registry:string;decimals:number};
+type RecipientState={verified:boolean;countryAllowed:boolean;country:number;balance:string;supply:string;cap:string};
+
+async function connected(wallet:WalletProvider){
+ const chain=await wallet.request({method:'eth_chainId'});
+ if(typeof chain!=='string'||BigInt(chain)!==11155111n)throw new Error('Seleccioná Sepolia en la wallet.');
+ const accounts=await wallet.request({method:'eth_requestAccounts'});
+ if(!Array.isArray(accounts)||typeof accounts[0]!=='string')throw new Error('Conectá la wallet propietaria.');
+ return getAddress(accounts[0]);
+}
+async function read(wallet:WalletProvider,address:string,abi:Interface,name:string,args:unknown[]=[]){
+ const raw=await wallet.request({method:'eth_call',params:[{to:address,data:abi.encodeFunctionData(name,args)},'latest']});
+ if(typeof raw!=='string')throw new Error('Sepolia no devolvió una respuesta válida.');
+ return abi.decodeFunctionResult(name,raw);
+}
+async function send(wallet:WalletProvider,context:Context,to:string,data:string){
+ if(await connected(wallet)!==context.account)throw new Error('La cuenta conectada cambió. Volvé a consultar el token.');
+ const tx={from:context.account,to,data,value:'0x0'};
+ await wallet.request({method:'eth_call',params:[tx,'latest']});
+ const gas=BigInt(await wallet.request({method:'eth_estimateGas',params:[tx]}) as string);
+ if(await connected(wallet)!==context.account)throw new Error('La cuenta conectada cambió.');
+ const hash=await wallet.request({method:'eth_sendTransaction',params:[{...tx,gas:'0x'+(gas*120n/100n).toString(16)}]});
+ if(typeof hash!=='string'||!/^0x[0-9a-f]{64}$/i.test(hash))throw new Error('La wallet no devolvió un hash válido.');
+ return hash;
+}
+export default function ERC3643OperatorV2View(){
+ const factory=factoryDefault;
+ const [token,setToken]=useState('');
+ const [context,setContext]=useState<Context|null>(null),[recipient,setRecipient]=useState('');
+ const [country,setCountry]=useState(''),[entity,setEntity]=useState(true),[days,setDays]=useState('180');
+ const [reference,setReference]=useState(''),[quantity,setQuantity]=useState('');
+ const [reviewed,setReviewed]=useState(false),[recipientState,setRecipientState]=useState<RecipientState|null>(null);
+ const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[lastHash,setLastHash]=useState('');
+ const run=async(action:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError('');setMessage('');try{await action();}catch(e){setError(walletError(e));}finally{setBusy(false);}};
+ const load=()=>run(async()=>{
+  if(!isAddress(factory)||!isAddress(token))throw new Error('Ingresá direcciones válidas del factory v2 y del token.');
+  const wallet=injectedWallet(),account=await connected(wallet),factoryAddress=getAddress(factory),tokenAddress=getAddress(token);
+  const [factoryCode,tokenCode]=await Promise.all([wallet.request({method:'eth_getCode',params:[factoryAddress,'latest']}),wallet.request({method:'eth_getCode',params:[tokenAddress,'latest']})]);
+  if(factoryCode==='0x'||tokenCode==='0x')throw new Error('No se encontraron esos contratos en Sepolia.');
+  const [version,parts,owner,agent,decimals,registry]=await Promise.all([
+   read(wallet,factoryAddress,factoryAbi,'VERSION'),read(wallet,factoryAddress,factoryAbi,'suites',[tokenAddress]),
+   read(wallet,tokenAddress,tokenAbi,'owner'),read(wallet,tokenAddress,tokenAbi,'isAgent',[account]),
+   read(wallet,tokenAddress,tokenAbi,'decimals'),read(wallet,tokenAddress,tokenAbi,'identityRegistry'),
+  ]);
+  if(version[0]!==id('TOKVAN_3643_SEPOLIA_EDUCATIONAL_V2'))throw new Error('El factory no es ERC-3643 v2 de TOKVANT.');
+  if(getAddress(owner[0])!==account||agent[0]!==true)throw new Error('Esta wallet no es la propietaria y agente del token.');
+  if(getAddress(parts.claimIssuer)===ZeroAddress||getAddress(parts.compliance)===ZeroAddress||getAddress(parts.registry)!==getAddress(registry[0]))throw new Error('El token no pertenece a esta suite v2.');
+  const [authority,complianceOwner]=await Promise.all([read(wallet,parts.claimIssuer,claimAbi,'authority'),read(wallet,parts.compliance,complianceAbi,'owner')]);
+  if(getAddress(authority[0])!==account||getAddress(complianceOwner[0])!==account)throw new Error('La wallet no administra las acreditaciones y reglas de esta suite.');
+  setContext({account,factory:factoryAddress,token:tokenAddress,claim:getAddress(parts.claimIssuer),compliance:getAddress(parts.compliance),registry:getAddress(parts.registry),decimals:Number(decimals[0])});
+  setRecipientState(null);setMessage('Suite verificada. La wallet conectada puede acreditar y emitir en esta prueba.');
+ });
+ const inspect=()=>run(async()=>{
+  if(!context||!isAddress(recipient))throw new Error('Primero verificá la suite e ingresá la wallet destinataria.');
+  const wallet=injectedWallet(),address=getAddress(recipient);
+  if(await connected(wallet)!==context.account)throw new Error('Conectá de nuevo la wallet propietaria.');
+  const [verified,countryCode,balance,supply,cap]=await Promise.all([
+   read(wallet,context.registry,registryAbi,'isVerified',[address]),read(wallet,context.registry,registryAbi,'investorCountry',[address]),
+   read(wallet,context.token,tokenAbi,'balanceOf',[address]),read(wallet,context.token,tokenAbi,'totalSupply'),
+   read(wallet,context.compliance,complianceAbi,'supplyCap'),
+  ]);
+  const code=Number(countryCode[0]);
+  const allowed=code>0?await read(wallet,context.compliance,complianceAbi,'allowedCountry',[code]):[false];
+  setRecipientState({verified:Boolean(verified[0]),countryAllowed:Boolean(allowed[0]),country:code,balance:formatUnits(balance[0],context.decimals),supply:formatUnits(supply[0],context.decimals),cap:formatUnits(cap[0],context.decimals)});
+  setMessage('Estado de la wallet consultado en Sepolia.');
+ });
+ const attest=()=>run(async()=>{
+  if(!context||!isAddress(recipient)||!reviewed)throw new Error('Confirmá la revisión externa e ingresá una wallet válida.');
+  const code=Number(country),validDays=Number(days);
+  if(!Number.isInteger(code)||code<1||code>999||!Number.isInteger(validDays)||validDays<1||validDays>366)throw new Error('Ingresá país ISO numérico (1–999) y vigencia de 1 a 366 días.');
+  if(reference.trim().length<4||reference.trim().length>120)throw new Error('Ingresá una referencia interna de 4 a 120 caracteres, sin datos personales.');
+  const expiry=Math.floor(Date.now()/1000)+validDays*86400;
+  const evidence=keccak256(toUtf8Bytes(`TOKVANT-3643-V2:${reference.trim()}`));
+  const credential=[expiry,code,entity,!entity,entity,true,true,false,evidence];
+  const hash=await send(injectedWallet(),context,context.claim,claimAbi.encodeFunctionData('attest',[getAddress(recipient),credential]));
+  setLastHash(hash);setRecipientState(null);setMessage('Acreditación ficticia enviada. Esperá su confirmación y consultá la wallet antes de emitir.');
+ });
+ const allowCountry=()=>run(async()=>{
+  if(!context||!recipientState?.verified||recipientState.country<1)throw new Error('Primero acreditá y consultá la wallet destinataria.');
+  const hash=await send(injectedWallet(),context,context.compliance,complianceAbi.encodeFunctionData('setCountry',[recipientState.country,true]));
+  setLastHash(hash);setRecipientState(null);setMessage('Habilitación del país enviada. Esperá su confirmación y consultá de nuevo.');
+ });
+ const mint=()=>run(async()=>{
+  if(!context||!isAddress(recipient)||!recipientState?.verified||!recipientState.countryAllowed)throw new Error('La wallet debe tener identidad vigente y país habilitado.');
+  if(!/^\d+(\.\d+)?$/.test(quantity))throw new Error('Ingresá una cantidad positiva.');
+  const amount=parseUnits(quantity,context.decimals);
+  if(amount<=0n)throw new Error('La cantidad debe ser mayor que cero.');
+  const hash=await send(injectedWallet(),context,context.token,tokenAbi.encodeFunctionData('mint',[getAddress(recipient),amount]));
+  setLastHash(hash);setRecipientState(null);setMessage('Emisión enviada. Esperá su confirmación y consultá saldo y suministro.');
+ });
+ return <div className="space-y-5 rounded-xl bg-white p-5 text-slate-900">
+  <h2 className="text-2xl font-bold">Operar token ERC-3643 · Sepolia</h2>
+  <p>La empresa conserva la documentación y decide a quién habilitar. Esta suite usa acreditaciones ficticias de prueba; no subas datos personales ni comprobantes aquí.</p>
+  <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">1. Conectar la wallet propietaria</h3>
+   <p className="break-all text-sm">Factory v2 verificado: {factory}</p>
+   <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);}} placeholder="0x…"/></label>
+   <button type="button" className={button} disabled={busy} onClick={load}>Conectar y verificar permisos</button>
+   {context&&<p className="text-sm text-green-700">Propietaria y agente: {context.account} · Decimales: {context.decimals}</p>}
+  </section>
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">2. Wallet compradora</h3>
+   <label className="block">Wallet destinataria<input className={field} value={recipient} onChange={e=>{setRecipient(e.target.value);setRecipientState(null);}} placeholder="0x…"/></label>
+   <button type="button" className={button} disabled={busy||!isAddress(recipient)} onClick={inspect}>Consultar habilitación y saldo</button>
+   {recipientState&&<p className="text-sm">Identidad: {recipientState.verified?'vigente':'pendiente'} · País {recipientState.country||'sin registrar'}: {recipientState.countryAllowed?'habilitado':'pendiente'} · Saldo: {recipientState.balance} · Circulación: {recipientState.supply} / {recipientState.cap}</p>}
+   <div className="grid gap-3 sm:grid-cols-2">
+    <label className="block">País de residencia · ISO numérico<input className={field} type="number" min="1" max="999" value={country} onChange={e=>setCountry(e.target.value)} placeholder="Ej.: 858 Uruguay, 32 Argentina"/></label>
+    <label className="block">Vigencia en días (máx. 366)<input className={field} type="number" min="1" max="366" value={days} onChange={e=>setDays(e.target.value)}/></label>
+   </div>
+   <label className="flex items-center gap-2"><input type="checkbox" checked={entity} onChange={e=>setEntity(e.target.checked)}/>La compradora es una empresa (KYB ficticio). Desmarcá si es persona (KYC ficticio).</label>
+   <label className="block">Referencia interna sin nombres ni documentos<input className={field} value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Ej.: TEST-HOTEL-001"/></label>
+   <label className="flex items-start gap-2"><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>Confirmo que la empresa revisó fuera de TOKVANT el caso y autoriza esta acreditación ficticia en Sepolia.</label>
+   <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy||!reviewed||!isAddress(recipient)} onClick={attest}>Registrar acreditación de prueba</button><button type="button" className={button} disabled={busy||!recipientState?.verified||recipientState.countryAllowed} onClick={allowCountry}>Habilitar país de prueba</button></div>
+  </section>}
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">3. Emitir unidades</h3>
+   <p className="text-sm">La emisión crea unidades nuevas directamente en la wallet habilitada. No requiere levantar la pausa; las transferencias siguen bloqueadas hasta que la propietaria decida reanudarlas.</p>
+   <label className="block">Cantidad de tokens<input className={field} value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="Ej.: 20"/></label>
+   <button type="button" className={button} disabled={busy||!recipientState?.verified||!recipientState.countryAllowed} onClick={mint}>Simular y emitir a la wallet</button>
+  </section>}
+  {lastHash&&<p className="break-all text-sm">Última transacción: <a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${lastHash}`}>{lastHash}</a></p>}
+  {message&&<p role="status" className="text-green-700">{message}</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}
+ </div>;
+}

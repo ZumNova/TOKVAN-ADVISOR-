@@ -14,7 +14,7 @@ interface V2Vm {
     function prank(address) external;
     function expectRevert() external;
 }
-interface V2Token {function owner() external view returns(address);function paused() external view returns(bool);function totalSupply() external view returns(uint256);function isAgent(address) external view returns(bool);}
+interface V2Token {function owner() external view returns(address);function paused() external view returns(bool);function totalSupply() external view returns(uint256);function isAgent(address) external view returns(bool);function mint(address,uint256) external;function balanceOf(address) external view returns(uint256);}
 
 contract Tokvan3643FactoryV2Test {
     V2Vm constant vm=V2Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -62,6 +62,20 @@ contract Tokvan3643FactoryV2Test {
         vm.prank(COMPANY);Tokvan3643TestComplianceV2(compliance).setCountry(600,true);
         require(Tokvan3643TestClaimIssuerV2(claim).operators(OPERATOR),"Delegated");
         require(Tokvan3643TestComplianceV2(compliance).allowedCountry(600),"Country opened");
+    }
+    function testCompanyCanAccreditAndMintWhilePaused() public {
+        vm.chainId(11155111);
+        Tokvan3643TestFactoryV2 f=new Tokvan3643TestFactoryV2(OPERATOR,components());
+        vm.prank(OPERATOR);address token=f.createToken(PROJECT,VERSION_HASH,config());
+        (,,,,address claim,address compliance)=f.suites(token);
+        address buyer=address(0xCAFE);
+        Tokvan3643TestClaimIssuerV2.Credential memory credential=Tokvan3643TestClaimIssuerV2.Credential({expiresAt:uint64(block.timestamp+180 days),country:858,entity:true,kyc:false,kyb:true,aml:true,eligible:true,revoked:false,evidence:keccak256("TEST-HOTEL-001")});
+        vm.prank(COMPANY);Tokvan3643TestClaimIssuerV2(claim).attest(buyer,credential);
+        vm.prank(COMPANY);vm.expectRevert();V2Token(token).mint(buyer,20);
+        vm.prank(COMPANY);Tokvan3643TestComplianceV2(compliance).setCountry(858,true);
+        vm.prank(COMPANY);V2Token(token).mint(buyer,20);
+        require(V2Token(token).paused(),"Mint must not lift pause");
+        require(V2Token(token).balanceOf(buyer)==20&&V2Token(token).totalSupply()==20,"Buyer receives 20");
     }
     function testCreationCannotPreauthorizeCountryOrFactoryOperator() public {
         vm.chainId(11155111);
