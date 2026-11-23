@@ -1,4 +1,5 @@
 import NFTMediaPanel from './NFTMediaPanel';
+import ERC1155FactoryV2View from './ERC1155FactoryV2View';
 import {useEffect, useRef, useState} from 'react';
 import {getAddress,isAddress} from 'ethers';
 import {DEPLOYER, PARTICIPANTS, SEPOLIA_HEX, injectedWallet, walletError} from '../../lib/factoryWallet';
@@ -21,7 +22,7 @@ function FactoryHash({hash, onUse}:{hash:string;onUse:()=>void}) {
     {notice&&<p role="status">{notice}</p>}
   </div>;
 }
-export default function ERC1155FactoryView({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
+function ERC1155FactoryV1View({projects,staffAccount,initialProjectId}:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
   const [record,setRecord]=useState<MultiFactoryRecord|undefined>(()=>saved(':factory',undefined));
   const [input,setInput]=useState<CollectionInput>(()=>{const value=saved(':draft',MULTI_DEFAULTS);try{prepareCollection(value,DEPLOYER);return value;}catch{return MULTI_DEFAULTS;}});
   const [pending,setPending]=useState<MultiPending|undefined>(()=>saved(':pending',undefined));
@@ -180,4 +181,9 @@ export default function ERC1155FactoryView({projects,staffAccount,initialProject
       {journal.map(entry=><article key={entry.id} className="border-t pt-3 text-sm"><strong>{entry.kind}{entry.tokenId?` #${entry.tokenId}`:''}</strong><p>{entry.collectionName&&`Colección: ${entry.collectionName}`}{entry.tokenName&&` · Tipo: ${entry.tokenName}`}</p><p>Bloque {entry.block}{entry.amount!==undefined&&` · Cantidad: ${entry.amount}`}</p><p className="break-all">Contrato: {entry.address}</p>{entry.from&&<p className="break-all">Desde: {entry.from}</p>}{entry.to&&<p className="break-all">Hacia: {entry.to}</p>}{entry.kind==='Factory ERC-1155'?<FactoryHash hash={entry.hash} onUse={()=>useRecoveryHash(entry.hash)}/>:<><p>Hash de esta operación:</p><Tx hash={entry.hash}/></>}</article>)}
     </section>
   </div>;
+}
+export default function ERC1155FactoryView(props:{projects:TokenProject[];staffAccount:string|null;initialProjectId?:string}) {
+  const [mode,setMode]=useState<'v1'|'v2'>(()=>props.projects.length===0?'v1':'v2');
+  if(props.projects.length===0)return <ERC1155FactoryV1View {...props}/>;
+  return <div className="space-y-4"><div className="flex gap-2"><button type="button" onClick={()=>setMode('v2')} className={mode==='v2'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Operador único · v2</button><button type="button" onClick={()=>setMode('v1')} className={mode==='v1'?'rounded-lg bg-blue-600 px-4 py-2 text-white':'rounded-lg border bg-white px-4 py-2'}>Consultar flujo anterior · v1</button></div>{mode==='v2'?<ERC1155FactoryV2View {...props}/>:<ERC1155FactoryV1View {...props}/>}</div>;
 }
