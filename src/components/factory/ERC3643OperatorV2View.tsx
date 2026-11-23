@@ -46,6 +46,7 @@ export default function ERC3643OperatorV2View(){
  const [country,setCountry]=useState(''),[entity,setEntity]=useState(true),[days,setDays]=useState('180');
  const [reference,setReference]=useState(''),[quantity,setQuantity]=useState('');
  const [reviewed,setReviewed]=useState(false),[recipientState,setRecipientState]=useState<RecipientState|null>(null);
+ const [paused,setPaused]=useState<boolean|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[lastHash,setLastHash]=useState('');
  const run=async(action:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError('');setMessage('');try{await action();}catch(e){setError(walletError(e));}finally{setBusy(false);}};
  const load=()=>run(async()=>{
@@ -53,10 +54,10 @@ export default function ERC3643OperatorV2View(){
   const wallet=injectedWallet(),account=await connected(wallet),factoryAddress=getAddress(factory),tokenAddress=getAddress(token);
   const [factoryCode,tokenCode]=await Promise.all([wallet.request({method:'eth_getCode',params:[factoryAddress,'latest']}),wallet.request({method:'eth_getCode',params:[tokenAddress,'latest']})]);
   if(factoryCode==='0x'||tokenCode==='0x')throw new Error('No se encontraron esos contratos en Sepolia.');
-  const [version,parts,owner,agent,decimals,registry]=await Promise.all([
+  const [version,parts,owner,agent,decimals,registry,pauseState]=await Promise.all([
    read(wallet,factoryAddress,factoryAbi,'VERSION'),read(wallet,factoryAddress,factoryAbi,'suites',[tokenAddress]),
    read(wallet,tokenAddress,tokenAbi,'owner'),read(wallet,tokenAddress,tokenAbi,'isAgent',[account]),
-   read(wallet,tokenAddress,tokenAbi,'decimals'),read(wallet,tokenAddress,tokenAbi,'identityRegistry'),
+   read(wallet,tokenAddress,tokenAbi,'decimals'),read(wallet,tokenAddress,tokenAbi,'identityRegistry'),read(wallet,tokenAddress,tokenAbi,'paused'),
   ]);
   if(version[0]!==id('TOKVAN_3643_SEPOLIA_EDUCATIONAL_V2'))throw new Error('El factory no es ERC-3643 v2 de TOKVANT.');
   if(getAddress(owner[0])!==account||agent[0]!==true)throw new Error('Esta wallet no es la propietaria y agente del token.');
@@ -64,7 +65,24 @@ export default function ERC3643OperatorV2View(){
   const [authority,complianceOwner]=await Promise.all([read(wallet,parts.claimIssuer,claimAbi,'authority'),read(wallet,parts.compliance,complianceAbi,'owner')]);
   if(getAddress(authority[0])!==account||getAddress(complianceOwner[0])!==account)throw new Error('La wallet no administra las acreditaciones y reglas de esta suite.');
   setContext({account,factory:factoryAddress,token:tokenAddress,claim:getAddress(parts.claimIssuer),compliance:getAddress(parts.compliance),registry:getAddress(parts.registry),decimals:Number(decimals[0])});
+  setPaused(Boolean(pauseState[0]));
   setRecipientState(null);setMessage('Suite verificada. La wallet conectada puede acreditar y emitir en esta prueba.');
+ });
+ const refreshPause=()=>run(async()=>{
+  if(!context)throw new Error('Primero verificá la suite.');
+  const wallet=injectedWallet();
+  if(await connected(wallet)!==context.account)throw new Error('Conectá de nuevo la wallet propietaria.');
+  const state=await read(wallet,context.token,tokenAbi,'paused');
+  setPaused(Boolean(state[0]));setMessage('Estado de pausa actualizado desde Sepolia.');
+ });
+ const changePause=()=>run(async()=>{
+  if(!context||paused===null)throw new Error('Primero consultá el estado de pausa.');
+  const wallet=injectedWallet();
+  const current=Boolean((await read(wallet,context.token,tokenAbi,'paused'))[0]);
+  if(current!==paused){setPaused(current);throw new Error('El estado cambió. Revisalo antes de firmar.');}
+  const hash=await send(wallet,context,context.token,tokenAbi.encodeFunctionData(paused?'unpause':'pause'));
+  setLastHash(hash);setPaused(null);
+  setMessage('Transacción enviada. Esperá la confirmación y pulsá «Actualizar estado de pausa».');
  });
  const inspect=()=>run(async()=>{
   if(!context||!isAddress(recipient))throw new Error('Primero verificá la suite e ingresá la wallet destinataria.');
@@ -109,7 +127,7 @@ export default function ERC3643OperatorV2View(){
   <p>La empresa conserva la documentación y decide a quién habilitar. Esta suite usa acreditaciones ficticias de prueba; no subas datos personales ni comprobantes aquí.</p>
   <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">1. Conectar la wallet propietaria</h3>
    <p className="break-all text-sm">Factory v2 verificado: {factory}</p>
-   <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);}} placeholder="0x…"/></label>
+   <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);setPaused(null);}} placeholder="0x…"/></label>
    <button type="button" className={button} disabled={busy} onClick={load}>Conectar y verificar permisos</button>
    {context&&<p className="text-sm text-green-700">Propietaria y agente: {context.account} · Decimales: {context.decimals}</p>}
   </section>
@@ -135,6 +153,11 @@ export default function ERC3643OperatorV2View(){
    <p className="text-sm">La emisión crea unidades nuevas directamente en la wallet habilitada. No requiere levantar la pausa; las transferencias siguen bloqueadas hasta que la propietaria decida reanudarlas.</p>
    <label className="block">Cantidad de tokens<input className={field} value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="Ej.: 20"/></label>
    <button type="button" className={button} disabled={busy||!recipientState?.verified||!recipientState.countryAllowed} onClick={mint}>Simular y emitir a la wallet</button>
+  </section>}
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">4. Pausa de transferencias</h3>
+   <p className="text-sm">La pausa detiene las transferencias normales. La agente puede seguir emitiendo unidades a wallets habilitadas.</p>
+   <p className={`text-sm font-semibold ${paused===null?'text-slate-600':paused?'text-amber-800':'text-green-800'}`}>Estado: {paused===null?'pendiente de actualizar':paused?'transferencias pausadas':'transferencias habilitadas'}</p>
+   <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy} onClick={refreshPause}>Actualizar estado de pausa</button><button type="button" className={button} disabled={busy||paused===null} onClick={changePause}>{paused?'Simular y reanudar':'Simular y pausar'}</button></div>
   </section>}
   {lastHash&&<p className="break-all text-sm">Última transacción: <a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${lastHash}`}>{lastHash}</a></p>}
   {message&&<p role="status" className="text-green-700">{message}</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}
