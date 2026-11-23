@@ -25,7 +25,7 @@ async function call(address:string,iface:Interface,name:string,args:unknown[]=[]
 export async function POST(request:Request){
  try{
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
-  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string};
+  const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;acknowledgeAdminDifference?:boolean};
   if(body.action!=='link'||!/^0x[0-9a-f]{64}$/i.test(body.transactionHash||''))return reply({error:'Hash de creación inválido.'},400);
   const actor=staff(request,'link');
   if(actor.wallet!==OWNER)return reply({error:'Solo la 047 puede vincular el token al expediente.'},403);
@@ -54,7 +54,8 @@ export async function POST(request:Request){
   const c=decoded.args.c,p=row.project.parameters;
   if(c.name.trim()!==p.tokenName.trim()||c.symbol.trim()!==p.tokenSymbol.trim()||Number(c.decimals)!==p.decimals)throw new Error('Nombre, símbolo o decimales no coinciden con el expediente aprobado.');
   if(p.maxSupply!==undefined&&BigInt(c.supplyCap)!==parseUnits(String(p.maxSupply),p.decimals))throw new Error('El máximo de tokens no coincide con el expediente aprobado.');
-  if(row.project.clientWalletAddress&&row.project.clientWalletNetwork==='sepolia'&&isAddress(row.project.clientWalletAddress)&&getAddress(c.admin)!==getAddress(row.project.clientWalletAddress))throw new Error('La propietaria del token no coincide con la wallet del expediente.');
+  const clientWallet=row.project.clientWalletAddress&&row.project.clientWalletNetwork==='sepolia'&&isAddress(row.project.clientWalletAddress)?getAddress(row.project.clientWalletAddress):null;
+  if(clientWallet&&getAddress(c.admin)!==clientWallet&&(getAddress(c.admin)!==OWNER||body.acknowledgeAdminDifference!==true))throw new Error('La wallet del cliente difiere de la propietaria del token. Confirmá expresamente que la 047 administra este contrato de prueba y que la wallet del expediente se usa como destinataria.');
   if(c.dossierHash===ZeroAddress||BigInt(c.dossierHash)===0n)throw new Error('Falta el hash del expediente educativo.');
   const [version,technical,compliance,board,operator,linkedToken,code]=await Promise.all([
    call(FACTORY,factory,'VERSION'),call(FACTORY,factory,'technicalReviewer'),call(FACTORY,factory,'complianceReviewer'),call(FACTORY,factory,'boardReviewer'),call(FACTORY,factory,'operator'),call(FACTORY,factory,'tokenByProject',[projectId]),rpc('eth_getCode',[FACTORY,'latest']),

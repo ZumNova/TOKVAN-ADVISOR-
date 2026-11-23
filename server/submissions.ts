@@ -132,13 +132,13 @@ export async function POST(request:Request){
    if(!found.data||!sameSecret(found.data.receipt_secret_hash,digest(secret)))return response({error:'Comprobante inválido.'},403);
    if(found.data.status!=='received')return response({status:'pending'});
    const [issuance,collection,regulated]=await Promise.all([
-    db.from('submission_issuances').select('standard,chain_id,token_address,transaction_hash,block_number,token_symbol').eq('submission_id',id).maybeSingle(),
-    db.from('submission_collections').select('standard,chain_id,collection_address,transaction_hash,block_number,collection_symbol').eq('submission_id',id).maybeSingle(),
-    db.from('submission_regulated_issuances').select('standard,chain_id,token_address,transaction_hash,block_number,token_symbol').eq('submission_id',id).maybeSingle(),
+    db.from('submission_issuances').select('standard,chain_id,token_address,transaction_hash,block_number,token_symbol,admin_wallet').eq('submission_id',id).maybeSingle(),
+    db.from('submission_collections').select('standard,chain_id,collection_address,transaction_hash,block_number,collection_symbol,admin_wallet').eq('submission_id',id).maybeSingle(),
+    db.from('submission_regulated_issuances').select('standard,chain_id,token_address,transaction_hash,block_number,token_symbol,admin_wallet').eq('submission_id',id).maybeSingle(),
    ]);
    const missingRegulated=regulated.error&&/relation .* does not exist|schema cache|Could not find the table/i.test(regulated.error.message);
    if(issuance.error||collection.error||(missingRegulated?null:regulated.error))throw issuance.error||collection.error||regulated.error;
-   const deployment=collection.data?{standard:collection.data.standard,chainId:collection.data.chain_id,address:collection.data.collection_address,transactionHash:collection.data.transaction_hash,blockNumber:collection.data.block_number,symbol:collection.data.collection_symbol}:issuance.data?{standard:issuance.data.standard,chainId:issuance.data.chain_id,address:issuance.data.token_address,transactionHash:issuance.data.transaction_hash,blockNumber:issuance.data.block_number,symbol:issuance.data.token_symbol}:regulated.data?{standard:regulated.data.standard,chainId:regulated.data.chain_id,address:regulated.data.token_address,transactionHash:regulated.data.transaction_hash,blockNumber:regulated.data.block_number,symbol:regulated.data.token_symbol}:null;
+   const deployment=collection.data?{standard:collection.data.standard,chainId:collection.data.chain_id,address:collection.data.collection_address,transactionHash:collection.data.transaction_hash,blockNumber:collection.data.block_number,symbol:collection.data.collection_symbol,adminWallet:collection.data.admin_wallet}:issuance.data?{standard:issuance.data.standard,chainId:issuance.data.chain_id,address:issuance.data.token_address,transactionHash:issuance.data.transaction_hash,blockNumber:issuance.data.block_number,symbol:issuance.data.token_symbol,adminWallet:issuance.data.admin_wallet}:regulated.data?{standard:regulated.data.standard,chainId:regulated.data.chain_id,address:regulated.data.token_address,transactionHash:regulated.data.transaction_hash,blockNumber:regulated.data.block_number,symbol:regulated.data.token_symbol,adminWallet:regulated.data.admin_wallet}:null;
    if(!deployment)return response({status:'received',deployment:null});
    let types:{id:number;historicalUnits:string}[]|undefined;
    if(deployment.standard==='ERC-1155'&&deployment.chainId===11155111){
