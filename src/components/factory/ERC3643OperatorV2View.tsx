@@ -14,7 +14,7 @@ const registryAbi=new Interface(suiteArtifact.implementations[1].abi);
 const factoryDefault='0x8cC92c109911514738555c144671d5E1B5307503';
 const field='mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900';
 const button='rounded-lg bg-blue-600 px-3 py-2 text-white disabled:opacity-50';
-type Context={account:string;factory:string;token:string;claim:string;compliance:string;registry:string;decimals:number};
+type Context={account:string;isOwner:boolean;factory:string;token:string;claim:string;compliance:string;registry:string;decimals:number};
 type RecipientState={verified:boolean;countryAllowed:boolean;country:number;balance:string;supply:string;cap:string};
 type FreezeState={frozen:boolean;amount:string;balance:string};
 
@@ -22,7 +22,7 @@ async function connected(wallet:WalletProvider){
  const chain=await wallet.request({method:'eth_chainId'});
  if(typeof chain!=='string'||BigInt(chain)!==11155111n)throw new Error('Seleccioná Sepolia en la wallet.');
  const accounts=await wallet.request({method:'eth_requestAccounts'});
- if(!Array.isArray(accounts)||typeof accounts[0]!=='string')throw new Error('Conectá la wallet propietaria.');
+ if(!Array.isArray(accounts)||typeof accounts[0]!=='string')throw new Error('Conectá la wallet propietaria o agente.');
  return getAddress(accounts[0]);
 }
 async function read(wallet:WalletProvider,address:string,abi:Interface,name:string,args:unknown[]=[]){
@@ -63,13 +63,14 @@ export default function ERC3643OperatorV2View(){
    read(wallet,tokenAddress,tokenAbi,'decimals'),read(wallet,tokenAddress,tokenAbi,'identityRegistry'),read(wallet,tokenAddress,tokenAbi,'paused'),
   ]);
   if(version[0]!==id('TOKVAN_3643_SEPOLIA_EDUCATIONAL_V2'))throw new Error('El factory no es ERC-3643 v2 de TOKVANT.');
-  if(getAddress(owner[0])!==account||agent[0]!==true)throw new Error('Esta wallet no es la propietaria y agente del token.');
+  const ownerAddress=getAddress(owner[0]),isOwner=ownerAddress===account;
+  if(agent[0]!==true)throw new Error('Esta wallet no tiene permiso de agente en el token.');
   if(getAddress(parts.claimIssuer)===ZeroAddress||getAddress(parts.compliance)===ZeroAddress||getAddress(parts.registry)!==getAddress(registry[0]))throw new Error('El token no pertenece a esta suite v2.');
   const [authority,complianceOwner]=await Promise.all([read(wallet,parts.claimIssuer,claimAbi,'authority'),read(wallet,parts.compliance,complianceAbi,'owner')]);
-  if(getAddress(authority[0])!==account||getAddress(complianceOwner[0])!==account)throw new Error('La wallet no administra las acreditaciones y reglas de esta suite.');
-  setContext({account,factory:factoryAddress,token:tokenAddress,claim:getAddress(parts.claimIssuer),compliance:getAddress(parts.compliance),registry:getAddress(parts.registry),decimals:Number(decimals[0])});
+  if(getAddress(authority[0])!==ownerAddress||getAddress(complianceOwner[0])!==ownerAddress)throw new Error('La propietaria de la suite no coincide con la del token.');
+  setContext({account,isOwner,factory:factoryAddress,token:tokenAddress,claim:getAddress(parts.claimIssuer),compliance:getAddress(parts.compliance),registry:getAddress(parts.registry),decimals:Number(decimals[0])});
   setPaused(Boolean(pauseState[0]));
-  setRecipientState(null);setFreezeState(null);setDelegateIsAgent(null);setMessage('Suite verificada. La wallet conectada puede acreditar y emitir en esta prueba.');
+  setRecipientState(null);setFreezeState(null);setDelegateIsAgent(null);setMessage(isOwner?'Suite verificada. La propietaria puede acreditar y emitir en esta prueba.':'Suite verificada. El agente puede emitir, pausar y congelar; no puede acreditar ni cambiar países.');
  });
  const refreshPause=()=>run(async()=>{
   if(!context)throw new Error('Primero verificá la suite.');
@@ -132,7 +133,7 @@ export default function ERC3643OperatorV2View(){
   setDelegateIsAgent(Boolean(state[0]));setMessage('Permiso de agente consultado en Sepolia.');
  });
  const changeDelegate=()=>run(async()=>{
-  if(!context||!isAddress(delegate)||delegateIsAgent===null)throw new Error('Primero consultá el permiso de esa wallet.');
+  if(!context?.isOwner||!isAddress(delegate)||delegateIsAgent===null)throw new Error('Solo la wallet propietaria puede delegar o revocar agentes.');
   const wallet=injectedWallet(),address=getAddress(delegate);
   if(address===context.account)throw new Error('No modifiques desde aquí el permiso de la wallet propietaria.');
   const current=Boolean((await read(wallet,context.token,tokenAbi,'isAgent',[address]))[0]);
@@ -156,7 +157,7 @@ export default function ERC3643OperatorV2View(){
   setMessage('Estado de la wallet consultado en Sepolia.');
  });
  const attest=()=>run(async()=>{
-  if(!context||!isAddress(recipient)||!reviewed)throw new Error('Confirmá la revisión externa e ingresá una wallet válida.');
+  if(!context?.isOwner||!isAddress(recipient)||!reviewed)throw new Error('Solo la propietaria puede acreditar compradores desde este panel.');
   const code=Number(country),validDays=Number(days);
   if(!Number.isInteger(code)||code<1||code>999||!Number.isInteger(validDays)||validDays<1||validDays>366)throw new Error('Ingresá país ISO numérico (1–999) y vigencia de 1 a 366 días.');
   if(reference.trim().length<4||reference.trim().length>120)throw new Error('Ingresá una referencia interna de 4 a 120 caracteres, sin datos personales.');
@@ -167,7 +168,7 @@ export default function ERC3643OperatorV2View(){
   setLastHash(hash);setRecipientState(null);setMessage('Acreditación ficticia enviada. Esperá su confirmación y consultá la wallet antes de emitir.');
  });
  const allowCountry=()=>run(async()=>{
-  if(!context||!recipientState?.verified||recipientState.country<1)throw new Error('Primero acreditá y consultá la wallet destinataria.');
+  if(!context?.isOwner||!recipientState?.verified||recipientState.country<1)throw new Error('Solo la propietaria puede habilitar países desde este panel.');
   const hash=await send(injectedWallet(),context,context.compliance,complianceAbi.encodeFunctionData('setCountry',[recipientState.country,true]));
   setLastHash(hash);setRecipientState(null);setMessage('Habilitación del país enviada. Esperá su confirmación y consultá de nuevo.');
  });
@@ -182,11 +183,11 @@ export default function ERC3643OperatorV2View(){
  return <div className="space-y-5 rounded-xl bg-white p-5 text-slate-900">
   <h2 className="text-2xl font-bold">Operar token ERC-3643 · Sepolia</h2>
   <p>La empresa conserva la documentación y decide a quién habilitar. Esta suite usa acreditaciones ficticias de prueba; no subas datos personales ni comprobantes aquí.</p>
-  <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">1. Conectar la wallet propietaria</h3>
+  <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">1. Conectar la wallet propietaria o agente</h3>
    <p className="break-all text-sm">Factory v2 verificado: {factory}</p>
    <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);setPaused(null);setFreezeState(null);setDelegateIsAgent(null);}} placeholder="0x…"/></label>
    <button type="button" className={button} disabled={busy} onClick={load}>Conectar y verificar permisos</button>
-   {context&&<p className="text-sm text-green-700">Propietaria y agente: {context.account} · Decimales: {context.decimals}</p>}
+   {context&&<p className="text-sm text-green-700">{context.isOwner?'Propietaria y agente':'Agente del token'}: {context.account} · Decimales: {context.decimals}</p>}
   </section>
   {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">2. Wallet compradora</h3>
    <label className="block">Wallet destinataria<input className={field} value={recipient} onChange={e=>{setRecipient(e.target.value);setRecipientState(null);}} placeholder="0x…"/></label>
@@ -197,14 +198,14 @@ export default function ERC3643OperatorV2View(){
     <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Saldo: {recipientState.balance}</span>
     <span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Circulación: {recipientState.supply} / {recipientState.cap}</span>
    </div>}
-   <div className="grid gap-3 sm:grid-cols-2">
+   {context.isOwner&&<><div className="grid gap-3 sm:grid-cols-2">
     <label className="block">País de residencia · ISO numérico<input className={field} type="number" min="1" max="999" value={country} onChange={e=>setCountry(e.target.value)} placeholder="Ej.: 858 Uruguay, 32 Argentina"/></label>
     <label className="block">Vigencia en días (máx. 366)<input className={field} type="number" min="1" max="366" value={days} onChange={e=>setDays(e.target.value)}/></label>
    </div>
    <label className="flex items-center gap-2"><input type="checkbox" checked={entity} onChange={e=>setEntity(e.target.checked)}/>La compradora es una empresa (KYB ficticio). Desmarcá si es persona (KYC ficticio).</label>
    <label className="block">Referencia interna sin nombres ni documentos<input className={field} value={reference} maxLength={120} onChange={e=>setReference(e.target.value)} placeholder="Ej.: TEST-HOTEL-001"/></label>
    <label className="flex items-start gap-2"><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)}/>Confirmo que la empresa revisó fuera de TOKVANT el caso y autoriza esta acreditación ficticia en Sepolia.</label>
-   <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy||!reviewed||!isAddress(recipient)} onClick={attest}>Registrar acreditación de prueba</button><button type="button" className={button} disabled={busy||!recipientState?.verified||recipientState.countryAllowed} onClick={allowCountry}>Habilitar país de prueba</button></div>
+   <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy||!reviewed||!isAddress(recipient)} onClick={attest}>Registrar acreditación de prueba</button><button type="button" className={button} disabled={busy||!recipientState?.verified||recipientState.countryAllowed} onClick={allowCountry}>Habilitar país de prueba</button></div></>}
   </section>}
   {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">3. Emitir unidades</h3>
    <p className="text-sm">La emisión crea unidades nuevas directamente en la wallet habilitada. No requiere levantar la pausa; las transferencias siguen bloqueadas hasta que la propietaria decida reanudarlas.</p>
@@ -225,7 +226,7 @@ export default function ERC3643OperatorV2View(){
    <label className="block">Cantidad de tokens a congelar o liberar<input className={field} value={freezeAmount} onChange={e=>setFreezeAmount(e.target.value)} placeholder="Ej.: 2"/></label>
    <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy||!freezeState} onClick={()=>changeFreeze('freeze')}>Simular y congelar cantidad</button><button type="button" className={button} disabled={busy||!freezeState} onClick={()=>changeFreeze('release')}>Simular y liberar cantidad</button></div>
   </section>}
-  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">6. Agente del token</h3>
+  {context?.isOwner&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">6. Agente del token</h3>
    <p className="text-sm">AE0E puede delegar a otra wallet emisión, pausa y congelamiento del token. Este permiso no acredita compradores, no habilita países y no da acceso por sí solo al panel TOKVANT.</p>
    <label className="block">Wallet a delegar o revocar<input className={field} value={delegate} onChange={e=>{setDelegate(e.target.value);setDelegateIsAgent(null);}} placeholder="0x…"/></label>
    <button type="button" className={button} disabled={busy||!isAddress(delegate)} onClick={inspectDelegate}>Consultar permiso de agente</button>
