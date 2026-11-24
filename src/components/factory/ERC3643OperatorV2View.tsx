@@ -16,6 +16,7 @@ const field='mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 t
 const button='rounded-lg bg-blue-600 px-3 py-2 text-white disabled:opacity-50';
 type Context={account:string;factory:string;token:string;claim:string;compliance:string;registry:string;decimals:number};
 type RecipientState={verified:boolean;countryAllowed:boolean;country:number;balance:string;supply:string;cap:string};
+type FreezeState={frozen:boolean;amount:string;balance:string};
 
 async function connected(wallet:WalletProvider){
  const chain=await wallet.request({method:'eth_chainId'});
@@ -47,6 +48,8 @@ export default function ERC3643OperatorV2View(){
  const [reference,setReference]=useState(''),[quantity,setQuantity]=useState('');
  const [reviewed,setReviewed]=useState(false),[recipientState,setRecipientState]=useState<RecipientState|null>(null);
  const [paused,setPaused]=useState<boolean|null>(null);
+ const [holder,setHolder]=useState(''),[freezeAmount,setFreezeAmount]=useState(''),[freezeState,setFreezeState]=useState<FreezeState|null>(null);
+ const [delegate,setDelegate]=useState(''),[delegateIsAgent,setDelegateIsAgent]=useState<boolean|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[lastHash,setLastHash]=useState('');
  const run=async(action:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError('');setMessage('');try{await action();}catch(e){setError(walletError(e));}finally{setBusy(false);}};
  const load=()=>run(async()=>{
@@ -66,7 +69,7 @@ export default function ERC3643OperatorV2View(){
   if(getAddress(authority[0])!==account||getAddress(complianceOwner[0])!==account)throw new Error('La wallet no administra las acreditaciones y reglas de esta suite.');
   setContext({account,factory:factoryAddress,token:tokenAddress,claim:getAddress(parts.claimIssuer),compliance:getAddress(parts.compliance),registry:getAddress(parts.registry),decimals:Number(decimals[0])});
   setPaused(Boolean(pauseState[0]));
-  setRecipientState(null);setMessage('Suite verificada. La wallet conectada puede acreditar y emitir en esta prueba.');
+  setRecipientState(null);setFreezeState(null);setDelegateIsAgent(null);setMessage('Suite verificada. La wallet conectada puede acreditar y emitir en esta prueba.');
  });
  const refreshPause=()=>run(async()=>{
   if(!context)throw new Error('Primero verificá la suite.');
@@ -83,6 +86,60 @@ export default function ERC3643OperatorV2View(){
   const hash=await send(wallet,context,context.token,tokenAbi.encodeFunctionData(paused?'unpause':'pause'));
   setLastHash(hash);setPaused(null);
   setMessage('Transacción enviada. Esperá la confirmación y pulsá «Actualizar estado de pausa».');
+ });
+ const inspectFreeze=()=>run(async()=>{
+  if(!context||!isAddress(holder))throw new Error('Ingresá una wallet válida para consultar el congelamiento.');
+  const wallet=injectedWallet();
+  if(await connected(wallet)!==context.account)throw new Error('Conectá de nuevo la wallet propietaria.');
+  const address=getAddress(holder);
+  const [frozen,amount,balance]=await Promise.all([
+   read(wallet,context.token,tokenAbi,'isFrozen',[address]),
+   read(wallet,context.token,tokenAbi,'getFrozenTokens',[address]),
+   read(wallet,context.token,tokenAbi,'balanceOf',[address]),
+  ]);
+  setFreezeState({frozen:Boolean(frozen[0]),amount:formatUnits(amount[0],context.decimals),balance:formatUnits(balance[0],context.decimals)});
+  setMessage('Congelamiento consultado en Sepolia.');
+ });
+ const changeFreeze=(kind:'wallet'|'freeze'|'release')=>run(async()=>{
+  if(!context||!isAddress(holder)||!freezeState)throw new Error('Primero consultá la wallet que querés administrar.');
+  const wallet=injectedWallet(),address=getAddress(holder);
+  if(kind==='wallet'){
+   const current=Boolean((await read(wallet,context.token,tokenAbi,'isFrozen',[address]))[0]);
+   if(current!==freezeState.frozen){setFreezeState(null);throw new Error('El estado cambió. Consultá de nuevo antes de firmar.');}
+   const hash=await send(wallet,context,context.token,tokenAbi.encodeFunctionData('setAddressFrozen',[address,!current]));
+   setLastHash(hash);
+  }else{
+   if(!/^\d+(\.\d+)?$/.test(freezeAmount))throw new Error('Ingresá una cantidad positiva de tokens.');
+   const amount=parseUnits(freezeAmount,context.decimals);
+   if(amount<=0n)throw new Error('La cantidad debe ser mayor que cero.');
+   const [currentFrozen,currentBalance]=await Promise.all([
+    read(wallet,context.token,tokenAbi,'getFrozenTokens',[address]),
+    read(wallet,context.token,tokenAbi,'balanceOf',[address]),
+   ]);
+   if(formatUnits(currentFrozen[0],context.decimals)!==freezeState.amount||formatUnits(currentBalance[0],context.decimals)!==freezeState.balance){setFreezeState(null);throw new Error('El saldo o congelamiento cambió. Consultá de nuevo antes de firmar.');}
+   if(kind==='freeze'&&amount>currentBalance[0]-currentFrozen[0])throw new Error('La cantidad supera el saldo disponible para congelar.');
+   if(kind==='release'&&amount>currentFrozen[0])throw new Error('La cantidad supera el saldo congelado.');
+   const hash=await send(wallet,context,context.token,tokenAbi.encodeFunctionData(kind==='freeze'?'freezePartialTokens':'unfreezePartialTokens',[address,amount]));
+   setLastHash(hash);
+  }
+  setFreezeState(null);setMessage('Transacción enviada. Esperá la confirmación y consultá de nuevo el congelamiento.');
+ });
+ const inspectDelegate=()=>run(async()=>{
+  if(!context||!isAddress(delegate))throw new Error('Ingresá una wallet válida para consultar sus permisos.');
+  const wallet=injectedWallet();
+  if(await connected(wallet)!==context.account)throw new Error('Conectá de nuevo la wallet propietaria.');
+  const state=await read(wallet,context.token,tokenAbi,'isAgent',[getAddress(delegate)]);
+  setDelegateIsAgent(Boolean(state[0]));setMessage('Permiso de agente consultado en Sepolia.');
+ });
+ const changeDelegate=()=>run(async()=>{
+  if(!context||!isAddress(delegate)||delegateIsAgent===null)throw new Error('Primero consultá el permiso de esa wallet.');
+  const wallet=injectedWallet(),address=getAddress(delegate);
+  if(address===context.account)throw new Error('No modifiques desde aquí el permiso de la wallet propietaria.');
+  const current=Boolean((await read(wallet,context.token,tokenAbi,'isAgent',[address]))[0]);
+  if(current!==delegateIsAgent){setDelegateIsAgent(current);throw new Error('El permiso cambió. Revisalo antes de firmar.');}
+  const hash=await send(wallet,context,context.token,tokenAbi.encodeFunctionData(current?'removeAgent':'addAgent',[address]));
+  setLastHash(hash);setDelegateIsAgent(null);
+  setMessage('Cambio de agente enviado. Esperá la confirmación y consultá de nuevo el permiso.');
  });
  const inspect=()=>run(async()=>{
   if(!context||!isAddress(recipient))throw new Error('Primero verificá la suite e ingresá la wallet destinataria.');
@@ -127,7 +184,7 @@ export default function ERC3643OperatorV2View(){
   <p>La empresa conserva la documentación y decide a quién habilitar. Esta suite usa acreditaciones ficticias de prueba; no subas datos personales ni comprobantes aquí.</p>
   <section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">1. Conectar la wallet propietaria</h3>
    <p className="break-all text-sm">Factory v2 verificado: {factory}</p>
-   <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);setPaused(null);}} placeholder="0x…"/></label>
+   <label className="block">Contrato del token<input className={field} value={token} onChange={e=>{setToken(e.target.value);setContext(null);setPaused(null);setFreezeState(null);setDelegateIsAgent(null);}} placeholder="0x…"/></label>
    <button type="button" className={button} disabled={busy} onClick={load}>Conectar y verificar permisos</button>
    {context&&<p className="text-sm text-green-700">Propietaria y agente: {context.account} · Decimales: {context.decimals}</p>}
   </section>
@@ -158,6 +215,22 @@ export default function ERC3643OperatorV2View(){
    <p className="text-sm">La pausa detiene las transferencias normales. La agente puede seguir emitiendo unidades a wallets habilitadas.</p>
    <p className={`text-sm font-semibold ${paused===null?'text-slate-600':paused?'text-amber-800':'text-green-800'}`}>Estado: {paused===null?'pendiente de actualizar':paused?'transferencias pausadas':'transferencias habilitadas'}</p>
    <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy} onClick={refreshPause}>Actualizar estado de pausa</button><button type="button" className={button} disabled={busy||paused===null} onClick={changePause}>{paused?'Simular y reanudar':'Simular y pausar'}</button></div>
+  </section>}
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">5. Congelamiento</h3>
+   <p className="text-sm">Congelar una wallet bloquea sus transferencias normales. También podés congelar una cantidad concreta de su saldo; liberar esa cantidad no descongela la wallet completa.</p>
+   <label className="block">Wallet titular<input className={field} value={holder} onChange={e=>{setHolder(e.target.value);setFreezeState(null);}} placeholder="0x…"/></label>
+   <button type="button" className={button} disabled={busy||!isAddress(holder)} onClick={inspectFreeze}>Consultar saldo y congelamiento</button>
+   {freezeState&&<div className="flex flex-wrap gap-2 text-sm" aria-live="polite"><span className={`rounded-lg border px-3 py-2 font-semibold ${freezeState.frozen?'border-amber-300 bg-amber-50 text-amber-900':'border-green-300 bg-green-50 text-green-800'}`}>Wallet: {freezeState.frozen?'congelada':'libre'}</span><span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Saldo: {freezeState.balance}</span><span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Saldo congelado: {freezeState.amount}</span></div>}
+   <button type="button" className={button} disabled={busy||!freezeState} onClick={()=>changeFreeze('wallet')}>{freezeState?.frozen?'Simular y descongelar wallet':'Simular y congelar wallet'}</button>
+   <label className="block">Cantidad de tokens a congelar o liberar<input className={field} value={freezeAmount} onChange={e=>setFreezeAmount(e.target.value)} placeholder="Ej.: 2"/></label>
+   <div className="flex flex-wrap gap-2"><button type="button" className={button} disabled={busy||!freezeState} onClick={()=>changeFreeze('freeze')}>Simular y congelar cantidad</button><button type="button" className={button} disabled={busy||!freezeState} onClick={()=>changeFreeze('release')}>Simular y liberar cantidad</button></div>
+  </section>}
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">6. Agente del token</h3>
+   <p className="text-sm">AE0E puede delegar a otra wallet emisión, pausa y congelamiento del token. Este permiso no acredita compradores, no habilita países y no da acceso por sí solo al panel TOKVANT.</p>
+   <label className="block">Wallet a delegar o revocar<input className={field} value={delegate} onChange={e=>{setDelegate(e.target.value);setDelegateIsAgent(null);}} placeholder="0x…"/></label>
+   <button type="button" className={button} disabled={busy||!isAddress(delegate)} onClick={inspectDelegate}>Consultar permiso de agente</button>
+   {delegateIsAgent!==null&&<p className={`text-sm font-semibold ${delegateIsAgent?'text-green-800':'text-amber-800'}`}>Agente del token: {delegateIsAgent?'habilitado':'sin permiso'}</p>}
+   <button type="button" className={button} disabled={busy||delegateIsAgent===null||!isAddress(delegate)||getAddress(delegate)===context.account} onClick={changeDelegate}>{delegateIsAgent?'Simular y revocar agente':'Simular y delegar agente'}</button>
   </section>}
   {lastHash&&<p className="break-all text-sm">Última transacción: <a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${lastHash}`}>{lastHash}</a></p>}
   {message&&<p role="status" className="text-green-700">{message}</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}

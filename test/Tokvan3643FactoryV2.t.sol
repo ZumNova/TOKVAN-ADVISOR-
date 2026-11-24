@@ -14,7 +14,7 @@ interface V2Vm {
     function prank(address) external;
     function expectRevert() external;
 }
-interface V2Token {function owner() external view returns(address);function paused() external view returns(bool);function totalSupply() external view returns(uint256);function isAgent(address) external view returns(bool);function mint(address,uint256) external;function balanceOf(address) external view returns(uint256);}
+interface V2Token {function owner() external view returns(address);function paused() external view returns(bool);function totalSupply() external view returns(uint256);function isAgent(address) external view returns(bool);function mint(address,uint256) external;function balanceOf(address) external view returns(uint256);function addAgent(address) external;function removeAgent(address) external;function setAddressFrozen(address,bool) external;function isFrozen(address) external view returns(bool);function freezePartialTokens(address,uint256) external;function unfreezePartialTokens(address,uint256) external;function getFrozenTokens(address) external view returns(uint256);}
 
 contract Tokvan3643FactoryV2Test {
     V2Vm constant vm=V2Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -76,6 +76,21 @@ contract Tokvan3643FactoryV2Test {
         vm.prank(COMPANY);V2Token(token).mint(buyer,20);
         require(V2Token(token).paused(),"Mint must not lift pause");
         require(V2Token(token).balanceOf(buyer)==20&&V2Token(token).totalSupply()==20,"Buyer receives 20");
+    }
+    function testCompanyCanFreezeAndDelegateTokenAgent() public {
+        vm.chainId(11155111);
+        Tokvan3643TestFactoryV2 f=new Tokvan3643TestFactoryV2(OPERATOR,components());
+        vm.prank(OPERATOR);address token=f.createToken(PROJECT,VERSION_HASH,config());
+        address holder=address(0xCAFE);
+        address delegate=address(0xD00D);
+        vm.prank(COMPANY);V2Token(token).addAgent(delegate);
+        require(V2Token(token).isAgent(delegate),"Agent granted");
+        vm.prank(delegate);V2Token(token).setAddressFrozen(holder,true);
+        require(V2Token(token).isFrozen(holder),"Wallet frozen");
+        vm.prank(delegate);V2Token(token).setAddressFrozen(holder,false);
+        vm.prank(COMPANY);V2Token(token).removeAgent(delegate);
+        require(!V2Token(token).isAgent(delegate),"Agent revoked");
+        vm.prank(delegate);vm.expectRevert();V2Token(token).setAddressFrozen(holder,true);
     }
     function testCreationCannotPreauthorizeCountryOrFactoryOperator() public {
         vm.chainId(11155111);
