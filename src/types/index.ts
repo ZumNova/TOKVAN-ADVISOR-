@@ -137,7 +137,7 @@ export interface TokenProject {
   clientWalletNetwork?: NetworkId;
   walletSupportRequested?: boolean;
   proposedRecipients?: {walletAddress:string}[];
-  classificationHistory?: {at:string;by:string;reason:string;previousHash:string;newHash:string;before:{standard:StandardType;network:NetworkId;parameters:TokenParameters;proposedRecipients?:{walletAddress:string}[]};after:{standard:StandardType;network:NetworkId;legacyControlsRemoved:boolean}}[];
+  classificationHistory?: {at:string;by:string;reason:string;previousHash:string;newHash:string;before:{title?:string;assetType?:TokenProject['assetType'];assetTypeOther?:string;assetDescription?:string;standard:StandardType;network:NetworkId;parameters:TokenParameters;proposedRecipients?:{walletAddress:string}[]};after:{title?:string;assetType?:TokenProject['assetType'];assetTypeOther?:string;assetDescription?:string;standard:StandardType;network:NetworkId;legacyControlsRemoved:boolean}}[];
   jurisdiction: 'Paraguay (BCP / CNV / Ley DLT)' | 'Argentina' | 'Estados Unidos (Reg D / Reg S)' | 'Suiza (DLT Act)' | 'Unión Europea (MiCA)' | 'Multi-jurisdiccional' | 'Por definir (revisión del expediente)';
   standard: StandardType;
   network: NetworkId;

@@ -5,8 +5,13 @@ import {amendClassification} from '../../lib/sharedSubmissions';
 const standards:TokenProject['standard'][]=['ERC-20','ERC-721','ERC-1155','ERC-3643'];
 const networks:TokenProject['network'][]=['sepolia','polygon','arbitrum','ethereum'];
 const restrictions:TokenProject['parameters']['transferRestrictions'][]=['Sin restricción','Permisos ERC-3643 (Identity Registry)','Lista blanca (Whitelist)','Regulada por país'];
+const assetTypes:TokenProject['assetType'][]=['Agropecuario','Inmobiliario','Deuda / Factoring','Infraestructura','Fondo Privado','Derechos de Emisión','Otro'];
 
 export function ClassificationCorrection({project,account,onSaved}:{project:TokenProject;account:string;onSaved:(project:TokenProject)=>void}){
+ const [title,setTitle]=useState(project.title);
+ const [assetType,setAssetType]=useState(project.assetType);
+ const [assetTypeOther,setAssetTypeOther]=useState(project.assetTypeOther??'');
+ const [assetDescription,setAssetDescription]=useState(project.assetDescription??'');
  const [standard,setStandard]=useState(project.standard);
  const [network,setNetwork]=useState(project.network);
  const [initialSupply,setInitialSupply]=useState(String(project.parameters.initialSupply));
@@ -24,17 +29,21 @@ export function ClassificationCorrection({project,account,onSaved}:{project:Toke
  const [error,setError]=useState('');
  const nft=standard==='ERC-721'||standard==='ERC-1155';
  const hasLegacyControls=project.parameters.isUpgradeabilityEnabled||project.parameters.complianceRules.requireKYC||project.parameters.complianceRules.requireKYB||project.parameters.complianceRules.restrictSanctionedCountries||(project.parameters.complianceRules.lockupPeriodDays||0)>0;
- const changed=standard!==project.standard||network!==project.network||Number(initialSupply)!==project.parameters.initialSupply||Number(maxSupply)!==(project.parameters.maxSupply??project.parameters.initialSupply)||Number(decimals)!==project.parameters.decimals||transferRestrictions!==project.parameters.transferRestrictions||requireKYC!==project.parameters.complianceRules.requireKYC||requireKYB!==project.parameters.complianceRules.requireKYB||restrictSanctionedCountries!==project.parameters.complianceRules.restrictSanctionedCountries||Number(lockupPeriodDays)!==(project.parameters.complianceRules.lockupPeriodDays??0)||Number(maxHoldersLimit)!==(project.parameters.complianceRules.maxHoldersLimit??0);
+ const changed=title.trim()!==project.title||assetType!==project.assetType||assetTypeOther.trim()!==(project.assetTypeOther??'')||assetDescription.trim()!==(project.assetDescription??'')||standard!==project.standard||network!==project.network||Number(initialSupply)!==project.parameters.initialSupply||Number(maxSupply)!==(project.parameters.maxSupply??project.parameters.initialSupply)||Number(decimals)!==project.parameters.decimals||transferRestrictions!==project.parameters.transferRestrictions||requireKYC!==project.parameters.complianceRules.requireKYC||requireKYB!==project.parameters.complianceRules.requireKYB||restrictSanctionedCountries!==project.parameters.complianceRules.restrictSanctionedCountries||Number(lockupPeriodDays)!==(project.parameters.complianceRules.lockupPeriodDays??0)||Number(maxHoldersLimit)!==(project.parameters.complianceRules.maxHoldersLimit??0);
  const save=async()=>{
   setBusy(true);setError('');
-  try{onSaved(await amendClassification(account,project,{standard,network,initialSupply:Number(initialSupply),maxSupply:Number(maxSupply),decimals:Number(decimals),transferRestrictions,requireKYC,requireKYB,restrictSanctionedCountries,lockupPeriodDays:Number(lockupPeriodDays),maxHoldersLimit:Number(maxHoldersLimit),removeLegacyControls,reason:reason.trim()}));}
+  try{onSaved(await amendClassification(account,project,{title:title.trim(),assetType,assetTypeOther:assetTypeOther.trim(),assetDescription:assetDescription.trim(),standard,network,initialSupply:Number(initialSupply),maxSupply:Number(maxSupply),decimals:Number(decimals),transferRestrictions,requireKYC,requireKYB,restrictSanctionedCountries,lockupPeriodDays:Number(lockupPeriodDays),maxHoldersLimit:Number(maxHoldersLimit),removeLegacyControls,reason:reason.trim()}));}
   catch(e){setError(e instanceof Error?e.message:'No se pudo corregir el expediente.');}
   finally{setBusy(false);}
  };
  return <details className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
-  <summary className="cursor-pointer font-semibold text-amber-200">Revisión técnica · corregir estándar o red</summary>
+  <summary className="cursor-pointer font-semibold text-amber-200">Revisión técnica · corregir expediente</summary>
   <p className="mt-3 text-slate-300">La corrección queda registrada en el expediente y cambia su hash de versión. Para el factory v2, la 047 debe firmar otra decisión integral. Un pago verificado sigue vinculado al expediente.</p>
   <div className="mt-3 grid gap-3 sm:grid-cols-2">
+   <label className="sm:col-span-2">Título del proyecto<input value={title} maxLength={200} onChange={event=>setTitle(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>
+   <label>Tipo de activo<select value={assetType} onChange={event=>setAssetType(event.target.value as TokenProject['assetType'])} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{assetTypes.map(value=><option key={value}>{value}</option>)}</select></label>
+   {assetType==='Otro'&&<label>Especificá el activo<input value={assetTypeOther} maxLength={120} onChange={event=>setAssetTypeOther(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>}
+   <label className="sm:col-span-2">Descripción del activo y derechos propuestos<textarea value={assetDescription} maxLength={3000} rows={3} onChange={event=>setAssetDescription(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>
    <label>Estándar<select value={standard} onChange={event=>{const next=event.target.value as TokenProject['standard'];setStandard(next);if(next==='ERC-721'||next==='ERC-1155'){setDecimals('0');setTransferRestrictions('Sin restricción');}}} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{standards.map(value=><option key={value}>{value}</option>)}</select></label>
    <label>Red<select value={network} onChange={event=>setNetwork(event.target.value as TokenProject['network'])} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2">{networks.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
    <label>Cantidad propuesta<input type="number" min="1" step="1" value={initialSupply} onChange={event=>setInitialSupply(event.target.value)} className="mt-1 block w-full rounded-lg border border-[#45628B] bg-[#0B0D12] p-2"/></label>
