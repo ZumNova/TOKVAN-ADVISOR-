@@ -6,7 +6,7 @@ const publishedAnswers=async()=>{
  const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY;
  if(!url||!key)return null;
  const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}});
- const result=await db.from('public_educational_answers').select('question,short_answer,more_answer,keywords,category').eq('status','published').order('created_at',{ascending:true}).limit(200);
+ const result=await db.from('public_educational_answers').select('question,short_answer,more_answer,keywords,category,source_reference').eq('status','published').order('created_at',{ascending:true}).limit(200);
  if(result.error)throw result.error;
  return result.data as PublicAnswer[];
 };

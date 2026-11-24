@@ -20,3 +20,12 @@ test('la tira muestra preguntas y respuestas públicas sin datos privados ni eti
  const unsafe={...answers[0],more_answer:'Contactá a persona@example.com'};
  assert.deepEqual(publicSuggestions([answers[1],unsafe]),[{question:'¿Qué significa ERC-721?',short:'Representa piezas individuales.',more:'Cada NFT tiene un ID.'}]);
 });
+test('la tira inicia con conceptos básicos aunque las preguntas se publiquen después',()=>{
+ const example={...answers[0],question:'Caso agropecuario',source_reference:'TOKVANT-RWA-02'};
+ const advanced={...answers[1],question:'¿Para qué sirve un oráculo?',source_reference:'BD-V1 FAQ-0006'};
+ const basic={...answers[1],question:'¿Qué es una blockchain?',source_reference:'BD-V1 FAQ-0001'};
+ const future={...answers[1],question:'Pregunta futura',source_reference:'NUEVA-FAQ'};
+ assert.deepEqual(publicSuggestions([advanced,example,future,basic]).map(row=>row.question),[
+  '¿Qué es una blockchain?','Caso agropecuario','¿Para qué sirve un oráculo?','Pregunta futura',
+ ]);
+});
