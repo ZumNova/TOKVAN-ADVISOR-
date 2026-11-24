@@ -186,13 +186,9 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
         </div>
 
         {/* Approvals Chain */}
-        <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-5 space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-[#273246]">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Cadena Colegiada de Aprobaciones (Maker-Checker)
-            </h3>
-            <span className="text-[11px] font-mono text-[#7096FF]">Segregación de Roles Estricta</span>
-          </div>
+        <details className="rounded-xl bg-[#0B0D12] border border-[#273246] p-5" open={!project.submissionId}>
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-300">Historial del circuito de tres dictámenes</summary>
+          <div className="mt-4 space-y-4">
           {project.submissionId&&<div className="text-xs space-y-2"><button type="button" disabled={reviewsLoading||!staffAccount} onClick={()=>void refreshReviews()} className="rounded-lg border border-[#45628B] px-3 py-2 text-[#9BBCFF] disabled:opacity-50">{reviewsLoading?'Consultando…':'Consultar firmas compartidas'}</button><p className="text-[#9BA6BD]">{currentReviews?'Estado consultado en Supabase para esta versión del expediente.':'Estado todavía sin consultar; «Pendiente» puede corresponder al formulario inicial.'}</p>{reviewsError&&<p role="alert" className="text-red-300">{reviewsError}</p>}</div>}
 
           <div className="space-y-3">
@@ -235,7 +231,8 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               </div>
             );})}
           </div>
-        </div>
+          </div>
+        </details>
 
         {/* Documents */}
         <div className="rounded-xl bg-[#0B0D12] border border-[#273246] p-5 space-y-3">

@@ -51,6 +51,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
   const [soloRationale,setSoloRationale]=useState('');
   const paymentFileInput=useRef<HTMLInputElement>(null);
   const activeProject = projects.find((p) => p.id === selectedProjectId) || projects[0];
+  const currentWorkflow=Boolean(activeProject?.submissionId&&(staffRole==='owner'||staffRole==='administrator'));
   const factoryWarnings=activeProject?.standard==='ERC-20'&&activeProject.network==='sepolia'?projectBlockers(activeProject):[];
   useEffect(()=>{setGovernance(null);setActionError(null);setPaymentAmount('');setPaymentReference('');setPaymentFile(null);if(paymentFileInput.current)paymentFileInput.current.value='';},[activeProject?.submissionId]);
   const activeRole=reviewRoleForWallet(staffAccount);
@@ -117,19 +118,18 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7096FF]">
             <FileCheck2 className="w-4 h-4" />
-            <span>Motor de Aprobaciones Colegiadas</span>
-            <span aria-hidden="true">·</span>
-            <span className="text-[#9BA6BD]">Segregación Maker-Checker</span>
+            <span>{currentWorkflow?'Operación de expedientes':'Motor de Aprobaciones Colegiadas'}</span>
+            {!currentWorkflow&&<><span aria-hidden="true">·</span><span className="text-[#9BA6BD]">Segregación Maker-Checker</span></>}
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white font-display mt-0.5">
-            Gobernanza, Dictámenes y Autorización de Despliegue
+            {currentWorkflow?'Pago, decisión integral y factory':'Gobernanza, Dictámenes y Autorización de Despliegue'}
           </h1>
           <p className="text-xs text-[#9BA6BD] mt-1">
-            {activeProject?'Los dictámenes firmados se guardan en la bitácora compartida. El factory exige sus aprobaciones on-chain por separado.':'Cargá un expediente recibido desde «Expedientes de emisión» para iniciar el circuito real.'}
+            {activeProject?(currentWorkflow?'Consultá la bitácora, verificá el pago y revisá la decisión integral antes de abrir el factory v2.':'Los dictámenes firmados se guardan en la bitácora compartida. Los factories v1 exigen sus aprobaciones on-chain por separado.'):'Cargá un expediente recibido desde «Expedientes de emisión» para iniciar el circuito real.'}
           </p>
         </div>
 
-        <div className="rounded-xl border border-[#39547C] bg-[#141A27] px-4 py-2 text-sm text-white">Rol firmante: <strong>{activeRole ? (activeRole==='Enterprise Board'?'Directorio':activeRole==='Technical Reviewer'?'Técnico':'Compliance') : 'Solo lectura'}</strong><span className="block font-mono text-[10px] text-[#9BA6BD]">{staffAccount||'Sin wallet'}</span></div>
+        <div className="rounded-xl border border-[#39547C] bg-[#141A27] px-4 py-2 text-sm text-white">{currentWorkflow?'Acceso: ':'Rol firmante: '}<strong>{currentWorkflow?(staffRole==='owner'?'Operador único':'Consulta administrativa'):activeRole ? (activeRole==='Enterprise Board'?'Directorio':activeRole==='Technical Reviewer'?'Técnico':'Compliance') : 'Solo lectura'}</strong><span className="block font-mono text-[10px] text-[#9BA6BD]">{staffAccount||'Sin wallet'}</span></div>
       </div>
 
       {actionError&&<p role="alert" className="rounded-lg border border-red-500 p-3 text-sm text-red-200">{actionError}</p>}
@@ -147,7 +147,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
         {/* Left: Project Selector List */}
         <div className="lg:col-span-4 rounded-2xl bg-[#141A27] border border-[#273246] p-5 space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-300 pb-2 border-b border-[#273246]">
-            Expedientes en Circuito Colegiado
+            {currentWorkflow?'Expedientes recibidos':'Expedientes en Circuito Colegiado'}
           </h2>
 
           <div className="space-y-2">
@@ -166,7 +166,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                 >
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="font-bold text-[#7096FF]">{p.id}</span>
-                    <span
+                    {!currentWorkflow&&<span
                       className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                         pendingCount === 0
                           ? 'bg-[#16A34A]/10 text-[#16A34A]'
@@ -174,7 +174,7 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                       }`}
                     >
                       {pendingCount === 0 ? 'Tres dictámenes aprobados' : `${pendingCount} por resolver`}
-                    </span>
+                    </span>}
                   </div>
                   <div className="text-xs font-semibold text-white mt-1 truncate">{p.title}</div>
                   <div className="text-[11px] text-[#9BA6BD] mt-0.5 font-mono">
@@ -239,8 +239,8 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
               {!governance&&<p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">Estado aún sin consultar. Las tarjetas inferiores pueden mostrar «Pendiente» aunque ya haya firmas guardadas. Cargá la bitácora antes de continuar.</p>}
               {governance&&<div className="space-y-3">
                 <p className="text-xs text-[#B8C9E1]">Modalidad de operador único: {governance.soloAuthorized?'aprobada por 047':'pendiente'} · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'}</p>
-                <p className="text-xs text-[#B8C9E1]">Dictámenes aprobados: {governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length} / 3 · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'} · Autorización TOKVANT: {governance.authorized?'vigente':'pendiente'}</p>
-                {governance.authorized&&['ERC-20','ERC-721','ERC-1155'].includes(activeProject.standard)&&onOpenFactory&&<button type="button" className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white" onClick={()=>onOpenFactory(activeProject)}>Continuar en Factory {activeProject.standard}</button>}
+                {!currentWorkflow&&<p className="text-xs text-[#B8C9E1]">Dictámenes aprobados: {governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length} / 3 · Pago: {governance.payments.some(row=>row.status==='verified')?'verificado':'pendiente'} · Autorización TOKVANT: {governance.authorized?'vigente':'pendiente'}</p>}
+                {((currentWorkflow&&governance.soloAuthorized)||(!currentWorkflow&&governance.authorized))&&onOpenFactory&&<button type="button" className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white" onClick={()=>onOpenFactory(activeProject)}>Continuar en Factory {activeProject.standard}</button>}
                 {governance.payments.filter(row=>row.status==='verified').map(row=><div key={row.id} className="break-all rounded-lg border border-[#273246] p-3 text-xs text-[#B8C9E1]">Pago {row.amount} {row.currency} · Referencia {row.reference} · Firmado por {row.signer_wallet} · <button type="button" className="text-[#7096FF] underline" onClick={()=>{if(staffAccount)void downloadPaymentDocument(staffAccount,row).catch(e=>setActionError(e instanceof Error?e.message:'No se pudo descargar.'));}}>Descargar comprobante: {row.file_name}</button></div>)}
               </div>}
               {(staffRole==='accounting'||staffRole==='owner')&&governance?.payments.some(row=>row.status==='verified')&&<p className="border-t border-[#39547C] pt-4 text-xs text-emerald-200">Contaduría: ya hay un pago verificado para este expediente. El recibo y su comprobante figuran arriba.</p>}
@@ -258,9 +258,11 @@ export const ApprovalWorkflowView: React.FC<ApprovalWorkflowViewProps> = ({
                 <button type="button" disabled={busy||Boolean(paymentInputError(paymentAmount,paymentReference,paymentFile))} onClick={()=>void recordPayment()} className="rounded-lg bg-[#316BFA] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar recibo de pago verificado</button>
               </div>}
               {staffRole==='owner'&&governance&&<div className="space-y-3 border-t border-[#39547C] pt-4"><h4 className="font-semibold text-white">Operador único · decisión integral</h4><p className="text-xs text-[#9BA6BD]">Una firma de la 047 aprueba la versión exacta del expediente y el pago verificado. No suplanta los tres dictámenes anteriores ni habilita los factories v1, que mantienen sus propias reglas.</p>{!governance.soloStorageReady&&<p className="text-xs text-amber-200">Primero aplicá en Supabase la migración «20261123_single_operator_authorizations.sql».</p>}{governance.operatorAuthorizations.filter(item=>item.project_hash===governance.projectHash).slice(0,1).map(item=><p key={item.id} className="text-xs text-emerald-200">Última decisión: {item.decision==='approved'?'Aprobada':'Rechazada'} · {item.signer_wallet} · {new Date(item.signed_at).toLocaleString('es-AR')}</p>)}<label className="block text-xs text-[#B8C9E1]">Fundamento de la revisión<textarea value={soloRationale} onChange={e=>setSoloRationale(e.target.value)} maxLength={3000} rows={3} placeholder="Describí qué verificaste y qué límites tiene esta aprobación de prueba." className="mt-1 w-full rounded-lg border border-[#39547C] bg-[#0B0D12] p-3 text-white"/></label><button type="button" disabled={busy||!governance.soloStorageReady||!governance.payments.some(row=>row.status==='verified')||soloRationale.trim().length<20} onClick={()=>void authorizeSolo()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Firmar aprobación integral · 047</button></div>}
-              {staffRole==='owner'&&governance&&<div className="border-t border-[#39547C] pt-4"><button type="button" disabled={busy||governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length!==3||!governance.payments.some(row=>row.status==='verified')} onClick={()=>void authorize()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Autorizar preparación del token</button><p className="mt-2 text-xs text-[#9BA6BD]">Esta firma habilita la preparación administrativa; no despliega un token ni sustituye las firmas on-chain del factory.</p></div>}
+              {!currentWorkflow&&staffRole==='owner'&&governance&&<div className="border-t border-[#39547C] pt-4"><button type="button" disabled={busy||governance.reviews.filter(row=>row.decision==='Aprobado'&&row.project_hash===governance.projectHash).length!==3||!governance.payments.some(row=>row.status==='verified')} onClick={()=>void authorize()} className="rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Autorizar preparación del token</button><p className="mt-2 text-xs text-[#9BA6BD]">Esta firma habilita la preparación administrativa; no despliega un token ni sustituye las firmas on-chain del factory.</p></div>}
             </div>}
 
+            {currentWorkflow&&<div className="rounded-2xl border border-[#39547C] bg-[#141A27] p-5 text-sm text-[#B8C9E1]"><h3 className="font-semibold text-white">Recorrido actual</h3><p className="mt-2">1. Verificar pago · 2. Firmar decisión integral con la 047 · 3. Crear y vincular el token desde Factory v2.</p><p className="mt-2 text-xs">El administrador puede consultar el expediente; las firmas y transacciones requieren la wallet autorizada.</p></div>}
+            <details className="rounded-xl border border-[#39547C] bg-[#101A2A] p-4" open={!currentWorkflow}><summary className="cursor-pointer text-sm font-semibold text-[#B8C9E1]">{currentWorkflow?'Ver circuito anterior de tres dictámenes y factories v1':'Circuito de tres dictámenes'}</summary><div className="mt-4 space-y-6">
             {/* Approval Steps Progression */}
             <div className="rounded-2xl bg-[#141A27] border border-[#273246] p-6 space-y-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-200 pb-2 border-b border-[#273246]">
@@ -390,6 +392,8 @@ Circuito de cuatro etapas · recepción y tres dictámenes
                 </div>
               </div>
             </div>
+
+            </div></details>
 
           </div>
         )}
