@@ -56,7 +56,7 @@ export async function listSharedSubmissions(account:string):Promise<TokenProject
  const result=await staffRequest('list',account);
  return (result.items as {id:string;project:TokenProject;received_at:string;deployed:boolean}[]).map(row=>({...row.project,submissionId:row.id,receivedAt:row.received_at,...(row.deployed?{status:'Desplegado' as const,progressPercent:100}:{})}));
 }
-export async function amendClassification(account:string,project:TokenProject,changes:{standard:TokenProject['standard'];network:TokenProject['network'];initialSupply:number;maxSupply:number;decimals:number;transferRestrictions:TokenProject['parameters']['transferRestrictions'];removeLegacyControls:boolean;reason:string}):Promise<TokenProject>{
+export async function amendClassification(account:string,project:TokenProject,changes:{standard:TokenProject['standard'];network:TokenProject['network'];initialSupply:number;maxSupply:number;decimals:number;transferRestrictions:TokenProject['parameters']['transferRestrictions'];requireKYC:boolean;requireKYB:boolean;restrictSanctionedCountries:boolean;lockupPeriodDays:number;maxHoldersLimit:number;removeLegacyControls:boolean;reason:string}):Promise<TokenProject>{
  if(!project.submissionId)throw new Error('Este expediente no está en la recepción compartida.');
  const result=await staffRequest('amend-classification',account,{id:project.submissionId,expectedHash:projectReviewHash(project),...changes});
  return result.project as TokenProject;
