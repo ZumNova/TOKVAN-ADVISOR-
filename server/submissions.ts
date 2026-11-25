@@ -1,9 +1,10 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import {getAddress,Interface,isAddress,verifyMessage} from 'ethers';
+import {getAddress,Interface,isAddress} from 'ethers';
 import type {ProjectDocument,TokenProject} from '../src/types';
 import {projectHash} from './governance.js';
+import {requireStaffSession} from './staffSession.js';
 
 const BUCKET='tokvant-expedientes';
 // Sepolia staff wallets; kept in sync with deployment/sepolia-participants.json.
@@ -31,21 +32,10 @@ async function readMulti(address:string,name:'typeCount'|'mintedCount',args:unkn
  if(!body.result||body.error)throw new Error('No se pudo consultar Sepolia.');
  return multiRead.decodeFunctionResult(name,body.result)[0] as bigint;
 }
-const authMessage=(origin:string,action:Action,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
-function requireStaff(request:Request,action:Action){
- const address=request.headers.get('x-tokvant-wallet')||'',timestamp=request.headers.get('x-tokvant-time')||'',nonce=request.headers.get('x-tokvant-nonce')||'',signature=request.headers.get('x-tokvant-signature')||'';
- if(!/^[-0-9T:.Z]{20,30}$/.test(timestamp)||Math.abs(Date.now()-Date.parse(timestamp))>120000||!/^[-0-9a-f]{36}$/i.test(nonce))throw new Error('Firma de acceso vencida o inválida.');
- const wallet=getAddress(address);
- if(verifyMessage(authMessage(new URL(request.url).origin,action,timestamp,nonce,wallet),signature)!==wallet)throw new Error('La wallet no está autorizada para consultar expedientes.');
- let role='owner';
- if(wallet!==owner){
-  let grant;try{grant=JSON.parse(request.headers.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización del equipo inválida.');}
-  if(!grant||getAddress(grant.address)!==wallet||!['administrator','reviewer','compliance','board','factory','accounting','multi_operator','nft_operator'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(fixedRoles[grant.role]&&fixedRoles[grant.role]!==wallet))throw new Error('Falta una autorización vigente de la 047 para esta wallet.');
-  const message=`TOKVANT staff access\nOrigin: ${new URL(request.url).origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
-  if(verifyMessage(message,grant.signature)!==owner)throw new Error('La autorización del equipo no está firmada por la 047.');
-  role=grant.role;
- }
- return {wallet,role};
+async function requireStaff(request:Request,_action:Action){
+ const actor=await requireStaffSession(request),allowed=['owner','administrator','reviewer','compliance','board','factory','accounting','multi_operator','nft_operator'];
+ if(!allowed.includes(actor.role)||(fixedRoles[actor.role]&&fixedRoles[actor.role]!==actor.wallet))throw new Error('La sesión no tiene acceso a expedientes.');
+ return actor;
 }
 export function cleanProject(input:unknown):TokenProject{
  if(!input||typeof input!=='object')throw new Error('Expediente inválido.');
@@ -146,7 +136,7 @@ export async function POST(request:Request){
    }
    return response({status:'deployed',deployment,types});
   }
-  const actor=requireStaff(request,action);
+  const actor=await requireStaff(request,action);
   const staffWallet=actor.wallet;
   if(action==='amend-classification'){
    if(actor.role!=='owner'&&actor.role!=='reviewer')return response({error:'Solo el primer revisor técnico puede corregir estándar y red.'},403);
@@ -239,7 +229,7 @@ export async function POST(request:Request){
   return response({url:signed.data.signedUrl});
  }catch(e){
   const message=e instanceof Error?e.message:'Error de recepción.';
-  if(/Firma de acceso|wallet no está autorizada|autorización.*inválida|Falta una autorización|autorización del equipo no está firmada/i.test(message))return response({error:message},403);
+  if(/Firma de acceso|sesión|origen administrativo|wallet no está autorizada|autorización.*inválida|Falta una autorización|autorización del equipo no está firmada/i.test(message))return response({error:message},403);
   if(/La recepción privada aún no/.test(message))return response({error:message},503);
   if(/inválid|Completá|supera|demasiado/.test(message))return response({error:message},400);
   console.error('Submission API error',e);

@@ -1,7 +1,8 @@
 import {createHash} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import {getAddress,isAddress,keccak256,toUtf8Bytes,verifyMessage} from 'ethers';
+import {getAddress,keccak256,toUtf8Bytes,verifyMessage} from 'ethers';
+import {requireStaffSession} from './staffSession.js';
 import type {TokenProject} from '../src/types';
 
 export const OWNER=getAddress('0x521125be95c5679539aB07582F55F0040975A047');
@@ -23,18 +24,10 @@ export const db=()=>{
  if(!url||!key)throw new Error('Gobernanza compartida no configurada.');
  return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}});
 };
-const staffMessage=(origin:string,action:string,time:string,nonce:string,wallet:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${time}\nNonce: ${nonce}\nWallet: ${wallet}`;
-export function staff(request:Request,action:string){
- const h=request.headers,address=h.get('x-tokvant-wallet')||'';
- if(!isAddress(address))throw new Error('Firma de acceso inválida.');
- const wallet=getAddress(address),time=h.get('x-tokvant-time')||'',nonce=h.get('x-tokvant-nonce')||'',sig=h.get('x-tokvant-signature')||'',origin=new URL(request.url).origin;
- if(!uuid(nonce)||!Number.isFinite(Date.parse(time))||Math.abs(Date.now()-Date.parse(time))>120000||verifyMessage(staffMessage(origin,action,time,nonce,wallet),sig)!==wallet)throw new Error('Firma de acceso inválida.');
- if(wallet===OWNER)return {wallet,role:'owner'};
- let grant;try{grant=JSON.parse(h.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización del equipo inválida.');}
- if(!grant||getAddress(grant.address)!==wallet||!['administrator','factory','reviewer','compliance','board','accounting'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(FIXED[grant.role]&&FIXED[grant.role]!==wallet))throw new Error('Autorización del equipo inválida.');
- const message=`TOKVANT staff access\nOrigin: ${origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
- if(verifyMessage(message,grant.signature)!==OWNER)throw new Error('Autorización del equipo inválida.');
- return {wallet,role:grant.role as string};
+export async function staff(request:Request,_action:string){
+ const actor=await requireStaffSession(request);
+ if(!['owner','administrator','factory','reviewer','compliance','board','accounting'].includes(actor.role))throw new Error('La sesión no tiene acceso a gobernanza.');
+ return actor;
 }
 const stable=(value:unknown):unknown=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([,v])=>v!==undefined).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>[k,stable(v)])):value;
 export const projectHash=(p:TokenProject)=>keccak256(toUtf8Bytes(JSON.stringify(stable({id:p.id,title:p.title,organizationName:p.organizationName,assetType:p.assetType,assetTypeOther:p.assetTypeOther,assetDescription:p.assetDescription,jurisdiction:p.jurisdiction,standard:p.standard,network:p.network,parameters:p.parameters,documents:p.documents.map(d=>({id:d.id,sha256:d.sha256,fileName:d.fileName})),clientWalletAddress:p.clientWalletAddress,clientWalletNetwork:p.clientWalletNetwork,proposedRecipients:p.proposedRecipients}))));
@@ -58,7 +51,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>160000)return reply({error:'Solicitud demasiado grande.'},413);
   const body=await request.json();const action=body?.action as Action;
   if(!ACTIONS.includes(action))return reply({error:'Operación desconocida.'},400);
-  const actor=staff(request,action),client=db();
+  const actor=await staff(request,action),client=db();
   if(action==='list'){
    const row=await submission(client,body.submissionId);
    const reviews=await latestReviews(client,row.id);
@@ -140,7 +133,7 @@ export async function POST(request:Request){
   if(saved.error)throw saved.error;return reply({id:saved.data.id,status:'authorized'});
  }catch(e){
   const message=e instanceof Error?e.message:'Error de gobernanza.';
-  if(/firma|autorización|solo (contaduría|la administración)/i.test(message))return reply({error:message},403);
+  if(/firma|autorización|sesión|origen administrativo|solo (contaduría|la administración)/i.test(message))return reply({error:message},403);
   if(/inválid|faltan|falta|no encontrado|no coincide/i.test(message))return reply({error:message},400);
   console.error('Governance API error',e);return reply({error:'No se pudo completar la operación.'},500);
  }

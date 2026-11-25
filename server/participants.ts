@@ -1,6 +1,7 @@
 import {createClient} from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import {getAddress,isAddress,verifyMessage} from 'ethers';
+import {getAddress,isAddress} from 'ethers';
+import {requireStaffSession} from './staffSession.js';
 
 const OWNER=getAddress('0x521125be95c5679539aB07582F55F0040975A047');
 const COMPLIANCE=getAddress('0xeFcA0FAFd073A7B5EBb044A83fA449A79835FB24');
@@ -14,24 +15,13 @@ const db=()=>{
  if(!url||!key)throw new Error('Registro compartido no configurado.');
  return createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},realtime:{transport:WebSocket as never}});
 };
-function actor(request:Request,action:Action){
- const h=request.headers,address=h.get('x-tokvant-wallet')||'',time=h.get('x-tokvant-time')||'',nonce=h.get('x-tokvant-nonce')||'',signature=h.get('x-tokvant-signature')||'',origin=new URL(request.url).origin;
- if(!isAddress(address)||!/^[-0-9a-f]{36}$/i.test(nonce)||!Number.isFinite(Date.parse(time))||Math.abs(Date.now()-Date.parse(time))>120000)throw new Error('Firma de acceso inválida.');
- const wallet=getAddress(address),message=`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${time}\nNonce: ${nonce}\nWallet: ${wallet}`;
- if(verifyMessage(message,signature)!==wallet)throw new Error('Firma de acceso inválida.');
- if(wallet===OWNER)return {wallet,role:'owner'};
- let grant;try{grant=JSON.parse(h.get('x-tokvant-grant')||'null');}catch{throw new Error('Autorización inválida.');}
- if(!grant||!isAddress(grant.address)||getAddress(grant.address)!==wallet||!['token_operator','compliance'].includes(grant.role)||!Number.isSafeInteger(grant.expires)||grant.expires<=Date.now()||(grant.role==='compliance'&&wallet!==COMPLIANCE))throw new Error('Autorización inválida.');
- const grantMessage=`TOKVANT staff access\nOrigin: ${origin}\nWallet: ${wallet}\nRole: ${grant.role}\nExpires: ${grant.expires}`;
- if(verifyMessage(grantMessage,String(grant.signature||''))!==OWNER)throw new Error('Autorización inválida.');
- return {wallet,role:grant.role as string};
-}
 export async function POST(request:Request){
  try{
   if(Number(request.headers.get('content-length')||0)>5000)return reply({error:'Solicitud demasiado grande.'},413);
   const body=await request.json(),action=body?.action as Action;
   if(!actions.includes(action))return reply({error:'Operación desconocida.'},400);
-  const user=actor(request,action),client=db();
+  const user=await requireStaffSession(request),client=db();
+  if(!['owner','token_operator','compliance'].includes(user.role)||(user.role==='compliance'&&user.wallet!==COMPLIANCE))return reply({error:'Autorización inválida.'},403);
   if(!isAddress(body.tokenAddress))return reply({error:'Token inválido.'},400);
   const tokenAddress=lower(body.tokenAddress);
   if(action==='register'){
@@ -66,7 +56,7 @@ export async function POST(request:Request){
   return reply({id:saved.data.id});
  }catch(error){
   const message=error instanceof Error?error.message:'Error del registro.';
-  if(/firma|autorización|administra|propietaria/i.test(message))return reply({error:message},403);
+  if(/firma|autorización|sesión|origen administrativo|administra|propietaria/i.test(message))return reply({error:message},403);
   console.error('Participants API error',error);return reply({error:'No se pudo completar el registro.'},500);
  }
 }

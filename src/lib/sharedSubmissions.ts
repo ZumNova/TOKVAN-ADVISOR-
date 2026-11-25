@@ -1,7 +1,5 @@
-import {getAddress,hexlify,toUtf8Bytes} from 'ethers';
 import type {TokenProject,ProjectDocument} from '../types';
 import {getClientDocument,downloadClientFile,sha256} from './clientDocuments';
-import {OWNER,readGrants} from './staffAccess';
 import {projectReviewHash} from './reviewSignatures';
 
 type Receipt={id:string;requestId:string;receivedAt:string};
@@ -39,18 +37,9 @@ export async function submitClientProject(project:TokenProject,onProgress?:(text
  localStorage.setItem(RECEIPT_PREFIX+project.id,JSON.stringify(receipt));
  return receipt;
 }
-const staffMessage=(origin:string,action:string,timestamp:string,nonce:string,address:string)=>`TOKVANT expediente access\nOrigin: ${origin}\nAction: ${action}\nTimestamp: ${timestamp}\nNonce: ${nonce}\nWallet: ${address}`;
 export async function staffRequest(action:string,account:string,body:Record<string,unknown>={},endpoint=api){
- const wallet=(window as Window & {ethereum?:{request:(args:{method:string;params?:unknown[]})=>Promise<unknown>}}).ethereum;
- if(!wallet)throw new Error('Conectá la wallet del equipo.');
- const accounts=await wallet.request({method:'eth_accounts'}) as string[];
- const address=getAddress(account);
- if(!accounts?.[0]||getAddress(accounts[0])!==address)throw new Error('Seleccioná la wallet con la que ingresaste al equipo.');
- const timestamp=new Date().toISOString(),nonce=crypto.randomUUID();
- const signature=await wallet.request({method:'personal_sign',params:[hexlify(toUtf8Bytes(staffMessage(location.origin,action,timestamp,nonce,address))),address]}) as string;
- const grant=address===getAddress(OWNER)?null:readGrants().filter(g=>getAddress(g.address)===address).at(-1);
- if(address!==getAddress(OWNER)&&!grant)throw new Error('Importá primero la autorización firmada por la 047.');
- return parse(await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-tokvant-wallet':address,'x-tokvant-time':timestamp,'x-tokvant-nonce':nonce,'x-tokvant-signature':signature,...(grant?{'x-tokvant-grant':JSON.stringify(grant)}:{})},body:JSON.stringify({action,...body})}));
+ if(!account)throw new Error('Iniciá una sesión administrativa.');
+ return parse(await fetch(endpoint,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})}));
 }
 export async function listSharedSubmissions(account:string):Promise<TokenProject[]>{
  const result=await staffRequest('list',account);

@@ -21,7 +21,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
   const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;factoryDeploymentHash?:string};
   if(body.action!=='list'&&body.action!=='link')return reply({error:'Operación desconocida.'},400);
-  const actor=staff(request,body.action),client=db(),row=await submission(client,body.submissionId);
+  const actor=await staff(request,body.action),client=db(),row=await submission(client,body.submissionId);
   if(row.project.standard!=='ERC-20'||row.project.network!=='sepolia')throw new Error('El expediente debe ser ERC-20 en Sepolia.');
   const existing=await client.from('submission_issuances').select('*').eq('submission_id',row.id).maybeSingle();
   if(existing.error)throw existing.error;
@@ -88,7 +88,7 @@ export async function POST(request:Request){
  }catch(e){
   const message=e instanceof Error?e.message:'No se pudo vincular la emisión.';
   if(/permission|relation .* does not exist|schema cache|Could not find the table/i.test(message))return reply({error:'Falta aplicar la migración de emisiones en Supabase.'},503);
-  if(/firma|autorizad|operador/i.test(message))return reply({error:message},403);
+  if(/firma|sesión|origen administrativo|autorizad|operador/i.test(message))return reply({error:message},403);
   if(/inválid|faltan|falta|no coincide|corresponde|ya tiene|no es una|no se encontró|esperá/i.test(message))return reply({error:message},400);
   console.error('Issuance API error',e);return reply({error:'No se pudo verificar o guardar la emisión.'},500);
  }

@@ -8,7 +8,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
   const body=await request.json();
   if(body?.action!=='read'||!uuid(body.submissionId))return reply({error:'Expediente inválido.'},400);
-  const actor=staff(request,'read');
+  const actor=await staff(request,'read');
   if(actor.wallet!==OWNER)return reply({error:'Solo la wallet 047 puede consultar la ficha integral.'},403);
   const client=db();
   const row=await client.from('client_submissions').select('id,request_id,status,received_at,project').eq('id',body.submissionId).eq('status','received').single();
@@ -37,7 +37,7 @@ export async function POST(request:Request){
   });
  }catch(e){
   const message=e instanceof Error?e.message:'Error de consulta.';
-  if(/firma|autorización/i.test(message))return reply({error:'Firma de acceso inválida.'},403);
+  if(/firma|autorización|sesión|origen administrativo/i.test(message))return reply({error:message},403);
   console.error('Dossier API error',e);
   return reply({error:'No se pudo cargar la ficha integral. Intentá nuevamente.'},500);
  }

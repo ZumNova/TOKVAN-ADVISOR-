@@ -30,7 +30,7 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>10000)return reply({error:'Solicitud demasiado grande.'},413);
   const body=await request.json() as {action?:string;submissionId?:string;transactionHash?:string;factoryDeploymentHash?:string;acknowledgeAdminDifference?:boolean};
   if(body.action!=='link'||!/^0x[0-9a-f]{64}$/i.test(body.transactionHash||''))return reply({error:'Hash de creación inválido.'},400);
-  const actor=staff(request,'link');
+  const actor=await staff(request,'link');
   if(actor.wallet!==OWNER)return reply({error:'Solo la 047 puede vincular el token al expediente.'},403);
   const client=db(),row=await submission(client,body.submissionId);
   if(row.project.standard!=='ERC-3643'||row.project.network!=='sepolia')throw new Error('El expediente debe ser ERC-3643 en Sepolia.');
@@ -135,7 +135,7 @@ export async function POST(request:Request){
  }catch(e){
   const message=e instanceof Error?e.message:'No se pudo vincular el token.';
   if(/relation .* does not exist|schema cache|Could not find the table/i.test(message))return reply({error:'Falta aplicar la migración de emisiones ERC-3643 en Supabase.'},503);
-  if(/firma|autorización del equipo|Solo la 047/i.test(message))return reply({error:message},403);
+  if(/firma|sesión|origen administrativo|autorización del equipo|Solo la 047/i.test(message))return reply({error:message},403);
   if(/inválid|faltan|falta|no coincide|corresponde|ya tiene|no es una|no se encontró|esperá/i.test(message))return reply({error:message},400);
   console.error('Regulated issuance link error',e);
   return reply({error:'No se pudo verificar o guardar el token.'},500);

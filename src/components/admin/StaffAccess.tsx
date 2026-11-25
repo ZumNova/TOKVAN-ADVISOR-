@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getAddress, toUtf8Bytes, hexlify, verifyMessage } from 'ethers';
+import { getAddress, toUtf8Bytes, hexlify } from 'ethers';
 import { OWNER, roles, grantMessage, readGrants, saveGrant, type StaffRole, type Grant } from '../../lib/staffAccess';
 import deployment from '../../../deployment/sepolia-participants.json';
 
@@ -23,13 +23,15 @@ export default function StaffAccess({ account, role, onLogin, onLogout }: Props)
     const accounts = await injected.request({ method: 'eth_requestAccounts' }) as string[];
     if (!accounts?.[0]) throw new Error('La wallet no devolvió una cuenta.');
     const address = getAddress(accounts[0]);
-    const nonce = crypto.randomUUID();
-    const message = `TOKVANT acceso administrativo\nOrigen: ${location.origin}\nWallet: ${address}\nSesión: ${nonce}`;
-    const signature = await injected.request({ method: 'personal_sign', params: [hexlify(toUtf8Bytes(message)), address] }) as string;
-    if (verifyMessage(message, signature) !== address) throw new Error('Firma inválida.');
+    const grant=address===getAddress(OWNER)?null:readGrants().filter(g=>getAddress(g.address)===address).at(-1);
+    const challengeResponse=await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'nonce',address})});
+    const challenge=await challengeResponse.json();if(!challengeResponse.ok)throw new Error(challenge.error||'No se pudo iniciar SIWE.');
+    const signature = await injected.request({ method: 'personal_sign', params: [hexlify(toUtf8Bytes(challenge.message)), address] }) as string;
+    const verifiedResponse=await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verify',challengeId:challenge.challengeId,nonce:challenge.nonce,signature,grant})});
+    const verified=await verifiedResponse.json();if(!verifiedResponse.ok)throw new Error(verified.error||'No se pudo abrir la sesión administrativa.');
     const currentAccounts = await injected.request({ method: 'eth_accounts' }) as string[];
     if (!currentAccounts?.[0] || getAddress(currentAccounts[0]) !== address) throw new Error('La cuenta cambió durante la firma. Volvé a conectar la wallet correcta.');
-    const assigned = address === getAddress(OWNER) ? 'owner' : readGrants().filter(g => getAddress(g.address) === address).at(-1)?.role;
+    const assigned = verified.role as StaffRole|'owner';
     if (!assigned) throw new Error('Esta wallet no tiene un rol TOKVANT asignado en este navegador.');
     onLogin(address, assigned);
   });
@@ -59,7 +61,7 @@ export default function StaffAccess({ account, role, onLogin, onLogout }: Props)
     {error && <p role="alert" className="mt-5 rounded-lg border border-red-500 p-3 text-sm text-red-200">{error}</p>}
     {notice && <p role="status" className="mt-5 rounded-lg border border-emerald-500 p-3 text-sm text-emerald-200">{notice}</p>}
     <div className="mt-6 flex flex-wrap gap-3">
-      {!role ? <button disabled={busy} onClick={connect} className="rounded-lg bg-[#567EFF] px-5 py-3 font-semibold disabled:opacity-50">Conectar y firmar acceso</button> : <><span className="rounded-lg border border-[#39547C] px-4 py-3 text-sm">{role === 'owner' ? 'Propietaria' : role} · {account}</span><button onClick={onLogout} className="rounded-lg border border-[#39547C] px-4 py-3">Cerrar sesión</button></>}
+      {!role ? <button disabled={busy} onClick={connect} className="rounded-lg bg-[#567EFF] px-5 py-3 font-semibold disabled:opacity-50">Conectar y firmar acceso SIWE</button> : <><span className="rounded-lg border border-[#39547C] px-4 py-3 text-sm">{role === 'owner' ? 'Propietaria' : role} · {account}</span><button onClick={()=>void run(async()=>{await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});onLogout();})} className="rounded-lg border border-[#39547C] px-4 py-3">Cerrar sesión</button></>}
     </div>
     {role === 'owner' && <div className="mt-10 rounded-xl border border-[#39547C] p-5">
       <h2 className="text-xl font-semibold">Asignar un rol por 30 días</h2>
