@@ -6,6 +6,9 @@ import {db,OWNER,projectHash,reply,staff,submission} from './governance.js';
 
 const factory=new Interface(artifact.abi);
 const factoryV2=new Interface(factoryV2Artifact.abi);
+const historicalFactoryV2Deployments=new Map([
+ ['0x8387362e381058447ec582f87bbbbf47a7c3008eecbe37530e484268ec3b82b8','0x1e8C3D72a4c8f47A17F59149d9318433Bc27504C'],
+]);
 const tuple='tuple(string name,string symbol,uint8 decimals,uint256 initialSupply,uint256 maxSupply,address admin,address treasury,bool mintable,bool burnable,bool pausable)';
 type RpcReceipt={status:string;blockNumber:string;contractAddress:string|null;logs:{address:string;topics:string[];data:string}[]};
 type RpcTransaction={to:string|null;from:string;input:string;value:string};
@@ -50,7 +53,10 @@ export async function POST(request:Request){
     rpc('eth_getTransactionByHash',[body.factoryDeploymentHash]) as Promise<RpcTransaction|null>,
    ]);
    const expected=(await new ContractFactory(factoryV2Artifact.abi,factoryV2Artifact.bytecode).getDeployTransaction(OWNER)).data!;
-   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||getAddress(factoryReceipt.contractAddress)!==factoryAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||factoryTx.input.toLowerCase()!==expected.toLowerCase())throw new Error('El factory v2 no coincide con el despliegue verificado de la 047.');
+   const deploymentHash=body.factoryDeploymentHash!.toLowerCase();
+   const historicalAddress=historicalFactoryV2Deployments.get(deploymentHash);
+   const recognizedDeployment=factoryTx?.input.toLowerCase()===expected.toLowerCase()||historicalAddress!==undefined&&getAddress(historicalAddress)===factoryAddress;
+   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||getAddress(factoryReceipt.contractAddress)!==factoryAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||BigInt(factoryTx.value)!==0n||!recognizedDeployment)throw new Error('El factory v2 no coincide con el despliegue verificado de la 047.');
    const approvals=await client.from('submission_operator_authorizations').select('project_hash,payment_id,decision').eq('submission_id',row.id).order('created_at',{ascending:false});
    const payments=await client.from('submission_payments').select('id,status').eq('submission_id',row.id);
    if(approvals.error||payments.error)throw approvals.error||payments.error;
