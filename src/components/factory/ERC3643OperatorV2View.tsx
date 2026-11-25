@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {formatUnits,getAddress,id,Interface,isAddress,keccak256,parseUnits,toUtf8Bytes,ZeroAddress} from 'ethers';
+import {AbiCoder,formatUnits,getAddress,id,Interface,isAddress,keccak256,parseUnits,toUtf8Bytes,ZeroAddress} from 'ethers';
 import factoryArtifact from '../../generated/erc3643FactoryV2Artifact.json';
 import claimArtifact from '../../generated/erc3643ClaimV2Artifact.json';
 import complianceArtifact from '../../generated/erc3643ComplianceV2Artifact.json';
@@ -11,12 +11,14 @@ const claimAbi=new Interface(claimArtifact.abi);
 const complianceAbi=new Interface(complianceArtifact.abi);
 const tokenAbi=new Interface(suiteArtifact.implementations[0].abi);
 const registryAbi=new Interface(suiteArtifact.implementations[1].abi);
+const identityAbi=new Interface(['function keyHasPurpose(bytes32 key,uint256 purpose) view returns(bool)']);
 const factoryDefault='0x8cC92c109911514738555c144671d5E1B5307503';
 const field='mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-slate-900';
 const button='rounded-lg bg-blue-600 px-3 py-2 text-white disabled:opacity-50';
 type Context={account:string;isOwner:boolean;factory:string;token:string;claim:string;compliance:string;registry:string;decimals:number};
 type RecipientState={verified:boolean;countryAllowed:boolean;country:number;balance:string;supply:string;cap:string;identity:string;expiresAt:number;revoked:boolean};
 type FreezeState={frozen:boolean;amount:string;balance:string};
+type RecoveryState={lostIdentity:string;newIdentity:string;balance:string;frozen:boolean;frozenAmount:string;country:number;authorized:boolean};
 
 async function connected(wallet:WalletProvider){
  const chain=await wallet.request({method:'eth_chainId'});
@@ -55,6 +57,8 @@ export default function ERC3643OperatorV2View(){
  const [paused,setPaused]=useState<boolean|null>(null);
  const [holder,setHolder]=useState(''),[freezeAmount,setFreezeAmount]=useState(''),[freezeState,setFreezeState]=useState<FreezeState|null>(null);
  const [delegate,setDelegate]=useState(''),[delegateIsAgent,setDelegateIsAgent]=useState<boolean|null>(null);
+ const [lostWallet,setLostWallet]=useState(''),[newWallet,setNewWallet]=useState(''),[recoveryReference,setRecoveryReference]=useState('');
+ const [recoveryReviewed,setRecoveryReviewed]=useState(false),[recoveryState,setRecoveryState]=useState<RecoveryState|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[lastHash,setLastHash]=useState('');
  const run=async(action:()=>Promise<void>)=>{if(busy)return;setBusy(true);setError('');setMessage('');try{await action();}catch(e){setError(walletError(e));}finally{setBusy(false);}};
  const load=()=>run(async()=>{
@@ -197,6 +201,38 @@ export default function ERC3643OperatorV2View(){
   const hash=await send(injectedWallet(),context,context.token,tokenAbi.encodeFunctionData('mint',[getAddress(recipient),amount]));
   setLastHash(hash);setRecipientState(null);setMessage('Emisión enviada. Esperá su confirmación y consultá saldo y suministro.');
  });
+ const recoverySnapshot=async(wallet:WalletProvider,current:Context,lost:string,next:string):Promise<RecoveryState>=>{
+  const [lostIdentityResult,newIdentityResult,balance,frozen,frozenAmount,country]=await Promise.all([
+   read(wallet,current.registry,registryAbi,'identity',[lost]),read(wallet,current.registry,registryAbi,'identity',[next]),
+   read(wallet,current.token,tokenAbi,'balanceOf',[lost]),read(wallet,current.token,tokenAbi,'isFrozen',[lost]),
+   read(wallet,current.token,tokenAbi,'getFrozenTokens',[lost]),read(wallet,current.registry,registryAbi,'investorCountry',[lost]),
+  ]);
+  const lostIdentity=getAddress(lostIdentityResult[0]),newIdentity=getAddress(newIdentityResult[0]);
+  const authorized=lostIdentity===ZeroAddress?false:Boolean((await read(wallet,lostIdentity,identityAbi,'keyHasPurpose',[keccak256(AbiCoder.defaultAbiCoder().encode(['address'],[next])),1]))[0]);
+  return {lostIdentity,newIdentity,balance:formatUnits(balance[0],current.decimals),frozen:Boolean(frozen[0]),frozenAmount:formatUnits(frozenAmount[0],current.decimals),country:Number(country[0]),authorized};
+ };
+ const inspectRecovery=()=>run(async()=>{
+  if(!context||!isAddress(lostWallet)||!isAddress(newWallet))throw new Error('Ingresá direcciones válidas para la wallet perdida y la nueva.');
+  const lost=getAddress(lostWallet),next=getAddress(newWallet);
+  if(lost===next)throw new Error('La wallet nueva debe ser diferente de la wallet perdida.');
+  const wallet=injectedWallet();
+  if(await connected(wallet)!==context.account)throw new Error('Conectá de nuevo la wallet propietaria o agente.');
+  setRecoveryState(await recoverySnapshot(wallet,context,lost,next));setMessage('Datos de recuperación consultados desde Sepolia.');
+ });
+ const authorizeRecovery=()=>run(async()=>{
+  if(!context?.isOwner||!recoveryState||!recoveryReviewed)throw new Error('Solo la propietaria puede autorizar una recuperación revisada.');
+  if(recoveryState.lostIdentity===ZeroAddress||recoveryState.newIdentity!==ZeroAddress||Number(recoveryState.balance)<=0)throw new Error('La wallet perdida debe tener identidad y saldo; la wallet nueva no debe tener identidad registrada.');
+  if(recoveryReference.trim().length<4||recoveryReference.trim().length>120)throw new Error('Ingresá una referencia interna de 4 a 120 caracteres, sin datos personales.');
+  const evidence=keccak256(toUtf8Bytes(`TOKVANT-3643-RECOVERY:${recoveryReference.trim()}`));
+  const hash=await send(injectedWallet(),context,context.claim,claimAbi.encodeFunctionData('authorizeRecovery',[recoveryState.lostIdentity,getAddress(newWallet),evidence]));
+  setLastHash(hash);setRecoveryState(await recoverySnapshot(injectedWallet(),context,getAddress(lostWallet),getAddress(newWallet)));setMessage('Recuperación autorizada y confirmada en Sepolia. Revisá los datos antes de ejecutarla.');
+ });
+ const executeRecovery=()=>run(async()=>{
+  if(!context||!recoveryState?.authorized||recoveryState.lostIdentity===ZeroAddress||recoveryState.newIdentity!==ZeroAddress||Number(recoveryState.balance)<=0)throw new Error('Primero consultá y autorizá una recuperación válida.');
+  if(!window.confirm(`Recuperar ${recoveryState.balance} token(s)\n\nDesde: ${getAddress(lostWallet)}\nHacia: ${getAddress(newWallet)}\n\nLa wallet perdida dejará de estar vinculada a esta identidad.`))return;
+  const hash=await send(injectedWallet(),context,context.token,tokenAbi.encodeFunctionData('recoveryAddress',[getAddress(lostWallet),getAddress(newWallet),recoveryState.lostIdentity]));
+  setLastHash(hash);setRecoveryState(await recoverySnapshot(injectedWallet(),context,getAddress(lostWallet),getAddress(newWallet)));setMessage('Recuperación confirmada. El saldo y la identidad fueron trasladados a la wallet nueva.');
+ });
  return <div className="space-y-5 rounded-xl bg-white p-5 text-slate-900">
   <h2 className="text-2xl font-bold">Operar token ERC-3643 · Sepolia</h2>
   <p>La empresa conserva la documentación y decide a quién habilitar. Esta suite usa acreditaciones ficticias de prueba; no subas datos personales ni comprobantes aquí.</p>
@@ -250,6 +286,14 @@ export default function ERC3643OperatorV2View(){
    <button type="button" className={button} disabled={busy||!isAddress(delegate)} onClick={inspectDelegate}>Consultar permiso de agente</button>
    {delegateIsAgent!==null&&<p className={`text-sm font-semibold ${delegateIsAgent?'text-green-800':'text-amber-800'}`}>Agente del token: {delegateIsAgent?'habilitado':'sin permiso'}</p>}
    <button type="button" className={button} disabled={busy||delegateIsAgent===null||!isAddress(delegate)||getAddress(delegate)===context.account} onClick={changeDelegate}>{delegateIsAgent?'Simular y revocar agente':'Simular y delegar agente'}</button>
+  </section>}
+  {context&&<section className="space-y-3 rounded-xl border p-4"><h3 className="font-semibold">7. Recuperación de wallet</h3>
+   <p className="text-sm">Traslada la identidad, el saldo y los congelamientos desde una wallet perdida hacia una dirección nueva sin identidad registrada. No requiere una firma de la wallet perdida.</p>
+   <div className="grid gap-3 sm:grid-cols-2"><label className="block">Wallet perdida<input className={field} value={lostWallet} onChange={e=>{setLostWallet(e.target.value);setRecoveryState(null);}} placeholder="0x…"/></label><label className="block">Wallet nueva y sin acreditar<input className={field} value={newWallet} onChange={e=>{setNewWallet(e.target.value);setRecoveryState(null);}} placeholder="0x…"/></label></div>
+   <button type="button" className={button} disabled={busy||!isAddress(lostWallet)||!isAddress(newWallet)} onClick={inspectRecovery}>Consultar recuperación</button>
+   {recoveryState&&<div className="flex flex-wrap gap-2 text-sm" aria-live="polite"><span className={`rounded-lg border px-3 py-2 font-semibold ${recoveryState.lostIdentity!==ZeroAddress?'border-green-300 bg-green-50 text-green-800':'border-amber-300 bg-amber-50 text-amber-900'}`}>Wallet perdida: {recoveryState.lostIdentity!==ZeroAddress?'identidad encontrada':'sin identidad'}</span><span className={`rounded-lg border px-3 py-2 font-semibold ${recoveryState.newIdentity===ZeroAddress?'border-green-300 bg-green-50 text-green-800':'border-red-300 bg-red-50 text-red-800'}`}>Wallet nueva: {recoveryState.newIdentity===ZeroAddress?'disponible':'ya tiene identidad'}</span><span className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900">Saldo a recuperar: {recoveryState.balance}</span><span className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-slate-800">País: {recoveryState.country||'sin registrar'}</span><span className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-slate-800">Congelamiento: {recoveryState.frozen?'wallet completa':recoveryState.frozenAmount!=='0'?`${recoveryState.frozenAmount} token(s)`:'ninguno'}</span><span className={`rounded-lg border px-3 py-2 font-semibold ${recoveryState.authorized?'border-green-300 bg-green-50 text-green-800':'border-amber-300 bg-amber-50 text-amber-900'}`}>Autorización: {recoveryState.authorized?'confirmada':'pendiente'}</span></div>}
+   {context.isOwner&&<><label className="block">Referencia interna sin nombres ni documentos<input className={field} value={recoveryReference} maxLength={120} onChange={e=>setRecoveryReference(e.target.value)} placeholder="Ej.: RECOVERY-HOTEL-001"/></label><label className="flex items-start gap-2"><input type="checkbox" checked={recoveryReviewed} onChange={e=>setRecoveryReviewed(e.target.checked)}/><span>Confirmo que la empresa verificó fuera de TOKVANT el cambio de wallet y conserva su respaldo.</span></label><button type="button" className={button} disabled={busy||!recoveryReviewed||!recoveryState||recoveryState.lostIdentity===ZeroAddress||recoveryState.newIdentity!==ZeroAddress||Number(recoveryState.balance)<=0||recoveryState.authorized} onClick={authorizeRecovery}>Autorizar recuperación</button></>}
+   <button type="button" className="rounded-lg bg-emerald-700 px-3 py-2 text-white disabled:opacity-50" disabled={busy||!recoveryState?.authorized||recoveryState.lostIdentity===ZeroAddress||recoveryState.newIdentity!==ZeroAddress||Number(recoveryState.balance)<=0} onClick={executeRecovery}>Simular y ejecutar recuperación</button>
   </section>}
   {lastHash&&<p className="break-all text-sm">Última transacción: <a className="text-blue-700 underline" target="_blank" rel="noreferrer" href={`https://sepolia.etherscan.io/tx/${lastHash}`}>{lastHash}</a></p>}
   {message&&<p role="status" className="text-green-700">{message}</p>}{error&&<p role="alert" className="text-red-700">{error}</p>}
