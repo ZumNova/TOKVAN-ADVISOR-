@@ -18,3 +18,7 @@ test('administrative cookie is short, HttpOnly, Secure and SameSite Strict',()=>
  const cookie=sessionCookie('a'.repeat(64),900);
  assert.match(cookie,/HttpOnly/);assert.match(cookie,/Secure/);assert.match(cookie,/SameSite=Strict/);assert.match(cookie,/Max-Age=900/);assert.match(clearSessionCookie(),/Max-Age=0/);
 });
+
+test('equivalent database timestamp formats represent the same SIWE instant',()=>{
+ assert.equal(Date.parse('2026-11-25T12:00:00.000Z'),Date.parse('2026-11-25T12:00:00+00:00'));
+});

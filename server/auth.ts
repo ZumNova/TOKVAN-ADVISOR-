@@ -25,13 +25,15 @@ export async function POST(request:Request){
    if(!isAddress(body.address))return reply({error:'Wallet inválida.'},400);
    const address=getAddress(body.address),nonce=randomBytes(12).toString('hex'),issuedAt=new Date(),expiresAt=new Date(issuedAt.getTime()+300000),id=randomUUID(),chainId=11155111;
    const saved=await client.from('staff_auth_challenges').insert({id,wallet:address.toLowerCase(),nonce_hash:sha(nonce),domain:origin.host,uri:origin.origin,chain_id:chainId,issued_at:issuedAt.toISOString(),expires_at:expiresAt.toISOString()});if(saved.error)throw saved.error;
-   return reply({challengeId:id,nonce,message:buildSiweMessage(origin.host,address,origin.origin,chainId,nonce,issuedAt.toISOString(),expiresAt.toISOString(),id)});
+   const issuedAtText=issuedAt.toISOString(),expiresAtText=expiresAt.toISOString();
+   return reply({challengeId:id,nonce,issuedAt:issuedAtText,expiresAt:expiresAtText,message:buildSiweMessage(origin.host,address,origin.origin,chainId,nonce,issuedAtText,expiresAtText,id)});
   }
   if(action==='verify'){
-   if(typeof body.challengeId!=='string'||typeof body.nonce!=='string'||typeof body.signature!=='string')return reply({error:'Firma SIWE incompleta.'},400);
+   if(typeof body.challengeId!=='string'||typeof body.nonce!=='string'||typeof body.signature!=='string'||typeof body.issuedAt!=='string'||typeof body.expiresAt!=='string')return reply({error:'Firma SIWE incompleta.'},400);
    const challenge=await client.from('staff_auth_challenges').select('*').eq('id',body.challengeId).maybeSingle();
    if(challenge.error||!challenge.data||challenge.data.consumed_at||Date.parse(challenge.data.expires_at)<=Date.now()||challenge.data.nonce_hash!==sha(body.nonce)||challenge.data.domain!==origin.host||challenge.data.uri!==origin.origin)return reply({error:'Desafío SIWE vencido o inválido.'},403);
-   const address=getAddress(challenge.data.wallet),message=buildSiweMessage(challenge.data.domain,address,challenge.data.uri,Number(challenge.data.chain_id),body.nonce,challenge.data.issued_at,challenge.data.expires_at,challenge.data.id);
+   if(Date.parse(body.issuedAt)!==Date.parse(challenge.data.issued_at)||Date.parse(body.expiresAt)!==Date.parse(challenge.data.expires_at))return reply({error:'Las fechas del desafío SIWE no coinciden.'},403);
+   const address=getAddress(challenge.data.wallet),message=buildSiweMessage(challenge.data.domain,address,challenge.data.uri,Number(challenge.data.chain_id),body.nonce,body.issuedAt,body.expiresAt,challenge.data.id);
    if(verifyMessage(message,body.signature)!==address)return reply({error:'Firma SIWE inválida.'},403);
    let role='owner',expiresAt=Date.now()+900000;
    if(address!==LEGACY_OWNER){const grant=validGrant(body.grant,address,origin.origin);if(!grant)return reply({error:'La wallet no tiene una autorización TOKVANT vigente.'},403);role=grant.role;expiresAt=Math.min(expiresAt,grant.expires);}

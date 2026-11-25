@@ -27,7 +27,7 @@ export default function StaffAccess({ account, role, onLogin, onLogout }: Props)
     const challengeResponse=await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'nonce',address})});
     const challenge=await challengeResponse.json();if(!challengeResponse.ok)throw new Error(challenge.error||'No se pudo iniciar SIWE.');
     const signature = await injected.request({ method: 'personal_sign', params: [hexlify(toUtf8Bytes(challenge.message)), address] }) as string;
-    const verifiedResponse=await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verify',challengeId:challenge.challengeId,nonce:challenge.nonce,signature,grant})});
+    const verifiedResponse=await fetch('/api/auth',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verify',challengeId:challenge.challengeId,nonce:challenge.nonce,issuedAt:challenge.issuedAt,expiresAt:challenge.expiresAt,signature,grant})});
     const verified=await verifiedResponse.json();if(!verifiedResponse.ok)throw new Error(verified.error||'No se pudo abrir la sesión administrativa.');
     const currentAccounts = await injected.request({ method: 'eth_accounts' }) as string[];
     if (!currentAccounts?.[0] || getAddress(currentAccounts[0]) !== address) throw new Error('La cuenta cambió durante la firma. Volvé a conectar la wallet correcta.');
