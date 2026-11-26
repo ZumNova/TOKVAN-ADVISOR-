@@ -260,6 +260,9 @@ export const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
               ))}
             </div>
           )}
+          <p className="rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-xs leading-relaxed text-amber-100">
+            <strong>Seguridad de documentos:</strong> Los adjuntos fueron validados por formato, tamaño e integridad, pero no sustituyen un análisis antimalware. Antes de abrirlos, analizalos con la protección local y mantené activada la Vista protegida.
+          </p>
         </div>
 
         {/* Modal Actions */}

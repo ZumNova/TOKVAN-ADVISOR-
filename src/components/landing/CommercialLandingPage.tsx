@@ -788,11 +788,6 @@ export const CommercialLandingPage: React.FC<
       ))}
     </div>
 
-    <p className="mt-7 text-xs leading-relaxed text-[#AABBD4]">
-      Cargos y perfiles sujetos a confirmación
-      y aprobación por TOKVANT antes de su publicación.
-    </p>
-
   </div>
 </section>
 
