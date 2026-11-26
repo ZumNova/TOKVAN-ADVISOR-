@@ -7,5 +7,16 @@
     "api/nft-media.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        }
+      ]
+    }
+  ]
 }
