@@ -9,6 +9,7 @@ type UseCase = {
   idea: string;
   question: string;
   possibleStandard: string;
+  note?: string;
 };
 
 const cases: UseCase[] = [
@@ -22,6 +23,7 @@ const cases: UseCase[] = [
   { id: 'logistica', icon: '🚚', category: 'Logística', title: 'Vehículos y maquinaria', idea: 'Identificar cada camión o máquina como una unidad singular.', question: '¿Quién es titular del bien y cómo se documenta su uso?', possibleStandard: 'ERC-721' },
   { id: 'creadores', icon: '🎵', category: 'Creadores', title: 'Obras y licencias', idea: 'Explorar una obra, licencia o derecho económico documentado.', question: '¿Qué se licencia y quién administra los cobros?', possibleStandard: 'Por definir' },
   { id: 'tesoreria', icon: '🏛️', category: 'Tesorería', title: 'Instrumentos financieros', idea: 'Estudiar una estructura vinculada con instrumentos de corto plazo.', question: '¿Quién custodia el respaldo y cuáles son las condiciones de salida?', possibleStandard: 'ERC-3643' },
+  { id: 'utilidad-infraestructura', icon: '⚙️', category: 'Utilidad e infraestructura', title: 'Derechos de uso y acceso a infraestructura', idea: 'Explorá cómo representar digitalmente beneficios, consumos, accesos o derechos de uso vinculados a un servicio o infraestructura. Por ejemplo: unidades de consumo, pases, capacidad disponible o acceso durante un período determinado.', question: '¿Qué derecho concreto recibe el titular, cómo se utiliza, durante cuánto tiempo y quién verifica su cumplimiento?', possibleStandard: 'ERC-20, ERC-1155 o ERC-4907, según el modelo', note: 'La selección del estándar es orientativa. Si las unidades son iguales e intercambiables, evaluar ERC-20; si existen distintas clases de beneficios o accesos, ERC-1155; si el uso de un activo es temporal, evaluar ERC-4907. Definir también si el derecho se puede transferir, consumir o vencer.' },
 ];
 
 export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLeadModal?: () => void; compact?: boolean }) {
@@ -59,7 +61,7 @@ export function UseCasesStrip({ onOpenLeadModal, compact = false }: { onOpenLead
             </div>
             <p className="mt-4 text-sm leading-relaxed text-[#D9E6F6]">{selected.idea}</p>
             <p className="mt-3 text-sm text-[#E8C879]"><strong>Para empezar:</strong> {selected.question}</p>
-            <p className="mt-3 text-xs text-[#AFC2DC]">El estándar y los derechos se definen al revisar el expediente. Podés contar tu idea aunque todavía no tengas todas las respuestas.</p>
+            <p className="mt-3 text-xs text-[#AFC2DC]">{selected.note ?? 'El estándar y los derechos se definen al revisar el expediente. Podés contar tu idea aunque todavía no tengas todas las respuestas.'}</p>
             {!compact && onOpenLeadModal && (
               <button type="button" onClick={onOpenLeadModal} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#567EFF] px-5 py-3 text-sm font-semibold text-white hover:bg-[#4169E1]">
                 Contar mi idea <ArrowRight size={16} />
