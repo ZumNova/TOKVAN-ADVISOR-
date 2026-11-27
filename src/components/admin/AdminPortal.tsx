@@ -22,15 +22,26 @@ interface AdminPortalProps {
   organizations: OrganizationTenant[];
   leads: LeadSubmission[];
   onNavigate: (view: string) => void;
+  staffAccount: string | null;
 }
 
 export const AdminPortal: React.FC<AdminPortalProps> = ({
   organizations,
   leads,
   onNavigate,
+  staffAccount,
 }) => {
   const [activeTab, setActiveTab] = useState<'leads' | 'templates' | 'organizations' | 'networks' | 'security'>('leads');
   const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(AUDITED_TEMPLATES[0]);
+  const [ownerControl,setOwnerControl]=useState<{suspended:boolean;legacyOwner:string;controller:string;updatedAt?:string|null}|null>(null);
+  const [controlBusy,setControlBusy]=useState(false),[controlError,setControlError]=useState('');
+  const controlWallet='0x15fb64069a917FFE10c3c3211209e4E2B54eBD47';
+  const controlRequest=async(action:'status'|'set',suspended?:boolean)=>{
+    if(controlBusy)return;setControlBusy(true);setControlError('');
+    try{const response=await fetch('/api/owner-control',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,suspended})});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo consultar el control institucional.');setOwnerControl({suspended:Boolean(result.suspended),legacyOwner:result.legacyOwner,controller:result.controller,updatedAt:result.updatedAt||result.updated_at});}
+    catch(error){setControlError(error instanceof Error?error.message:'No se pudo consultar el control institucional.');}
+    finally{setControlBusy(false);}
+  };
 
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
@@ -348,6 +359,12 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <span className="text-[#16A34A] font-semibold">Cumple</span>
             </div>
           </div>
+          {staffAccount?.toLowerCase()===controlWallet.toLowerCase()&&<div className="mt-6 rounded-xl border border-[#567EFF] bg-[#0B0D12] p-5 text-sm">
+            <h3 className="font-bold text-white">Control institucional de acceso · wallet 047</h3>
+            <p className="mt-2 text-xs leading-5 text-[#9BA6BD]">Suspende nuevas sesiones SIWE de la 047 y revoca sus sesiones web activas. No modifica permisos de contratos ya desplegados ni reemplaza una operación on-chain.</p>
+            {!ownerControl?<button type="button" disabled={controlBusy} onClick={()=>void controlRequest('status')} className="mt-4 rounded-lg border border-[#567EFF] px-4 py-2 text-white disabled:opacity-50">Consultar estado</button>:<div className="mt-4 space-y-3"><p>Estado: <strong className={ownerControl.suspended?'text-amber-300':'text-emerald-300'}>{ownerControl.suspended?'047 suspendida':'047 habilitada'}</strong></p><p className="break-all text-xs text-[#9BA6BD]">Wallet: {ownerControl.legacyOwner}</p><button type="button" disabled={controlBusy} onClick={()=>void controlRequest('set',!ownerControl.suspended)} className={ownerControl.suspended?'rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white disabled:opacity-50':'rounded-lg bg-red-700 px-4 py-2 font-semibold text-white disabled:opacity-50'}>{ownerControl.suspended?'Reactivar acceso de la 047':'Suspender acceso de la 047'}</button></div>}
+            {controlError&&<p role="alert" className="mt-3 text-xs text-red-300">{controlError}</p>}
+          </div>}
         </div>
       )}
 

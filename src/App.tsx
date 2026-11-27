@@ -317,6 +317,7 @@ export default function App() {
             organizations={[]}
             leads={[]}
             onNavigate={handleNavigate}
+            staffAccount={staff?.account ?? null}
           />
         )}
 

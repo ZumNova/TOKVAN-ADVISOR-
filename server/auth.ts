@@ -2,7 +2,7 @@ import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {getAddress,isAddress,verifyMessage} from 'ethers';
 import participants from '../deployment/sepolia-participants.json' with {type:'json'};
-import {clearSessionCookie,LEGACY_OWNER,revokeRequestSession,sessionCookie} from './staffSession.js';
+import {clearSessionCookie,CONTROL_OWNER,LEGACY_OWNER,legacyOwnerSuspended,revokeRequestSession,sessionCookie} from './staffSession.js';
 
 const reply=(body:unknown,status=200,headers:Record<string,string>={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...headers}});
 const sha=(value:string)=>createHash('sha256').update(value).digest('hex');
@@ -25,6 +25,7 @@ export async function POST(request:Request){
   if(action==='nonce'){
    if(!isAddress(body.address))return reply({error:'Wallet inválida.'},400);
    const address=getAddress(body.address),nonce=randomBytes(12).toString('hex'),issuedAt=new Date(),expiresAt=new Date(issuedAt.getTime()+300000),id=randomUUID(),chainId=11155111;
+   if(address===LEGACY_OWNER&&await legacyOwnerSuspended())return reply({error:'El acceso de la 047 está suspendido por control institucional.'},403);
    const saved=await client.from('staff_auth_challenges').insert({id,wallet:address.toLowerCase(),nonce_hash:sha(nonce),domain:origin.host,uri:origin.origin,chain_id:chainId,issued_at:issuedAt.toISOString(),expires_at:expiresAt.toISOString()});if(saved.error)throw saved.error;
    const issuedAtText=issuedAt.toISOString(),expiresAtText=expiresAt.toISOString();
    return reply({challengeId:id,nonce,issuedAt:issuedAtText,expiresAt:expiresAtText,message:buildSiweMessage(origin.host,address,origin.origin,chainId,nonce,issuedAtText,expiresAtText,id)});
@@ -37,7 +38,9 @@ export async function POST(request:Request){
    const address=getAddress(challenge.data.wallet),message=buildSiweMessage(challenge.data.domain,address,challenge.data.uri,Number(challenge.data.chain_id),body.nonce,body.issuedAt,body.expiresAt,challenge.data.id);
    if(verifyMessage(message,body.signature)!==address)return reply({error:'Firma SIWE inválida.'},403);
    let role='owner',expiresAt=Date.now()+ADMIN_SESSION_DURATION_MS;
-   if(address!==LEGACY_OWNER){const grant=validGrant(body.grant,address,origin.origin);if(!grant)return reply({error:'La wallet no tiene una autorización TOKVANT vigente.'},403);role=grant.role;expiresAt=Math.min(expiresAt,grant.expires);}
+   if(address===LEGACY_OWNER){if(await legacyOwnerSuspended())return reply({error:'El acceso de la 047 está suspendido por control institucional.'},403);}
+   else if(address===CONTROL_OWNER){role='administrator';}
+   else {const grant=validGrant(body.grant,address,origin.origin);if(!grant)return reply({error:'La wallet no tiene una autorización TOKVANT vigente.'},403);role=grant.role;expiresAt=Math.min(expiresAt,grant.expires);}
    const consumed=await client.from('staff_auth_challenges').update({consumed_at:new Date().toISOString()}).eq('id',challenge.data.id).is('consumed_at',null).select('id').maybeSingle();if(consumed.error||!consumed.data)return reply({error:'El desafío SIWE ya fue utilizado.'},409);
    const token=randomBytes(32).toString('hex'),session=await client.from('staff_sessions').insert({token_hash:sha(token),wallet:address.toLowerCase(),role,expires_at:new Date(expiresAt).toISOString()});if(session.error)throw session.error;
    return reply({wallet:address,role,expiresAt:new Date(expiresAt).toISOString()},200,{'Set-Cookie':sessionCookie(token,Math.max(1,Math.floor((expiresAt-Date.now())/1000)))});

@@ -16,7 +16,7 @@ export function validateMediaPayload(value: unknown): MediaPayload {
 }
 export function mediaMessage(payload: MediaPayload, account: string, issuedAt: number) {
   const digest = keccak256(toUtf8Bytes(JSON.stringify(validateMediaPayload(payload))));
-  return ['TOKVAN · Publicar imagen y metadatos NFT', 'Dominio: tokvan-advisor.vercel.app',
+  return ['TOKVAN · Publicar imagen y metadatos NFT', 'Dominio: www.tokvant.tech',
     'Red: Sepolia (11155111)', `Wallet: ${getAddress(account)}`, `Emitido: ${issuedAt}`,
     `Contenido: ${digest}`, 'Autorizo publicar estos archivos en IPFS mediante Pinata. Esta firma no envia transacciones ni transfiere tokens.'].join('\n');
 }

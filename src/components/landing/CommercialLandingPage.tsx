@@ -1,8 +1,9 @@
 
-import React from 'react';
-import { ArrowRight, Cpu } from 'lucide-react';
+import React, {useState} from 'react';
+import { ArrowRight, Cpu, Linkedin, Mail, MessageCircle, Phone } from 'lucide-react';
 import { UseCasesStrip } from './UseCasesStrip';
 import { ParanaIdeasStrip } from './ParanaIdeasStrip';
+import {InstitutionalModal,type InstitutionalDocument} from './InstitutionalModal';
 
 interface CommercialLandingPageProps {
   onNavigate: (view: string) => void;
@@ -12,6 +13,7 @@ interface CommercialLandingPageProps {
 export const CommercialLandingPage: React.FC<
   CommercialLandingPageProps
 > = ({ onNavigate, onOpenLeadModal }) => {
+  const [institutionalDocument,setInstitutionalDocument]=useState<InstitutionalDocument|null>(null);
   return (
         <div className="min-h-screen bg-[#080D17] text-[#F5F8FF]">
       <main>
@@ -445,28 +447,28 @@ export const CommercialLandingPage: React.FC<
           title: 'Unidades fungibles',
           description:
             'Adecuado cuando cada unidad representa lo mismo. Se definen suministro, decimales, permisos, emisión adicional, quema y circulación según el modelo.',
-          status: 'Factory documentado en Sepolia',
+          status: 'Token fungible · OpenZeppelin',
         },
         {
           code: 'ERC-721',
           title: 'Unidades únicas',
           description:
             'Cada identificador es distinto. Puede servir para certificados o derechos singulares, con metadatos y reglas de emisión específicas.',
-          status: 'Flujo de prueba con wallet',
+          status: 'NFT único · OpenZeppelin',
         },
         {
           code: 'ERC-1155',
           title: 'Múltiples tipos de activos',
           description:
             'Permite definir múltiples identificadores, cada uno con su propia cantidad y metadatos. Útil para series o clases diferentes.',
-          status: 'Flujo de prueba con wallet',
+          status: 'Multi-token · OpenZeppelin',
         },
         {
           code: 'ERC-3643',
           title: 'Transferencias condicionadas',
           description:
             'Combina token, registro de identidad y reglas de elegibilidad. Su configuración no equivale a cumplimiento legal automático.',
-          status: 'Laboratorio educativo de pruebas',
+          status: 'Token permissionado · ERC-3643',
         },
       ].map((standard) => (
         <article
@@ -943,13 +945,9 @@ export const CommercialLandingPage: React.FC<
                 Información institucional
               </span>
 
-              <span className="text-[#AABBD4]">
-                Términos y condiciones · Pendiente de aprobación
-              </span>
-
-              <span className="text-[#AABBD4]">
-                Privacidad y datos · Pendiente de aprobación
-              </span>
+              <button type="button" onClick={()=>setInstitutionalDocument('terms')} className="self-start text-left text-[#AABBD4] hover:text-white">Términos y condiciones</button>
+              <button type="button" onClick={()=>setInstitutionalDocument('privacy')} className="self-start text-left text-[#AABBD4] hover:text-white">Privacidad y datos</button>
+              <button type="button" onClick={()=>setInstitutionalDocument('cookies')} className="self-start text-left text-[#AABBD4] hover:text-white">Cookies y almacenamiento local</button>
 
               <button
                 type="button"
@@ -958,6 +956,10 @@ export const CommercialLandingPage: React.FC<
               >
                 Contactar a TOKVANT
               </button>
+              <a href="https://wa.me/5493585759856" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#AABBD4] hover:text-white"><MessageCircle size={15}/>WhatsApp: +54 9 3585 75-9856</a>
+              <a href="tel:+5493585759856" className="inline-flex items-center gap-2 text-[#AABBD4] hover:text-white"><Phone size={15}/>Llamar a TOKVANT</a>
+              <a href="mailto:pieruccifrancoemmanuel@gmail.com" className="inline-flex items-center gap-2 text-[#AABBD4] hover:text-white"><Mail size={15}/>pieruccifrancoemmanuel@gmail.com</a>
+              <a href="https://www.linkedin.com/company/tokvant/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-[#AABBD4] hover:text-white"><Linkedin size={15}/>TOKVANT en LinkedIn</a>
             </div>
           </div>
 
@@ -973,6 +975,7 @@ export const CommercialLandingPage: React.FC<
 
         </div>
       </footer>
+      {institutionalDocument&&<InstitutionalModal document={institutionalDocument} onClose={()=>setInstitutionalDocument(null)}/>}
     </div>
   );
 };
