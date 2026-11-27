@@ -47,9 +47,9 @@ export async function POST(request:Request){
     rpc('eth_getTransactionReceipt',[body.factoryDeploymentHash]) as Promise<(Receipt&{contractAddress:string|null})|null>,
     rpc('eth_getTransactionByHash',[body.factoryDeploymentHash]) as Promise<Transaction|null>,
    ]);
-   if(!receipt||!tx||BigInt(receipt.status)!==1n||!tx.to||getAddress(tx.from)!==OWNER||BigInt(tx.value)!==0n)throw new Error('La creación v2 debe estar confirmada y firmada por la 047.');
-   const factoryAddress=getAddress(tx.to);
-   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||getAddress(factoryReceipt.contractAddress)!==factoryAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||BigInt(factoryTx.value)!==0n)throw new Error('El factory v2 no coincide con el despliegue de la 047.');
+   if(!receipt||!tx||BigInt(receipt.status)!==1n||getAddress(tx.from)!==OWNER||BigInt(tx.value)!==0n)throw new Error('La creación v2 debe estar confirmada y firmada por la 047.');
+   if(!factoryReceipt||BigInt(factoryReceipt.status)!==1n||!factoryReceipt.contractAddress||!factoryTx||getAddress(factoryTx.from)!==OWNER||factoryTx.to!==null||BigInt(factoryTx.value)!==0n)throw new Error('El factory v2 no coincide con el despliegue de la 047.');
+   const factoryAddress=getAddress(factoryReceipt.contractAddress);
    if(!factoryTx.input.toLowerCase().startsWith(factoryV2Artifact.bytecode.toLowerCase()))throw new Error('El bytecode del factory v2 no coincide.');
    const ctor=AbiCoder.defaultAbiCoder().decode(['address','address[5]'],'0x'+factoryTx.input.slice(factoryV2Artifact.bytecode.length));
    const implementations=Array.from(ctor[1]) as string[];
@@ -66,21 +66,23 @@ export async function POST(request:Request){
    if(approvals.error||payments.error)throw approvals.error||payments.error;
    const latest=approvals.data?.find(a=>a.project_hash===hash);
    if(latest?.decision!=='approved'||!payments.data?.some(p=>p.id===latest.payment_id&&p.status==='verified'))throw new Error('Falta la decisión integral vigente y el pago verificado.');
-   const projectId=id(row.project.id),decoded=factoryV2.parseTransaction({data:tx.input});
-   if(decoded?.name!=='createToken'||decoded.args.projectId!==projectId||decoded.args.projectHash!==hash)throw new Error('La transacción corresponde a otro expediente o versión.');
-   const c=decoded.args.c,p=row.project.parameters;
-   if(c.name.trim()!==p.tokenName.trim()||c.symbol.trim()!==p.tokenSymbol.trim()||Number(c.decimals)!==p.decimals)throw new Error('Nombre, símbolo o decimales no coinciden con el expediente aprobado.');
+   const projectId=id(row.project.id),p=row.project.parameters;
+   const created=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return factoryV2.parseLog(l);}catch{return null;}}).find(l=>l?.name==='TokenCreated'&&l.args.projectId===projectId&&l.args.projectHash===hash&&l.args.dossierHash===hash);
+   if(!created)throw new Error('La transacción corresponde a otro expediente o versión.');
+   const address=getAddress(created.args.token);
+   const createdOwner=getAddress(await call(address,token,'owner'));
    const clientWallet=row.project.clientWalletAddress&&row.project.clientWalletNetwork==='sepolia'&&isAddress(row.project.clientWalletAddress)?getAddress(row.project.clientWalletAddress):null;
-   if(clientWallet&&getAddress(c.admin)!==clientWallet)throw new Error('La propietaria debe ser la wallet Sepolia declarada por la empresa.');
-   if(getAddress(c.claimAuthority)!==getAddress(c.admin)||c.dossierHash!==hash||c.countries.length!==0||BigInt(c.walletCap)!==BigInt(c.supplyCap))throw new Error('La suite v2 debe quedar sin acreditaciones, países ni operador delegado.');
-   if(p.maxSupply!==undefined&&BigInt(c.supplyCap)!==parseUnits(String(p.maxSupply),p.decimals))throw new Error('El máximo de tokens no coincide con el expediente aprobado.');
+   if(clientWallet&&createdOwner!==clientWallet)throw new Error('La propietaria debe ser la wallet Sepolia declarada por la empresa.');
+   if(p.maxSupply===undefined)throw new Error('Falta el máximo de tokens en el expediente aprobado.');
+   const supplyCap=parseUnits(String(p.maxSupply),p.decimals);
+   const c={name:p.tokenName.trim(),symbol:p.tokenSymbol.trim(),decimals:p.decimals,admin:createdOwner,claimAuthority:createdOwner,supplyCap,walletCap:supplyCap,countries:[] as number[],dossierHash:hash};
    const version=await call(factoryAddress,factoryV2,'VERSION');
    const operator=await call(factoryAddress,factoryV2,'operator');
    if(version!==id('TOKVAN_3643_SEPOLIA_EDUCATIONAL_V2')||getAddress(operator)!==OWNER)throw new Error('El factory v2 no corresponde a TOKVANT.');
    const digest=keccak256(AbiCoder.defaultAbiCoder().encode(['bytes32','uint256','address','bytes32','bytes32',tuple],[version,11155111,factoryAddress,projectId,hash,c]));
-   const event=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return factoryV2.parseLog(l);}catch{return null;}}).find(l=>l?.name==='TokenCreated'&&l.args.projectId===projectId&&l.args.digest===digest&&l.args.projectHash===hash&&l.args.dossierHash===hash);
+   const event=receipt.logs.filter(l=>getAddress(l.address)===factoryAddress).map(l=>{try{return factoryV2.parseLog(l);}catch{return null;}}).find(l=>l?.name==='TokenCreated'&&l.args.projectId===projectId&&l.args.token===address&&l.args.digest===digest&&l.args.projectHash===hash&&l.args.dossierHash===hash);
    if(!event)throw new Error('No se encontró la creación ERC-3643 v2 de este expediente.');
-   const address=getAddress(event.args.token),linked=await call(factoryAddress,factoryV2,'tokenByProject',[projectId]);
+   const linked=await call(factoryAddress,factoryV2,'tokenByProject',[projectId]);
    if(getAddress(linked)!==address)throw new Error('El token no coincide con el registro del factory.');
    const suiteParts=factoryV2.decodeFunctionResult('suites',await rpc('eth_call',[{to:factoryAddress,data:factoryV2.encodeFunctionData('suites',[address])},'latest']) as string);
    const [code,name,symbol,decimals,owner,paused,supply,authority,complianceOwner]=await Promise.all([
